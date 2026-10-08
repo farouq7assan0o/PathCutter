@@ -227,6 +227,10 @@ class AttackGraph:
     def all_nodes(self) -> list[ADNode]:
         return list(self._nodes.values())
 
+    def all_edges(self) -> list[tuple[str, str, dict]]:
+        """All edges in the graph as (source, target, data) tuples."""
+        return [(u, v, d) for u, v, _, d in self.graph.edges(data=True, keys=True)]
+
     def subgraph(self, node_ids: set[str]) -> AttackGraph:
         """Create a new AttackGraph containing only the specified nodes and edges between them."""
         sub = AttackGraph()
