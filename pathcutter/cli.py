@@ -13,6 +13,7 @@ from .pathfinder import find_all_paths
 from .scoring import score_nodes, score_posture
 from .choke import find_chokepoints, find_node_chokepoints
 from .remediate import build_plan
+from .diff import compare_snapshots
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,6 +50,13 @@ def main(argv: list[str] | None = None) -> int:
     p_fix.add_argument("-o", "--output", help="Output .ps1 file")
     p_fix.add_argument("--no-rollback", action="store_true", help="Skip rollback section")
 
+    # diff
+    p_diff = sub.add_parser("diff", help="Compare two SharpHound snapshots")
+    p_diff.add_argument("old", help="Before snapshot (SharpHound ZIP or directory)")
+    p_diff.add_argument("new", help="After snapshot (SharpHound ZIP or directory)")
+    p_diff.add_argument("--max-depth", type=int, default=20)
+    p_diff.add_argument("--max-paths", type=int, default=10000)
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -61,6 +69,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_score(args)
     elif args.command == "fix":
         return _cmd_fix(args)
+    elif args.command == "diff":
+        return _cmd_diff(args)
 
     return 0
 
@@ -176,6 +186,38 @@ def _cmd_fix(args) -> int:
         print(f"    {len(plan.fixes)} fixes | {plan.paths_eliminated}/{plan.total_paths} paths ({plan.elimination_pct:.0f}%)")
     else:
         print(script)
+
+    return 0
+
+
+def _cmd_diff(args) -> int:
+    print(f"[*] Loading BEFORE snapshot: {args.old}")
+    graph_before = load_sharphound(args.old)
+    print(f"    {graph_before.node_count} nodes, {graph_before.edge_count} edges")
+
+    print(f"[*] Loading AFTER snapshot: {args.new}")
+    graph_after = load_sharphound(args.new)
+    print(f"    {graph_after.node_count} nodes, {graph_after.edge_count} edges")
+
+    print("[*] Comparing snapshots...")
+    result = compare_snapshots(graph_before, graph_after,
+                               max_depth=args.max_depth, max_paths=args.max_paths)
+
+    print(f"\n{'=' * 50}")
+    print(f"  {result.summary}")
+    print(f"  Edges eliminated: {len(result.eliminated_edges)}")
+    print(f"  New edges:        {len(result.new_edges)}")
+    print(f"{'=' * 50}")
+
+    if result.eliminated_edges:
+        print("\n[+] Eliminated edges:")
+        for e in result.eliminated_edges[:20]:
+            print(f"    {e['source']} -> {e['target']} [{e['type']}]")
+
+    if result.new_edges:
+        print("\n[!] New edges (regression):")
+        for e in result.new_edges[:20]:
+            print(f"    {e['source']} -> {e['target']} [{e['type']}]")
 
     return 0
 
