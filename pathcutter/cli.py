@@ -69,6 +69,12 @@ def main(argv: list[str] | None = None) -> int:
     p_diff.add_argument("--html", action="store_true", help="Generate HTML diff report")
     p_diff.add_argument("-o", "--output", help="Output directory for reports")
 
+    # demo
+    p_demo = sub.add_parser("demo", help="Generate a realistic demo AD environment and run full analysis")
+    p_demo.add_argument("-o", "--output", default=".", help="Output directory for reports")
+    p_demo.add_argument("--size", choices=["small", "medium", "large"], default="medium",
+                         help="Environment size: small (~50 nodes), medium (~200), large (~1000)")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -85,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_graph(args)
     elif args.command == "diff":
         return _cmd_diff(args)
+    elif args.command == "demo":
+        return _cmd_demo(args)
 
     return 0
 
@@ -363,6 +371,212 @@ def _build_json_snapshot(graph, report, posture, node_scores, choke) -> dict:
             for f in choke.fixes
         ],
     }
+
+
+def _cmd_demo(args) -> int:
+    """Generate a realistic demo AD environment and run full analysis."""
+    import random
+    from .graph import AttackGraph, ADNode, ADEdge, NodeType
+
+    sizes = {"small": (50, 12, 8), "medium": (200, 30, 20), "large": (1000, 80, 50)}
+    n_users, n_groups, n_computers = sizes[args.size]
+
+    print(f"[*] Generating demo AD environment ({args.size}: ~{n_users + n_groups + n_computers} objects)...")
+    random.seed(42)
+    domain = "MEGACORP.LOCAL"
+    g = AttackGraph()
+
+    # Tier 0 groups
+    t0_groups = [
+        ("S-DA", f"DOMAIN ADMINS@{domain}", NodeType.GROUP),
+        ("S-EA", f"ENTERPRISE ADMINS@{domain}", NodeType.GROUP),
+        ("S-SA", f"SCHEMA ADMINS@{domain}", NodeType.GROUP),
+        ("S-BA", f"ADMINISTRATORS@{domain}", NodeType.GROUP),
+    ]
+    for sid, name, nt in t0_groups:
+        g.add_node(ADNode(sid, name, nt, domain))
+
+    # Tier 0 users
+    admin = ADNode("S-500", f"ADMINISTRATOR@{domain}", NodeType.USER, domain)
+    krbtgt = ADNode("S-502", f"KRBTGT@{domain}", NodeType.USER, domain)
+    g.add_node(admin)
+    g.add_node(krbtgt)
+    g.add_edge(ADEdge("S-500", "S-DA", "MemberOf"))
+
+    # Domain controllers
+    dcs = []
+    for i in range(max(2, n_computers // 20)):
+        sid = f"S-DC{i}"
+        name = f"DC{i+1:02d}.{domain}"
+        g.add_node(ADNode(sid, name, NodeType.COMPUTER, domain))
+        g.add_edge(ADEdge(sid, "S-DA", "MemberOf"))
+        dcs.append(sid)
+
+    # Organizational groups
+    first_names = ["Engineering", "Finance", "HR", "Sales", "Marketing", "Legal", "IT",
+                   "Operations", "Security", "DevOps", "Support", "Research"]
+    groups = []
+    for i in range(n_groups):
+        sid = f"S-G{i}"
+        dept = first_names[i % len(first_names)]
+        suffix = f" {i // len(first_names) + 1}" if i >= len(first_names) else ""
+        name = f"{dept.upper()}{suffix}@{domain}"
+        g.add_node(ADNode(sid, name, NodeType.GROUP, domain))
+        groups.append(sid)
+
+    # Privileged groups
+    priv_groups = []
+    for name in ["SERVER ADMINS", "HELPDESK", "SERVICE ACCOUNTS", "BACKUP OPERATORS",
+                  "DB ADMINS", "EXCHANGE ADMINS"]:
+        sid = f"S-PG-{name.replace(' ', '')}"
+        g.add_node(ADNode(sid, f"{name}@{domain}", NodeType.GROUP, domain))
+        priv_groups.append(sid)
+
+    # Users
+    user_names = ["JSMITH", "BWILSON", "AGARCIA", "MCHEN", "DJONES", "KPATEL",
+                  "LGREEN", "THARRIS", "RMARTIN", "CWILLIAMS", "NLEE", "PHALL",
+                  "JDAVIS", "MBROWN", "KTAYLOR"]
+    users = []
+    for i in range(n_users):
+        sid = f"S-U{i}"
+        if i < len(user_names):
+            name = f"{user_names[i]}@{domain}"
+        else:
+            name = f"USER{i:03d}@{domain}"
+        props = {}
+        if random.random() < 0.03:
+            props["dontreqpreauth"] = True
+        g.add_node(ADNode(sid, name, NodeType.USER, domain, properties=props))
+        users.append(sid)
+        # Assign to a group
+        g.add_edge(ADEdge(sid, random.choice(groups), "MemberOf"))
+        if random.random() < 0.15:
+            g.add_edge(ADEdge(sid, random.choice(groups), "MemberOf"))
+
+    # Service accounts
+    svc_accounts = []
+    for name in ["SVC_SQL", "SVC_BACKUP", "SVC_WEB", "SVC_EXCHANGE", "SVC_SCOM",
+                  "SVC_SCCM", "SVC_ADFS", "SVC_WSUS"]:
+        sid = f"S-SVC-{name}"
+        g.add_node(ADNode(sid, f"{name}@{domain}", NodeType.USER, domain))
+        svc_accounts.append(sid)
+        g.add_edge(ADEdge(sid, random.choice(priv_groups), "MemberOf"))
+
+    # Admin accounts
+    admin_accounts = []
+    for i in range(min(8, n_users // 10)):
+        name = user_names[i] if i < len(user_names) else f"USER{i:03d}"
+        sid = f"S-ADM{i}"
+        g.add_node(ADNode(sid, f"ADMIN.{name}@{domain}", NodeType.USER, domain))
+        admin_accounts.append(sid)
+
+    # Computers (servers + workstations)
+    servers = []
+    workstations = []
+    for i in range(n_computers):
+        sid = f"S-C{i}"
+        if i < n_computers // 4:
+            name = f"SRV{i+1:02d}.{domain}"
+            servers.append(sid)
+        else:
+            name = f"WS{i+1:03d}.{domain}"
+            workstations.append(sid)
+        g.add_node(ADNode(sid, name, NodeType.COMPUTER, domain))
+
+    # Attack edges - realistic patterns
+
+    # Helpdesk has ForceChangePassword on many users
+    for u in random.sample(users, min(len(users), n_users // 3)):
+        g.add_edge(ADEdge(priv_groups[1], u, "ForceChangePassword"))
+
+    # Server admins have AdminTo on servers
+    for s in servers:
+        g.add_edge(ADEdge(priv_groups[0], s, "AdminTo"))
+
+    # Some admin accounts in DA
+    for adm in admin_accounts[:2]:
+        g.add_edge(ADEdge(adm, "S-DA", "MemberOf"))
+
+    # Service accounts with dangerous permissions
+    g.add_edge(ADEdge(svc_accounts[0], dcs[0], "SQLAdmin"))
+    g.add_edge(ADEdge(svc_accounts[1], "S-DA", "GenericAll"))
+    if len(svc_accounts) > 2:
+        g.add_edge(ADEdge(svc_accounts[2], dcs[0], "AllowedToDelegate"))
+
+    # ACL abuse paths
+    edge_types = ["GenericAll", "GenericWrite", "WriteDacl", "WriteOwner",
+                  "AddMember", "ForceChangePassword", "WriteSPN"]
+    for _ in range(n_users // 5):
+        src = random.choice(groups + priv_groups)
+        tgt = random.choice(svc_accounts + admin_accounts + priv_groups)
+        if src != tgt:
+            g.add_edge(ADEdge(src, tgt, random.choice(edge_types)))
+
+    # Shadow credentials
+    for _ in range(max(1, n_users // 50)):
+        src = random.choice(users + svc_accounts)
+        tgt = random.choice(admin_accounts + svc_accounts)
+        if src != tgt:
+            g.add_edge(ADEdge(src, tgt, "WriteKeyCredentialLink"))
+
+    # Sessions
+    for u in random.sample(users, min(len(users), n_users // 4)):
+        g.add_edge(ADEdge(u, random.choice(workstations + servers), "HasSession"))
+    for adm in admin_accounts:
+        g.add_edge(ADEdge(adm, random.choice(servers), "HasSession"))
+        g.add_edge(ADEdge(adm, random.choice(servers), "AdminTo"))
+
+    # RDP/PSRemote
+    for _ in range(n_users // 10):
+        g.add_edge(ADEdge(random.choice(users), random.choice(servers), random.choice(["CanRDP", "CanPSRemote"])))
+
+    # LAPS/gMSA
+    for pg in priv_groups[:2]:
+        g.add_edge(ADEdge(pg, random.choice(servers), "ReadLAPSPassword"))
+    g.add_edge(ADEdge(random.choice(users), random.choice(svc_accounts), "ReadGMSAPassword"))
+
+    # Group nesting
+    for i in range(len(groups) - 1):
+        if random.random() < 0.2:
+            g.add_edge(ADEdge(groups[i], groups[i + 1], "MemberOf"))
+
+    g.classify_tiers()
+    summary = g.summary()
+    print(f"    {g.node_count} nodes, {g.edge_count} edges")
+    print(f"    Tier 0: {summary['tier_0_count']} | Tier 1: {summary['tier_1_count']} | Tier 2: {summary['tier_2_count']}")
+
+    # Run full analysis
+    print("[*] Running full analysis...")
+    report = find_all_paths(g, g.tier0_nodes, max_depth=20, max_paths=10000)
+    print(f"    {report.total_paths} paths from {report.unique_sources} sources")
+
+    posture = score_posture(g, report)
+    node_scores = score_nodes(g, report)
+    chains = detect_chains(g, report)
+    choke = find_chokepoints(g, report, max_fixes=10)
+
+    print(f"\n[*] Risk Score: {posture.score}/100 (Grade: {posture.grade})")
+    print(f"    Exposure: {posture.exposure_pct:.1f}% of Tier 2 can reach Tier 0")
+
+    if chains:
+        print(f"\n[!] {len(chains)} attack chains detected")
+
+    if choke.fixes:
+        print(f"\n[*] Top fixes: {len(choke.fixes)} fixes eliminate {choke.elimination_pct:.0f}% of paths")
+
+    # Generate HTML
+    from .report import generate_html_report
+    assessments = assess_fixes(g, choke.fixes) if choke.fixes else None
+    html = generate_html_report(g, report, posture, node_scores, choke,
+                                chains=chains, safety=assessments)
+    out_dir = Path(args.output)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "pathcutter-demo.html"
+    path.write_text(html, encoding="utf-8")
+    print(f"\n[+] Demo report: {path}")
+    print(f"    Open in a browser to explore the interactive dashboard")
+
+    return 0
 
 
 if __name__ == "__main__":
