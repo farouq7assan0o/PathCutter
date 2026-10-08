@@ -356,8 +356,9 @@ def _detect_adcs_abuse(graph: AttackGraph, report: PathReport) -> list[AttackCha
             adcs_nodes.add(v)
 
     # Also check for GenericAll/GenericWrite on cert template objects
+    adcs_node_types = {NodeType.CERT_TEMPLATE, NodeType.ENTERPRISE_CA, NodeType.AIACA, NodeType.ROOT_CA, NodeType.NTAUTH_STORE}
     for node in graph.all_nodes():
-        if node.node_type.value in ("CertTemplate", "EnterpriseCA", "AIACA", "RootCA", "NTAuthStore"):
+        if node.node_type in adcs_node_types:
             adcs_nodes.add(node.object_id)
 
     if not adcs_edges_found and not adcs_nodes:

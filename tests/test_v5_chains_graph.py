@@ -139,6 +139,19 @@ class TestNewChainDetectors:
         types = {c.chain_type for c in chains}
         assert "gmsa_abuse" in types
 
+    def test_adcs_abuse_detection(self):
+        g = AttackGraph()
+        g.add_node(ADNode("S-user", "USER@CORP.LOCAL", NodeType.USER))
+        g.add_node(ADNode("S-tmpl", "VULNTEMPLATE@CORP.LOCAL", NodeType.CERT_TEMPLATE))
+        g.add_node(ADNode("S-da", "DOMAIN ADMINS@CORP.LOCAL", NodeType.GROUP))
+        g.add_edge(ADEdge("S-user", "S-tmpl", "Enroll"))
+        g.add_edge(ADEdge("S-tmpl", "S-da", "GenericAll"))
+        g.classify_tiers()
+        report = find_all_paths(g, {"S-da"})
+        chains = detect_chains(g, report)
+        types = {c.chain_type for c in chains}
+        assert "adcs_abuse" in types
+
     def test_all_chains_have_mitre(self):
         """Every chain detector should include MITRE ATT&CK IDs."""
         g = AttackGraph()

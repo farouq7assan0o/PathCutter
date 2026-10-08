@@ -17,6 +17,11 @@ class NodeType(Enum):
     GPO = "GPO"
     OU = "OU"
     CONTAINER = "Container"
+    CERT_TEMPLATE = "CertTemplate"
+    ENTERPRISE_CA = "EnterpriseCA"
+    ROOT_CA = "RootCA"
+    AIACA = "AIACA"
+    NTAUTH_STORE = "NTAuthStore"
     UNKNOWN = "Unknown"
 
 

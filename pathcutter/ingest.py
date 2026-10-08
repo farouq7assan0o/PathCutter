@@ -89,11 +89,11 @@ _CE_KIND_MAP = {
     "GPO": NodeType.GPO,
     "OU": NodeType.OU,
     "Container": NodeType.CONTAINER,
-    "CertTemplate": NodeType.UNKNOWN,
-    "EnterpriseCA": NodeType.UNKNOWN,
-    "AIACA": NodeType.UNKNOWN,
-    "RootCA": NodeType.UNKNOWN,
-    "NTAuthStore": NodeType.UNKNOWN,
+    "CertTemplate": NodeType.CERT_TEMPLATE,
+    "EnterpriseCA": NodeType.ENTERPRISE_CA,
+    "AIACA": NodeType.AIACA,
+    "RootCA": NodeType.ROOT_CA,
+    "NTAuthStore": NodeType.NTAUTH_STORE,
 }
 
 _CE_EDGE_MAP = {

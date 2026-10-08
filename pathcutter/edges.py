@@ -310,6 +310,73 @@ ReadGMSAPassword = EdgeType(
     reversible=True,
 )
 
+# ADCS edges (AD Certificate Services - ESC1-ESC8)
+Enroll = EdgeType(
+    name="Enroll",
+    category=EdgeCategory.ACL,
+    abuse="Enroll in certificate template - request certs that may allow authentication as another user (ESC1/ESC2)",
+    mitre="T1649",
+    exploitability=7,
+    fix_template='# Remove Enroll permission on the certificate template\n# Review template settings: msPKI-Certificate-Name-Flag should NOT include ENROLLEE_SUPPLIES_SUBJECT\n# certutil -dstemplate "{target_name}" msPKI-Certificate-Name-Flag',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+AutoEnroll = EdgeType(
+    name="AutoEnroll",
+    category=EdgeCategory.ACL,
+    abuse="Auto-enroll in certificate template - automatically issued vulnerable certificates",
+    mitre="T1649",
+    exploitability=6,
+    fix_template='# Remove AutoEnroll permission on the certificate template\n# Review: certutil -dstemplate "{target_name}"',
+    detection_difficulty="high",
+    reversible=True,
+)
+
+ManageCA = EdgeType(
+    name="ManageCA",
+    category=EdgeCategory.ACL,
+    abuse="Manage CA server - can approve pending requests, enable SAN, issue arbitrary certs (ESC7)",
+    mitre="T1649",
+    exploitability=9,
+    fix_template='# Remove ManageCA permission\ncertutil -config "{target_name}" -setreg ca\\security\\',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+ManageCertificates = EdgeType(
+    name="ManageCertificates",
+    category=EdgeCategory.ACL,
+    abuse="Approve/deny certificate requests - can approve attacker's pending enrollment (ESC7)",
+    mitre="T1649",
+    exploitability=8,
+    fix_template='# Remove ManageCertificates (Officer) permission from the CA',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+WritePKIEnrollmentFlag = EdgeType(
+    name="WritePKIEnrollmentFlag",
+    category=EdgeCategory.ACL,
+    abuse="Modify certificate template enrollment flags to enable vulnerable configurations (ESC4)",
+    mitre="T1649",
+    exploitability=8,
+    fix_template='# Remove WriteProperty on msPKI-Enrollment-Flag\n$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ObjectType -eq "d15ef7d8-f226-46db-ae79-b34e560bd12c"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+WritePKINameFlag = EdgeType(
+    name="WritePKINameFlag",
+    category=EdgeCategory.ACL,
+    abuse="Modify certificate template name flags to enable ENROLLEE_SUPPLIES_SUBJECT (ESC4)",
+    mitre="T1649",
+    exploitability=8,
+    fix_template='# Remove WriteProperty on msPKI-Certificate-Name-Flag\n$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ObjectType -eq "ea1dddc4-60ff-416e-8cc0-17cee534bce7"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
 # Trust edges
 TrustedBy = EdgeType(
     name="TrustedBy",
