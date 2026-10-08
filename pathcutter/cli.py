@@ -66,6 +66,8 @@ def main(argv: list[str] | None = None) -> int:
     p_diff.add_argument("new", help="After snapshot (SharpHound ZIP or directory)")
     p_diff.add_argument("--max-depth", type=int, default=20)
     p_diff.add_argument("--max-paths", type=int, default=10000)
+    p_diff.add_argument("--html", action="store_true", help="Generate HTML diff report")
+    p_diff.add_argument("-o", "--output", help="Output directory for reports")
 
     args = parser.parse_args(argv)
 
@@ -305,6 +307,18 @@ def _cmd_diff(args) -> int:
         print("\n[!] New edges (regression):")
         for e in result.new_edges[:20]:
             print(f"    {e['source']} -> {e['target']} [{e['type']}]")
+
+    if args.html:
+        from .report import generate_diff_html
+        html = generate_diff_html(result, graph_before, graph_after)
+        out_dir = Path(args.output) if args.output else None
+        if out_dir:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            path = out_dir / "pathcutter-diff.html"
+            path.write_text(html, encoding="utf-8")
+            print(f"\n[+] HTML diff report: {path}")
+        else:
+            print(html)
 
     return 0
 

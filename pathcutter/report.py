@@ -274,6 +274,164 @@ def _grade_color(grade: str) -> str:
     }.get(grade, "#6b7280")
 
 
+def generate_diff_html(diff_result, graph_before: AttackGraph, graph_after: AttackGraph) -> str:
+    """Generate an HTML diff report comparing two snapshots."""
+    from .diff import DiffResult
+    r = diff_result
+    summary_before = graph_before.summary()
+    summary_after = graph_after.summary()
+
+    return _DIFF_HTML_TEMPLATE.format(
+        generated=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
+        score_before=r.before.score,
+        score_after=r.after.score,
+        grade_before=r.grade_before,
+        grade_after=r.grade_after,
+        color_before=_grade_color(r.grade_before),
+        color_after=_grade_color(r.grade_after),
+        paths_before=r.paths_before,
+        paths_after=r.paths_after,
+        paths_eliminated=r.paths_eliminated,
+        new_paths=r.new_paths,
+        score_delta=r.score_delta,
+        direction="improved" if r.improved else "worsened",
+        direction_color="var(--success)" if r.improved else "var(--danger)",
+        delta_sign="-" if r.score_delta < 0 else "+",
+        nodes_before=graph_before.node_count,
+        nodes_after=graph_after.node_count,
+        edges_before=graph_before.edge_count,
+        edges_after=graph_after.edge_count,
+        eliminated_json=json.dumps(r.eliminated_edges[:100]),
+        new_json=json.dumps(r.new_edges[:100]),
+        summary_before_json=json.dumps(summary_before),
+        summary_after_json=json.dumps(summary_after),
+    )
+
+
+_DIFF_HTML_TEMPLATE = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pathcutter Diff Report</title>
+<style>
+:root {{
+  --bg: #0f172a; --surface: #1e293b; --surface-2: #253349; --border: #334155;
+  --text: #e2e8f0; --text-dim: #94a3b8; --accent: #3b82f6;
+  --danger: #ef4444; --success: #22c55e; --warning: #eab308; --orange: #f97316;
+}}
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }}
+.container {{ max-width: 1200px; margin: 0 auto; padding: 16px; }}
+h1 {{ font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }}
+.subtitle {{ color: var(--text-dim); font-size: 0.85rem; margin-bottom: 20px; }}
+.grid {{ display: grid; gap: 16px; }}
+.grid-2 {{ grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }}
+.grid-3 {{ grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }}
+.card {{ background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }}
+.card h3 {{ font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }}
+.card .value {{ font-size: 2rem; font-weight: 700; }}
+.card .detail {{ font-size: 0.85rem; color: var(--text-dim); margin-top: 4px; }}
+.comparison {{ display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; text-align: center; }}
+.comparison .arrow {{ font-size: 2rem; color: var(--text-dim); }}
+.score-box {{ padding: 20px; border-radius: 12px; }}
+.score-box .num {{ font-size: 3rem; font-weight: 800; }}
+.score-box .label {{ font-size: 0.85rem; color: var(--text-dim); margin-top: 4px; }}
+table {{ width: 100%; border-collapse: collapse; font-size: 0.85rem; }}
+th {{ text-align: left; padding: 8px 12px; color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--surface); }}
+td {{ padding: 8px 12px; border-bottom: 1px solid var(--border); }}
+tr:hover {{ background: rgba(59,130,246,0.05); }}
+.badge {{ display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }}
+.badge-success {{ background: rgba(34,197,94,0.2); color: #86efac; }}
+.badge-danger {{ background: rgba(239,68,68,0.2); color: #fca5a5; }}
+.delta {{ display: flex; align-items: center; gap: 8px; }}
+.delta-down {{ color: var(--success); }}
+.delta-up {{ color: var(--danger); }}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Pathcutter - Diff Report</h1>
+  <p class="subtitle">Generated {generated} | Posture {direction}</p>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="comparison">
+      <div class="score-box" style="border:2px solid {color_before}">
+        <div class="label">BEFORE</div>
+        <div class="num" style="color:{color_before}">{score_before}</div>
+        <div class="label">Grade {grade_before}</div>
+      </div>
+      <div>
+        <div class="arrow">&#8594;</div>
+        <div style="font-size:1.5rem;font-weight:700;color:{direction_color}">{delta_sign}{score_delta}</div>
+      </div>
+      <div class="score-box" style="border:2px solid {color_after}">
+        <div class="label">AFTER</div>
+        <div class="num" style="color:{color_after}">{score_after}</div>
+        <div class="label">Grade {grade_after}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-3" style="margin-bottom:16px">
+    <div class="card">
+      <h3>Attack Paths</h3>
+      <div class="delta">
+        <div class="value">{paths_before} &#8594; {paths_after}</div>
+      </div>
+      <div class="detail">-{paths_eliminated} eliminated, +{new_paths} new</div>
+    </div>
+    <div class="card">
+      <h3>Nodes</h3>
+      <div class="value">{nodes_before} &#8594; {nodes_after}</div>
+    </div>
+    <div class="card">
+      <h3>Edges</h3>
+      <div class="value">{edges_before} &#8594; {edges_after}</div>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Eliminated Edges <span class="badge badge-success">{paths_eliminated} paths cut</span></h3>
+      <table>
+        <thead><tr><th>Source</th><th>Target</th><th>Type</th></tr></thead>
+        <tbody id="eliminated-table"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>New Edges (Regressions) <span class="badge badge-danger">{new_paths} new paths</span></h3>
+      <table>
+        <thead><tr><th>Source</th><th>Target</th><th>Type</th></tr></thead>
+        <tbody id="new-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const eliminated = {eliminated_json};
+const newEdges = {new_json};
+
+function render(data, tableId, color) {{
+  const table = document.getElementById(tableId);
+  if (!data.length) {{
+    table.innerHTML = '<tr><td colspan="3" style="color:var(--text-dim)">None</td></tr>';
+    return;
+  }}
+  data.forEach(e => {{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${{e.source}}</td><td>${{e.target}}</td><td style="color:${{color}}">${{e.type}}</td>`;
+    table.appendChild(tr);
+  }});
+}}
+render(eliminated, 'eliminated-table', 'var(--success)');
+render(newEdges, 'new-table', 'var(--danger)');
+</script>
+</body>
+</html>'''
+
+
 _HTML_TEMPLATE = '''<!DOCTYPE html>
 <html lang="en">
 <head>
