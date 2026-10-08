@@ -57,7 +57,7 @@ class AttackGraph:
     """Directed multigraph of AD attack relationships."""
 
     def __init__(self):
-        self.graph: nx.DiGraph = nx.DiGraph()
+        self.graph: nx.MultiDiGraph = nx.MultiDiGraph()
         self._nodes: dict[str, ADNode] = {}
         self._tier0: set[str] = set()
         self._group_members: dict[str, set[str]] = {}  # group_id -> direct member IDs
@@ -112,8 +112,12 @@ class AttackGraph:
         node = self._nodes.get(node_id)
         return node.name if node else node_id
 
-    def get_edge_data(self, source_id: str, target_id: str) -> dict | None:
-        return self.graph.get_edge_data(source_id, target_id)
+    def get_edge_data(self, source_id: str, target_id: str) -> list[dict]:
+        """Return all edges between source and target (MultiDiGraph can have multiple)."""
+        data = self.graph.get_edge_data(source_id, target_id)
+        if data is None:
+            return []
+        return list(data.values())
 
     def successors(self, node_id: str) -> list[str]:
         """Nodes reachable in one hop from this node."""
@@ -131,13 +135,13 @@ class AttackGraph:
         """All outgoing edges from a node with their data."""
         if node_id not in self.graph:
             return []
-        return [(u, v, d) for u, v, d in self.graph.edges(node_id, data=True)]
+        return [(u, v, d) for u, v, _, d in self.graph.edges(node_id, data=True, keys=True)]
 
     def in_edges(self, node_id: str) -> list[tuple[str, str, dict]]:
         """All incoming edges to a node with their data."""
         if node_id not in self.graph:
             return []
-        return [(u, v, d) for u, v, d in self.graph.in_edges(node_id, data=True)]
+        return [(u, v, d) for u, v, _, d in self.graph.in_edges(node_id, data=True, keys=True)]
 
     def transitive_group_memberships(self, node_id: str) -> set[str]:
         """All groups a node belongs to, transitively (follows nested MemberOf chains)."""
@@ -151,7 +155,7 @@ class AttackGraph:
             if current in visited:
                 continue
             visited.add(current)
-            for _, target, data in self.graph.edges(current, data=True):
+            for _, target, _, data in self.graph.edges(current, data=True, keys=True):
                 if data.get("edge_type") == "MemberOf" and target not in visited:
                     stack.append(target)
 
@@ -196,11 +200,12 @@ class AttackGraph:
         # Phase 2: Mark nodes with direct admin access to Tier 0 as Tier 1
         for t0_id in self._tier0:
             for source_id in self.predecessors(t0_id):
-                edge_data = self.get_edge_data(source_id, t0_id)
-                if edge_data and edge_data.get("edge_type") in ("AdminTo", "CanRDP", "CanPSRemote"):
-                    node = self._nodes.get(source_id)
-                    if node and node.tier > 1:
-                        node.tier = 1
+                edge_list = self.get_edge_data(source_id, t0_id)
+                for ed in edge_list:
+                    if ed.get("edge_type") in ("AdminTo", "CanRDP", "CanPSRemote"):
+                        node = self._nodes.get(source_id)
+                        if node and node.tier > 1:
+                            node.tier = 1
 
     def _recursive_members(self, group_id: str) -> set[str]:
         """All members of a group, recursively."""
@@ -229,7 +234,7 @@ class AttackGraph:
             node = self._nodes.get(nid)
             if node:
                 sub.add_node(node)
-        for u, v, data in self.graph.edges(data=True):
+        for u, v, _, data in self.graph.edges(data=True, keys=True):
             if u in node_ids and v in node_ids:
                 sub.add_edge(ADEdge(
                     source_id=u,
@@ -246,7 +251,7 @@ class AttackGraph:
             type_counts[node.node_type.value] = type_counts.get(node.node_type.value, 0) + 1
 
         edge_type_counts = {}
-        for _, _, data in self.graph.edges(data=True):
+        for _, _, _, data in self.graph.edges(data=True, keys=True):
             et = data.get("edge_type", "Unknown")
             edge_type_counts[et] = edge_type_counts.get(et, 0) + 1
 
