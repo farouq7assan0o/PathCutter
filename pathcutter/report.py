@@ -23,6 +23,7 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
     paths_data = _build_paths_json(path_report, graph)
 
     summary = graph.summary()
+    defend_data = _build_defend_json(graph)
 
     return _HTML_TEMPLATE.format(
         generated=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
@@ -47,6 +48,7 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
         chains_json=json.dumps(chains_data),
         paths_json=json.dumps(paths_data),
         summary_json=json.dumps(summary),
+        defend_json=json.dumps(defend_data),
         grade_color=_grade_color(posture.grade),
     )
 
@@ -174,6 +176,92 @@ def _build_paths_json(path_report: PathReport, graph: AttackGraph) -> list[dict]
             "node_ids": p.nodes,
         })
     return result
+
+
+def _build_defend_json(graph: AttackGraph) -> list[dict]:
+    """Build detection guidance data from edge types present in the graph."""
+    from .edges import get_edge_type
+    edge_counts: dict[str, int] = {}
+    for _, _, data in graph.all_edges():
+        et = data.get("edge_type", "")
+        edge_counts[et] = edge_counts.get(et, 0) + 1
+
+    result = []
+    seen = set()
+    for et_name, count in sorted(edge_counts.items(), key=lambda x: -x[1]):
+        if et_name in seen or not et_name:
+            continue
+        seen.add(et_name)
+        et = get_edge_type(et_name)
+        if not et or et.exploitability == 0:
+            continue
+        log_sources = _detection_log_sources(et_name)
+        result.append({
+            "edge_type": et.name,
+            "count": count,
+            "category": et.category.value,
+            "mitre": et.mitre,
+            "exploitability": et.exploitability,
+            "detection_difficulty": et.detection_difficulty,
+            "abuse": et.abuse,
+            "log_sources": log_sources,
+            "detection_hints": _detection_hints(et.name),
+        })
+    return result
+
+
+def _detection_log_sources(edge_type: str) -> list[str]:
+    sources = {
+        "GenericAll": ["Security 4662", "Security 5136"],
+        "GenericWrite": ["Security 4662", "Security 5136"],
+        "WriteOwner": ["Security 4662", "Security 5136"],
+        "WriteDacl": ["Security 4662", "Security 5136"],
+        "ForceChangePassword": ["Security 4724", "Security 4723"],
+        "AddMember": ["Security 4728", "Security 4732", "Security 4756"],
+        "Owns": ["Security 4662"],
+        "WriteSPN": ["Security 5136", "Security 4662"],
+        "AddAllowedToAct": ["Security 5136"],
+        "WriteKeyCredentialLink": ["Security 5136", "Security 4768"],
+        "AllowedToDelegate": ["Security 4768", "Security 4769"],
+        "AllowedToAct": ["Security 4768", "Security 4769"],
+        "AdminTo": ["Security 4624 (Type 3/10)", "Sysmon 1"],
+        "HasSession": ["Security 4624", "Security 4648"],
+        "CanRDP": ["Security 4624 (Type 10)", "Security 4778"],
+        "CanPSRemote": ["Security 4624 (Type 3)", "WinRM 91/168"],
+        "ExecuteDCOM": ["Security 4624 (Type 3)", "Sysmon 1"],
+        "SQLAdmin": ["SQL Audit Logs", "Security 4624"],
+        "DCSync": ["Security 4662 (DS-Replication)", "Sysmon 1 (mimikatz)"],
+        "GPOControlsObject": ["Security 5136", "Security 5137"],
+        "ReadLAPSPassword": ["Security 4662"],
+        "ReadGMSAPassword": ["Security 4662"],
+        "Enroll": ["Security 4886", "Security 4887"],
+        "ManageCA": ["Security 4886", "CA Audit Logs"],
+        "ManageCertificates": ["Security 4886", "CA Audit Logs"],
+    }
+    return sources.get(edge_type, ["Security 4662"])
+
+
+def _detection_hints(edge_type: str) -> str:
+    hints = {
+        "GenericAll": "Monitor Event 4662 for WriteProperty/WriteDACL on sensitive objects. Alert on ACL changes to Tier 0 objects.",
+        "GenericWrite": "Monitor Event 5136 for attribute changes on user/computer objects. Watch for SPN modifications.",
+        "WriteOwner": "Monitor Event 4662 for WRITE_OWNER access on sensitive objects. Ownership changes are rare.",
+        "WriteDacl": "Monitor Event 4662 for WRITE_DAC access. Any DACL modification to privileged objects is suspicious.",
+        "ForceChangePassword": "Monitor Event 4724 (password reset by admin). Correlate with help desk tickets.",
+        "AddMember": "Monitor Events 4728/4732/4756 for group membership changes. Alert on Tier 0 group modifications.",
+        "DCSync": "Monitor Event 4662 with DS-Replication-Get-Changes GUID from non-DC sources. Critical alert.",
+        "AdminTo": "Implement tiered admin model. Monitor Type 3/10 logons to servers from non-admin workstations.",
+        "HasSession": "Restrict privileged account logons via GPO. Monitor for Tier 0 sessions on non-DC systems.",
+        "AllowedToDelegate": "Audit all unconstrained delegation. Monitor Event 4768 for TGT requests with delegation flag.",
+        "AllowedToAct": "Monitor Event 5136 for msDS-AllowedToActOnBehalfOfOtherIdentity changes.",
+        "WriteSPN": "Monitor Event 5136 for servicePrincipalName changes. Kerberoasting precursor.",
+        "WriteKeyCredentialLink": "Monitor Event 5136 for msDS-KeyCredentialLink changes. Shadow Credentials attack.",
+        "ReadLAPSPassword": "Audit ms-Mcs-AdmPwd reads via Event 4662. Restrict LAPS password readers.",
+        "ReadGMSAPassword": "Audit msDS-GroupMSAMembership. Monitor Event 4662 for gMSA password reads.",
+        "Enroll": "Review certificate template permissions. Monitor 4886/4887 for enrollment events.",
+        "ManageCA": "Restrict CA management to dedicated admin accounts. Monitor CA audit logs.",
+    }
+    return hints.get(edge_type, "Monitor Event 4662 for object access. Implement least privilege.")
 
 
 def _grade_color(grade: str) -> str:
@@ -355,6 +443,7 @@ tr {{ cursor: pointer; }}
     <div class="tab" data-tab="risks">Riskiest Nodes</div>
     <div class="tab" data-tab="fixes">Remediation<span class="badge">{fix_count}</span></div>
     <div class="tab" data-tab="chains">Attack Chains<span class="badge">{chain_count}</span></div>
+    <div class="tab" data-tab="defend">Defend</div>
     <div class="tab" data-tab="paths">Path Explorer<span class="badge">{total_paths}</span></div>
     <div class="tab" data-tab="graph">Attack Graph</div>
   </div>
@@ -456,6 +545,36 @@ tr {{ cursor: pointer; }}
     <div id="chains-list"></div>
   </div>
 
+  <!-- DEFEND -->
+  <div id="defend" class="tab-content">
+    <div class="grid grid-3" style="margin-bottom:16px">
+      <div class="card" id="defend-coverage">
+        <h3>MITRE Coverage</h3>
+        <div class="chart-container" id="chart-mitre"></div>
+      </div>
+      <div class="card">
+        <h3>Detection Difficulty</h3>
+        <div class="chart-container" id="chart-difficulty"></div>
+      </div>
+      <div class="card">
+        <h3>Required Log Sources</h3>
+        <div id="log-sources-list" style="max-height:160px;overflow-y:auto;font-size:0.8rem"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin:0">Detection Guidance by Edge Type</h3>
+        <input class="search-box" style="width:240px" placeholder="Filter edge types..." id="defend-search">
+      </div>
+      <table>
+        <thead>
+          <tr><th>Edge Type</th><th>Count</th><th>MITRE</th><th>Exploitability</th><th>Detection</th><th>Log Sources</th><th>Guidance</th></tr>
+        </thead>
+        <tbody id="defend-table"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- PATH EXPLORER -->
   <div id="paths" class="tab-content">
     <div class="path-explorer">
@@ -521,6 +640,7 @@ const risksData = {risks_json};
 const chainsData = {chains_json};
 const pathsData = {paths_json};
 const summaryData = {summary_json};
+const defendData = {defend_json};
 
 // Toast
 function showToast(msg) {{
@@ -1237,6 +1357,100 @@ function drawOverviewCharts() {{
   }}
 }}
 drawOverviewCharts();
+
+// ---- DEFEND TAB ----
+function renderDefend(filter) {{
+  const table = document.getElementById('defend-table');
+  table.innerHTML = '';
+  const q = (filter || '').toLowerCase();
+  defendData.filter(d => !q || d.edge_type.toLowerCase().includes(q) || d.mitre.toLowerCase().includes(q) || d.category.toLowerCase().includes(q))
+    .forEach(d => {{
+      const tr = document.createElement('tr');
+      const diffColor = {{low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)'}}[d.detection_difficulty] || 'var(--text-dim)';
+      const expBar = Math.min(d.exploitability * 10, 100);
+      tr.innerHTML = `<td><strong style="color:${{EDGE_COLORS[d.edge_type] || 'var(--text)'}}">${{d.edge_type}}</strong><div style="font-size:0.72rem;color:var(--text-dimmer)">${{d.category}}</div></td><td>${{d.count}}</td><td style="font-size:0.78rem">${{d.mitre || '-'}}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="bar" style="width:50px"><div class="bar-fill" style="width:${{expBar}}%;background:${{expBar > 70 ? 'var(--danger)' : expBar > 40 ? 'var(--warning)' : 'var(--accent)'}}"></div></div>${{d.exploitability}}/10</div></td><td><span style="color:${{diffColor}}">${{d.detection_difficulty}}</span></td><td style="font-size:0.72rem">${{d.log_sources.join(', ')}}</td><td style="font-size:0.75rem;max-width:300px">${{d.detection_hints}}</td>`;
+      table.appendChild(tr);
+    }});
+}}
+renderDefend();
+document.getElementById('defend-search').addEventListener('input', e => renderDefend(e.target.value));
+
+// Defend charts
+function drawDefendCharts() {{
+  if (!defendData.length) return;
+
+  // MITRE coverage donut
+  const mitreCounts = {{}};
+  defendData.forEach(d => {{ if (d.mitre) mitreCounts[d.mitre] = (mitreCounts[d.mitre] || 0) + d.count; }});
+  const mitreEntries = Object.entries(mitreCounts).sort((a, b) => b[1] - a[1]);
+  if (mitreEntries.length) {{
+    const ct = document.getElementById('chart-mitre');
+    const w = ct.clientWidth, h = ct.clientHeight;
+    const svgM = d3.select('#chart-mitre').append('svg').attr('width', w).attr('height', h);
+    const radius = Math.min(w, h) / 2 - 10;
+    const g = svgM.append('g').attr('transform', `translate(${{w/2}},${{h/2}})`);
+    const color = d3.scaleOrdinal(d3.schemeSet2);
+    const pie = d3.pie().value(d => d[1]).sort(null);
+    const arc = d3.arc().innerRadius(radius * 0.5).outerRadius(radius);
+    g.selectAll('path').data(pie(mitreEntries)).enter().append('path')
+      .attr('d', arc).attr('fill', (d, i) => color(i)).attr('stroke', '#0f172a').attr('stroke-width', 2)
+      .append('title').text(d => `${{d.data[0]}}: ${{d.data[1]}} edges`);
+    g.selectAll('text').data(pie(mitreEntries)).enter().append('text')
+      .attr('transform', d => `translate(${{arc.centroid(d)}})`)
+      .attr('text-anchor', 'middle').attr('font-size', '8px').attr('fill', '#e2e8f0')
+      .text(d => d.data[1] > mitreEntries[0][1] * 0.08 ? d.data[0] : '');
+    g.append('text').attr('text-anchor', 'middle').attr('dy', '-0.2em').attr('fill', '#e2e8f0')
+      .attr('font-size', '18px').attr('font-weight', '700').text(mitreEntries.length);
+    g.append('text').attr('text-anchor', 'middle').attr('dy', '1.2em').attr('fill', '#94a3b8')
+      .attr('font-size', '10px').text('techniques');
+  }}
+
+  // Detection difficulty breakdown
+  const diffCounts = {{low: 0, medium: 0, high: 0}};
+  defendData.forEach(d => {{ diffCounts[d.detection_difficulty] = (diffCounts[d.detection_difficulty] || 0) + d.count; }});
+  const diffEntries = Object.entries(diffCounts).filter(d => d[1] > 0);
+  if (diffEntries.length) {{
+    const ct = document.getElementById('chart-difficulty');
+    const w = ct.clientWidth, h = ct.clientHeight;
+    const svgD = d3.select('#chart-difficulty').append('svg').attr('width', w).attr('height', h);
+    const margin = {{top: 20, right: 20, bottom: 30, left: 20}};
+    const iw = w - margin.left - margin.right, ih = h - margin.top - margin.bottom;
+    const g = svgD.append('g').attr('transform', `translate(${{margin.left}},${{margin.top}})`);
+    const colors = {{low: '#22c55e', medium: '#eab308', high: '#ef4444'}};
+    const x = d3.scaleBand().domain(diffEntries.map(d => d[0])).range([0, iw]).padding(0.35);
+    const y = d3.scaleLinear().domain([0, d3.max(diffEntries, d => d[1])]).range([ih, 0]);
+    g.selectAll('rect').data(diffEntries).enter().append('rect')
+      .attr('x', d => x(d[0])).attr('y', d => y(d[1])).attr('width', x.bandwidth())
+      .attr('height', d => ih - y(d[1])).attr('fill', d => colors[d[0]]).attr('rx', 4);
+    g.selectAll('.label').data(diffEntries).enter().append('text')
+      .attr('x', d => x(d[0]) + x.bandwidth() / 2).attr('y', d => y(d[1]) - 4)
+      .attr('text-anchor', 'middle').attr('fill', '#e2e8f0').attr('font-size', '12px').attr('font-weight', '600')
+      .text(d => d[1]);
+    g.selectAll('.name').data(diffEntries).enter().append('text')
+      .attr('x', d => x(d[0]) + x.bandwidth() / 2).attr('y', ih + 16)
+      .attr('text-anchor', 'middle').attr('fill', '#94a3b8').attr('font-size', '11px')
+      .text(d => d[0].charAt(0).toUpperCase() + d[0].slice(1));
+  }}
+
+  // Log sources list
+  const logSources = {{}};
+  defendData.forEach(d => d.log_sources.forEach(ls => {{ logSources[ls] = (logSources[ls] || 0) + d.count; }}));
+  const logEntries = Object.entries(logSources).sort((a, b) => b[1] - a[1]);
+  const logList = document.getElementById('log-sources-list');
+  logEntries.forEach(([source, count]) => {{
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)';
+    div.innerHTML = `<span>${{source}}</span><span style="color:var(--text-dim)">${{count}} edges</span>`;
+    logList.appendChild(div);
+  }});
+}}
+
+// Draw defend charts when tab is first shown
+const defendTabBtn = document.querySelector('[data-tab="defend"]');
+let defendChartsDrawn = false;
+defendTabBtn.addEventListener('click', () => {{
+  if (!defendChartsDrawn) {{ drawDefendCharts(); defendChartsDrawn = true; }}
+}});
 </script>
 </body>
 </html>'''
