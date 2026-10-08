@@ -14,6 +14,8 @@ from .scoring import score_nodes, score_posture
 from .choke import find_chokepoints, find_node_chokepoints
 from .remediate import build_plan
 from .diff import compare_snapshots
+from .chains import detect_chains
+from .safety import assess_fixes, summarize_safety
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -111,15 +113,35 @@ def _cmd_analyze(args) -> int:
         for ns in node_scores[:n]:
             print(f"    {ns.display_name:<40} {ns.node_type:<10} T{ns.tier:<4} {ns.risk_score:<8.1f} {ns.path_count:<8} {ns.tier0_reach}")
 
+    # Attack chain detection
+    chains = detect_chains(graph, report)
+    if chains:
+        print(f"\n[!] Attack Chains Detected ({len(chains)}):")
+        for chain in chains:
+            severity_mark = {"critical": "!!!", "high": "!!", "medium": "!"}.get(chain.severity, "")
+            print(f"    [{severity_mark} {chain.severity.upper()}] {chain.chain_type}: {chain.description}")
+            if chain.involved_nodes:
+                print(f"        Involved: {', '.join(chain.involved_nodes[:5])}")
+            print(f"        Fix: {chain.remediation[:120]}")
+
     choke = find_chokepoints(graph, report, max_fixes=args.top)
     if choke.fixes:
+        # Safety analysis
+        assessments = assess_fixes(graph, choke.fixes)
+        safety = summarize_safety(assessments)
+
         print(f"\n[*] Top {len(choke.fixes)} Fixes ({choke.elimination_pct:.0f}% path elimination):")
-        print(f"    {'#':<4} {'Fix':<60} {'Cut':<8} {'Cumul'}")
-        for fix in choke.fixes:
+        print(f"    Safety: {safety['safe']} safe, {safety['caution']} caution, {safety['dangerous']} dangerous")
+        print(f"    {'#':<4} {'Fix':<50} {'Cut':<8} {'Cumul':<8} {'Safety'}")
+        for fix, assessment in zip(choke.fixes, assessments):
             desc = f"{fix.source_name} -> {fix.target_name} [{fix.edge_type}]"
-            if len(desc) > 58:
-                desc = desc[:55] + "..."
-            print(f"    {fix.rank:<4} {desc:<60} {fix.paths_eliminated:<8} {fix.cumulative_pct}%")
+            if len(desc) > 48:
+                desc = desc[:45] + "..."
+            safety_icon = {"safe": "OK", "caution": "WARN", "dangerous": "RISK"}[assessment.risk_level.value]
+            print(f"    {fix.rank:<4} {desc:<50} {fix.paths_eliminated:<8} {fix.cumulative_pct}%{'':<4} {safety_icon}")
+            if assessment.warnings:
+                for w in assessment.warnings:
+                    print(f"         -> {w}")
 
     out_dir = Path(args.output) if args.output else None
     if out_dir:

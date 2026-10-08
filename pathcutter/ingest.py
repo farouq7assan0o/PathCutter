@@ -72,6 +72,15 @@ _WELL_KNOWN_SIDS = {
 }
 
 
+def _unwrap_results(value) -> list:
+    """Handle SharpHound fields that may be a list or a dict with 'Results' key."""
+    if isinstance(value, dict):
+        return value.get("Results", [])
+    if isinstance(value, list):
+        return value
+    return []
+
+
 def _detect_format(data: dict) -> str:
     """Detect whether this is SharpHound v4 (legacy) or v5 (CE) format."""
     meta = data.get("meta", {})
@@ -144,9 +153,9 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
                 ))
 
         # Group members -> MemberOf edges (inverted: member -> group)
-        for member in obj.get("Members", []):
+        members_raw = obj.get("Members", [])
+        for member in _unwrap_results(members_raw):
             member_sid = member.get("MemberId", member.get("ObjectIdentifier", ""))
-            member_type = member.get("MemberType", member.get("ObjectType", ""))
             if member_sid:
                 graph.add_edge(ADEdge(
                     source_id=member_sid,
@@ -155,31 +164,31 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
                 ))
 
         # Local admins (computers)
-        for la in obj.get("LocalAdmins", []):
-            sid = la.get("MemberId", la.get("ObjectIdentifier", ""))
-            if sid:
-                graph.add_edge(ADEdge(source_id=sid, target_id=oid, edge_type="AdminTo"))
+        for la in _unwrap_results(obj.get("LocalAdmins", [])):
+            la_sid = la.get("MemberId", la.get("ObjectIdentifier", ""))
+            if la_sid:
+                graph.add_edge(ADEdge(source_id=la_sid, target_id=oid, edge_type="AdminTo"))
 
         # Remote Desktop Users
-        for rdp in obj.get("RemoteDesktopUsers", []):
-            sid = rdp.get("MemberId", rdp.get("ObjectIdentifier", ""))
-            if sid:
-                graph.add_edge(ADEdge(source_id=sid, target_id=oid, edge_type="CanRDP"))
+        for rdp in _unwrap_results(obj.get("RemoteDesktopUsers", [])):
+            rdp_sid = rdp.get("MemberId", rdp.get("ObjectIdentifier", ""))
+            if rdp_sid:
+                graph.add_edge(ADEdge(source_id=rdp_sid, target_id=oid, edge_type="CanRDP"))
 
         # PSRemote users
-        for ps in obj.get("PSRemoteUsers", []):
-            sid = ps.get("MemberId", ps.get("ObjectIdentifier", ""))
-            if sid:
-                graph.add_edge(ADEdge(source_id=sid, target_id=oid, edge_type="CanPSRemote"))
+        for ps in _unwrap_results(obj.get("PSRemoteUsers", [])):
+            ps_sid = ps.get("MemberId", ps.get("ObjectIdentifier", ""))
+            if ps_sid:
+                graph.add_edge(ADEdge(source_id=ps_sid, target_id=oid, edge_type="CanPSRemote"))
 
         # DCOM users
-        for dcom in obj.get("DcomUsers", []):
-            sid = dcom.get("MemberId", dcom.get("ObjectIdentifier", ""))
-            if sid:
-                graph.add_edge(ADEdge(source_id=sid, target_id=oid, edge_type="ExecuteDCOM"))
+        for dcom in _unwrap_results(obj.get("DcomUsers", [])):
+            dcom_sid = dcom.get("MemberId", dcom.get("ObjectIdentifier", ""))
+            if dcom_sid:
+                graph.add_edge(ADEdge(source_id=dcom_sid, target_id=oid, edge_type="ExecuteDCOM"))
 
         # Sessions (computers)
-        for sess in obj.get("Sessions", []):
+        for sess in _unwrap_results(obj.get("Sessions", [])):
             user_sid = sess.get("UserId", sess.get("UserSID", ""))
             if user_sid:
                 graph.add_edge(ADEdge(source_id=user_sid, target_id=oid, edge_type="HasSession"))
@@ -189,34 +198,33 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
             for target_sid in _find_dc_sids(graph):
                 graph.add_edge(ADEdge(source_id=oid, target_id=target_sid, edge_type="AllowedToDelegate"))
 
-        for target in obj.get("AllowedToDelegate", []):
+        for target in _unwrap_results(obj.get("AllowedToDelegate", [])):
             target_sid = target.get("ObjectIdentifier", target) if isinstance(target, dict) else target
             if target_sid:
                 graph.add_edge(ADEdge(source_id=oid, target_id=target_sid, edge_type="AllowedToDelegate"))
 
-        for target in obj.get("AllowedToAct", []):
+        for target in _unwrap_results(obj.get("AllowedToAct", [])):
             target_sid = target.get("ObjectIdentifier", target) if isinstance(target, dict) else target
             if target_sid:
                 graph.add_edge(ADEdge(source_id=target_sid, target_id=oid, edge_type="AllowedToAct"))
 
         # GPO effects
-        for link in obj.get("Links", []):
+        for link in _unwrap_results(obj.get("Links", [])):
             target_guid = link.get("GUID", link.get("ObjectIdentifier", ""))
             if target_guid:
                 graph.add_edge(ADEdge(source_id=oid, target_id=target_guid, edge_type="GPOControlsObject"))
 
         # OU/Container containment
-        if "ChildObjects" in obj:
-            for child in obj["ChildObjects"]:
-                child_id = child.get("ObjectIdentifier", "")
-                if child_id:
-                    graph.add_edge(ADEdge(source_id=oid, target_id=child_id, edge_type="Contains"))
+        for child in _unwrap_results(obj.get("ChildObjects", [])):
+            child_id = child.get("ObjectIdentifier", "")
+            if child_id:
+                graph.add_edge(ADEdge(source_id=oid, target_id=child_id, edge_type="Contains"))
 
         # SQL Admins
-        for sql in obj.get("SQLAdmins", []):
-            sid = sql.get("MemberId", sql.get("ObjectIdentifier", ""))
-            if sid:
-                graph.add_edge(ADEdge(source_id=sid, target_id=oid, edge_type="SQLAdmin"))
+        for sql in _unwrap_results(obj.get("SQLAdmins", [])):
+            sql_sid = sql.get("MemberId", sql.get("ObjectIdentifier", ""))
+            if sql_sid:
+                graph.add_edge(ADEdge(source_id=sql_sid, target_id=oid, edge_type="SQLAdmin"))
 
         # Domain trusts
         for trust in obj.get("Trusts", []):
@@ -245,8 +253,9 @@ def _guess_file_type(filename: str) -> str:
     return "unknown"
 
 
-def load_sharphound(path: Path) -> AttackGraph:
+def load_sharphound(path: str | Path) -> AttackGraph:
     """Load a SharpHound export (ZIP file or directory of JSON files) into an AttackGraph."""
+    path = Path(path)
     graph = AttackGraph()
     total_nodes = 0
 
