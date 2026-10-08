@@ -67,17 +67,23 @@ def _edge_key(source_id: str, target_id: str, edge_type: str) -> tuple[str, str,
 
 
 def find_chokepoints(graph: AttackGraph, path_report: PathReport,
-                     max_fixes: int = 50) -> ChokeReport:
+                     max_fixes: int = 50, prefer_safe: bool = True) -> ChokeReport:
     """Greedy set cover: iteratively find the edge whose removal eliminates the most remaining paths.
 
     For each remaining path, identify which edges are "cuttable" (attack edges, not MemberOf/Contains).
     Pick the edge that appears in the most paths. Remove those paths. Repeat.
+
+    When prefer_safe is True and two edges eliminate the same number of paths,
+    prefer the one targeting a non-service-account source (safer to fix).
     """
     if not path_report.paths:
         return ChokeReport(fixes=[], total_paths=0, paths_after_fixes=0)
 
     # Non-cuttable edges (structural, not attack)
     STRUCTURAL = frozenset({"MemberOf", "Contains"})
+
+    # Service account prefixes for safety tie-breaking
+    SVC_PREFIXES = ("SVC_", "SA_", "MSOL_", "EXCHANGE", "SCCM", "KRBTGT")
 
     # Build edge -> set of path indices
     edge_to_paths: dict[tuple, set[int]] = {}
@@ -94,19 +100,46 @@ def find_chokepoints(graph: AttackGraph, path_report: PathReport,
     fixes = []
     cumulative = 0
 
+    def _safety_score(edge_key: tuple) -> int:
+        """Lower = safer to fix. Used for tie-breaking when two edges eliminate equal paths."""
+        src_id = edge_key[0]
+        src = graph.get_node(src_id)
+        if not src:
+            return 0
+        score = 0
+        name_upper = src.name.upper().split("@")[0]
+        if any(name_upper.startswith(p) for p in SVC_PREFIXES):
+            score += 2
+        if not src.enabled:
+            score -= 1
+        if src.admin_count:
+            score += 1
+        return score
+
     for rank in range(1, max_fixes + 1):
         if not remaining_paths:
             break
 
         # Find edge that eliminates the most remaining paths
         best_edge = None
+        best_count = 0
+        best_safety = 999
         best_eliminated = set()
 
         for key, path_indices in edge_to_paths.items():
             active = path_indices & remaining_paths
-            if len(active) > len(best_eliminated):
+            count = len(active)
+            if count > best_count:
                 best_edge = key
+                best_count = count
                 best_eliminated = active
+                best_safety = _safety_score(key) if prefer_safe else 0
+            elif count == best_count and count > 0 and prefer_safe:
+                s = _safety_score(key)
+                if s < best_safety:
+                    best_edge = key
+                    best_eliminated = active
+                    best_safety = s
 
         if best_edge is None or not best_eliminated:
             break

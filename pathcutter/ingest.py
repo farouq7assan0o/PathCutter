@@ -81,13 +81,80 @@ def _unwrap_results(value) -> list:
     return []
 
 
+_CE_KIND_MAP = {
+    "User": NodeType.USER,
+    "Computer": NodeType.COMPUTER,
+    "Group": NodeType.GROUP,
+    "Domain": NodeType.DOMAIN,
+    "GPO": NodeType.GPO,
+    "OU": NodeType.OU,
+    "Container": NodeType.CONTAINER,
+    "CertTemplate": NodeType.UNKNOWN,
+    "EnterpriseCA": NodeType.UNKNOWN,
+    "AIACA": NodeType.UNKNOWN,
+    "RootCA": NodeType.UNKNOWN,
+    "NTAuthStore": NodeType.UNKNOWN,
+}
+
+_CE_EDGE_MAP = {
+    "GenericAll": "GenericAll",
+    "GenericWrite": "GenericWrite",
+    "WriteOwner": "WriteOwner",
+    "WriteDacl": "WriteDacl",
+    "Owns": "Owns",
+    "ForceChangePassword": "ForceChangePassword",
+    "AddMember": "AddMember",
+    "ReadLAPSPassword": "ReadLAPSPassword",
+    "ReadGMSAPassword": "ReadGMSAPassword",
+    "WriteSPN": "WriteSPN",
+    "AddAllowedToAct": "AddAllowedToAct",
+    "WriteKeyCredentialLink": "WriteKeyCredentialLink",
+    "DCSync": "DCSync",
+    "MemberOf": "MemberOf",
+    "AdminTo": "AdminTo",
+    "HasSession": "HasSession",
+    "CanRDP": "CanRDP",
+    "CanPSRemote": "CanPSRemote",
+    "ExecuteDCOM": "ExecuteDCOM",
+    "SQLAdmin": "SQLAdmin",
+    "AllowedToDelegate": "AllowedToDelegate",
+    "AllowedToAct": "AllowedToAct",
+    "GPLink": "GPOControlsObject",
+    "Contains": "Contains",
+    "TrustedBy": "TrustedBy",
+    "Enroll": "Enroll",
+    "AutoEnroll": "AutoEnroll",
+    "ManageCA": "ManageCA",
+    "ManageCertificates": "ManageCertificates",
+    "WritePKIEnrollmentFlag": "WritePKIEnrollmentFlag",
+    "WritePKINameFlag": "WritePKINameFlag",
+    "HasSIDHistory": "GenericAll",
+    "GetChanges": "DCSync",
+    "GetChangesAll": "DCSync",
+    "GetChangesInFilteredSet": "DCSync",
+    "AZResetPassword": "ForceChangePassword",
+    "AZAddMembers": "AddMember",
+    "AZGlobalAdmin": "GenericAll",
+    "AZPrivilegedRoleAdmin": "GenericAll",
+}
+
+
 def _detect_format(data: dict) -> str:
-    """Detect whether this is SharpHound v4 (legacy) or v5 (CE) format."""
+    """Detect whether this is SharpHound v4 (legacy) or v5 (CE) format.
+
+    v4 (SharpHound legacy): meta has 'type' field, objects have Properties/ObjectIdentifier/Aces.
+    v5 (BloodHound CE): objects have a 'kind' field indicating object type.
+    The meta 'version' field is the collector version, not the format version.
+    """
     meta = data.get("meta", {})
+    # Check if objects have 'kind' field (v5 CE format)
+    items = data.get("data", [])
+    if items and isinstance(items, list) and isinstance(items[0], dict):
+        if "kind" in items[0]:
+            return "v5"
+    # v4: meta has 'type' indicating file type
     if "type" in meta:
         return "v4"
-    if "kind" in data.get("data", [{}])[0] if data.get("data") else False:
-        return "v5"
     if "methods" in meta:
         return "v4"
     return "v4"
@@ -235,6 +302,118 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
     return count
 
 
+def _parse_v5_file(data: dict, graph: AttackGraph) -> int:
+    """Parse a BloodHound CE (v5) format file. Returns count of nodes added."""
+    count = 0
+    items = data.get("data", [])
+
+    for obj in items:
+        kind = obj.get("kind", "")
+        oid = obj.get("ObjectIdentifier", obj.get("object_id", ""))
+        if not oid:
+            continue
+
+        node_type = _CE_KIND_MAP.get(kind, NodeType.UNKNOWN)
+        props = obj.get("Properties", obj.get("properties", {}))
+        name = props.get("name", oid)
+        domain = props.get("domain", _extract_domain(name))
+        enabled = props.get("enabled", True)
+        admin_count = props.get("admincount", False)
+
+        node = ADNode(
+            object_id=oid,
+            name=name,
+            node_type=node_type,
+            domain=domain,
+            enabled=enabled if enabled is not None else True,
+            admin_count=admin_count if admin_count else False,
+            properties={k: v for k, v in props.items()
+                        if k not in ("name", "domain", "enabled", "admincount")},
+        )
+        graph.add_node(node)
+        count += 1
+
+        # v5 ACEs
+        for ace in obj.get("Aces", []):
+            principal_sid = ace.get("PrincipalSID", ace.get("principal", ""))
+            right = ace.get("RightName", ace.get("right_name", ""))
+            inherited = ace.get("IsInherited", ace.get("is_inherited", False))
+
+            if not principal_sid or not right:
+                continue
+
+            edge_name = _CE_EDGE_MAP.get(right) or _ACE_MAP.get(right)
+            if edge_name:
+                graph.add_edge(ADEdge(
+                    source_id=principal_sid,
+                    target_id=oid,
+                    edge_type=edge_name,
+                    inherited=inherited,
+                ))
+
+        # v5 edges array (some CE exports put edges in a separate section)
+        for edge in obj.get("Edges", obj.get("edges", [])):
+            src = edge.get("SourceSID", edge.get("source", ""))
+            tgt = edge.get("TargetSID", edge.get("target", ""))
+            kind_edge = edge.get("Kind", edge.get("kind", ""))
+            if src and tgt and kind_edge:
+                mapped = _CE_EDGE_MAP.get(kind_edge, kind_edge)
+                graph.add_edge(ADEdge(source_id=src, target_id=tgt, edge_type=mapped))
+
+        # Group members
+        for member in _unwrap_results(obj.get("Members", [])):
+            member_sid = member.get("MemberId", member.get("ObjectIdentifier", ""))
+            if member_sid:
+                graph.add_edge(ADEdge(source_id=member_sid, target_id=oid, edge_type="MemberOf"))
+
+        # Same secondary edge types as v4
+        for la in _unwrap_results(obj.get("LocalAdmins", [])):
+            sid = la.get("MemberId", la.get("ObjectIdentifier", ""))
+            if sid:
+                graph.add_edge(ADEdge(source_id=sid, target_id=oid, edge_type="AdminTo"))
+
+        for sess in _unwrap_results(obj.get("Sessions", [])):
+            user_sid = sess.get("UserId", sess.get("UserSID", ""))
+            if user_sid:
+                graph.add_edge(ADEdge(source_id=user_sid, target_id=oid, edge_type="HasSession"))
+
+        for target in _unwrap_results(obj.get("AllowedToDelegate", [])):
+            target_sid = target.get("ObjectIdentifier", target) if isinstance(target, dict) else target
+            if target_sid:
+                graph.add_edge(ADEdge(source_id=oid, target_id=target_sid, edge_type="AllowedToDelegate"))
+
+        for target in _unwrap_results(obj.get("AllowedToAct", [])):
+            target_sid = target.get("ObjectIdentifier", target) if isinstance(target, dict) else target
+            if target_sid:
+                graph.add_edge(ADEdge(source_id=target_sid, target_id=oid, edge_type="AllowedToAct"))
+
+        for child in _unwrap_results(obj.get("ChildObjects", [])):
+            child_id = child.get("ObjectIdentifier", "")
+            if child_id:
+                graph.add_edge(ADEdge(source_id=oid, target_id=child_id, edge_type="Contains"))
+
+        for trust in obj.get("Trusts", []):
+            target_id = trust.get("TargetDomainSid", "")
+            if target_id:
+                graph.add_edge(ADEdge(source_id=oid, target_id=target_id, edge_type="TrustedBy"))
+
+    return count
+
+
+def _parse_v5_edges_file(data: dict, graph: AttackGraph) -> int:
+    """Parse a standalone CE edges file (contains only relationship data)."""
+    count = 0
+    for edge in data.get("data", []):
+        src = edge.get("SourceSID", edge.get("source", edge.get("ID_start", "")))
+        tgt = edge.get("TargetSID", edge.get("target", edge.get("ID_end", "")))
+        kind = edge.get("Kind", edge.get("kind", edge.get("label", "")))
+        if src and tgt and kind:
+            mapped = _CE_EDGE_MAP.get(kind, kind)
+            graph.add_edge(ADEdge(source_id=src, target_id=tgt, edge_type=mapped))
+            count += 1
+    return count
+
+
 def _find_dc_sids(graph: AttackGraph) -> list[str]:
     """Find SIDs of Domain Controller computers already in the graph."""
     dc_sids = []
@@ -292,7 +471,7 @@ def _load_from_zip(zip_path: Path, graph: AttackGraph) -> int:
                 except (json.JSONDecodeError, UnicodeDecodeError):
                     continue
                 if isinstance(data, dict) and "data" in data:
-                    total += _parse_v4_file(data, graph, file_type)
+                    total += _parse_one_file(data, graph, file_type)
     return total
 
 
@@ -305,5 +484,17 @@ def _load_from_directory(dir_path: Path, graph: AttackGraph) -> int:
         except (json.JSONDecodeError, UnicodeDecodeError):
             continue
         if isinstance(data, dict) and "data" in data:
-            total += _parse_v4_file(data, graph, file_type)
+            total += _parse_one_file(data, graph, file_type)
     return total
+
+
+def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
+    """Route to v4 or v5 parser based on format detection."""
+    fmt = _detect_format(data)
+    if fmt == "v5":
+        meta = data.get("meta", {})
+        meta_type = meta.get("type", "").lower()
+        if meta_type == "edges" or file_type == "edges":
+            return _parse_v5_edges_file(data, graph)
+        return _parse_v5_file(data, graph)
+    return _parse_v4_file(data, graph, file_type)
