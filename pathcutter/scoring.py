@@ -61,23 +61,32 @@ def score_nodes(graph: AttackGraph, path_report: PathReport) -> list[NodeRisk]:
         for node_id in path.nodes:
             node_path_counts[node_id] = node_path_counts.get(node_id, 0) + 1
 
+    # Pre-compute blast radius and T0 reach only for top-N candidates by path count,
+    # since BFS per node is expensive on large graphs.
+    sorted_by_count = sorted(
+        ((nid, cnt) for nid, cnt in node_path_counts.items()
+         if graph.get_node(nid) is not None and graph.get_node(nid).tier != 0),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+
+    # Only compute expensive BFS for top 100 nodes; rest get estimated values
+    FULL_ANALYSIS_CAP = 100
+    blast_cache: dict[str, int] = {}
+    t0_cache: dict[str, int] = {}
+
+    for i, (node_id, _) in enumerate(sorted_by_count[:FULL_ANALYSIS_CAP]):
+        blast_cache[node_id] = len(reachable_from(graph, node_id, max_depth=6))
+        t0_cache[node_id] = len(reachable_tier0(graph, node_id, max_depth=6))
+
     results = []
-    for node_id, count in node_path_counts.items():
+    for node_id, count in sorted_by_count:
         node = graph.get_node(node_id)
-        if node is None:
-            continue
-        if node.tier == 0:
-            continue  # don't score Tier 0 nodes as risky
-
         centrality = count / total_paths
-        blast = len(reachable_from(graph, node_id, max_depth=10))
-        t0_reach = len(reachable_tier0(graph, node_id, max_depth=10))
 
-        # Composite score: weighted combination
-        # - Path count (log-scaled, dominates)
-        # - Centrality (how critical is this node as a chokepoint)
-        # - Blast radius (how much damage if compromised)
-        # - Tier 0 reachability (direct access to crown jewels)
+        blast = blast_cache.get(node_id, min(count, 50))
+        t0_reach = t0_cache.get(node_id, 1 if count > 0 else 0)
+
         path_factor = min(log2(count + 1) / 10.0, 1.0) * 40
         centrality_factor = centrality * 30
         blast_factor = min(blast / 50.0, 1.0) * 15
