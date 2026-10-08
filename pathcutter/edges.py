@@ -1,0 +1,402 @@
+"""Edge type registry - every AD attack relationship with abuse info, MITRE mapping, and fix templates."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+
+
+class EdgeCategory(Enum):
+    ACL = "acl"
+    DELEGATION = "delegation"
+    GROUP = "group"
+    SESSION = "session"
+    DOMAIN = "domain"
+    SPECIAL = "special"
+
+
+@dataclass(frozen=True, slots=True)
+class EdgeType:
+    name: str
+    category: EdgeCategory
+    abuse: str
+    mitre: str
+    exploitability: int  # 1-10, higher = easier to exploit
+    fix_template: str
+    detection_difficulty: str  # low, medium, high (how hard to detect the abuse)
+    reversible: bool  # can the fix be safely rolled back?
+    description: str = ""
+
+
+# ACL-based edges
+GenericAll = EdgeType(
+    name="GenericAll",
+    category=EdgeCategory.ACL,
+    abuse="Full control over object - change password, write any attribute, modify DACL",
+    mitre="T1222.001",
+    exploitability=9,
+    fix_template='$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="medium",
+    reversible=True,
+    description="Grants all permissions including password reset, attribute writes, and DACL modification",
+)
+
+GenericWrite = EdgeType(
+    name="GenericWrite",
+    category=EdgeCategory.ACL,
+    abuse="Write any attribute - set SPN for kerberoasting, write scriptPath for code execution",
+    mitre="T1222.001",
+    exploitability=8,
+    fix_template='$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ActiveDirectoryRights -match "WriteProperty"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+WriteOwner = EdgeType(
+    name="WriteOwner",
+    category=EdgeCategory.ACL,
+    abuse="Take ownership of object, then WriteDACL to grant yourself GenericAll",
+    mitre="T1222.001",
+    exploitability=8,
+    fix_template='$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ActiveDirectoryRights -match "WriteOwner"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="high",
+    reversible=True,
+)
+
+WriteDacl = EdgeType(
+    name="WriteDacl",
+    category=EdgeCategory.ACL,
+    abuse="Modify the DACL to grant yourself any permission including GenericAll",
+    mitre="T1222.001",
+    exploitability=8,
+    fix_template='$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ActiveDirectoryRights -match "WriteDacl"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+ForceChangePassword = EdgeType(
+    name="ForceChangePassword",
+    category=EdgeCategory.ACL,
+    abuse="Reset target user's password without knowing the current password",
+    mitre="T1098",
+    exploitability=7,
+    fix_template='# Remove Extended Right "User-Force-Change-Password" (GUID: 00299570-246d-11d0-a768-00aa006e0529)\n$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ObjectType -eq "00299570-246d-11d0-a768-00aa006e0529"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="low",
+    reversible=True,
+)
+
+AddMember = EdgeType(
+    name="AddMember",
+    category=EdgeCategory.ACL,
+    abuse="Add attacker-controlled principal to a group, inheriting all group permissions",
+    mitre="T1098",
+    exploitability=8,
+    fix_template='# Remove WriteProperty on member attribute\n$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ObjectType -eq "bf9679c0-0de6-11d0-a285-00aa003049e2"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="low",
+    reversible=True,
+)
+
+Owns = EdgeType(
+    name="Owns",
+    category=EdgeCategory.ACL,
+    abuse="Object owner implicitly has WriteDACL - can grant any permission to self",
+    mitre="T1222.001",
+    exploitability=7,
+    fix_template='# Change owner to Domain Admins\n$acl = Get-Acl "AD:\\{target_dn}"\n$owner = New-Object System.Security.Principal.NTAccount("{{domain}}","Domain Admins")\n$acl.SetOwner($owner)\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="high",
+    reversible=True,
+)
+
+WriteSPN = EdgeType(
+    name="WriteSPN",
+    category=EdgeCategory.ACL,
+    abuse="Set a Service Principal Name on a user account to enable Kerberoasting",
+    mitre="T1558.003",
+    exploitability=7,
+    fix_template='# Remove WriteProperty on servicePrincipalName attribute\n$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ObjectType -eq "f3a64788-5306-11d1-a9c5-0000f80367c1"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+AddAllowedToAct = EdgeType(
+    name="AddAllowedToAct",
+    category=EdgeCategory.ACL,
+    abuse="Configure Resource-Based Constrained Delegation to impersonate any user to target",
+    mitre="T1134.001",
+    exploitability=7,
+    fix_template='# Remove WriteProperty on msDS-AllowedToActOnBehalfOfOtherIdentity\n$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ObjectType -eq "3f78c3e5-f79a-46bd-a0b8-9d18116ddc79"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+WriteKeyCredentialLink = EdgeType(
+    name="WriteKeyCredentialLink",
+    category=EdgeCategory.ACL,
+    abuse="Shadow Credentials - add key credential to authenticate as target via PKINIT",
+    mitre="T1556",
+    exploitability=7,
+    fix_template='# Remove WriteProperty on msDS-KeyCredentialLink\n$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ObjectType -eq "5b47d60f-6090-40b2-9f37-2a4de88f3063"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+# Kerberos delegation edges
+UnconstrainedDelegation = EdgeType(
+    name="AllowedToDelegate",
+    category=EdgeCategory.DELEGATION,
+    abuse="Unconstrained delegation - capture and reuse any TGT that authenticates to this host",
+    mitre="T1558",
+    exploitability=10,
+    fix_template='Set-ADComputer -Identity "{target_name}" -TrustedForDelegation $false',
+    detection_difficulty="low",
+    reversible=True,
+    description="Host stores TGTs of all users who authenticate - compromising it yields all their credentials",
+)
+
+ConstrainedDelegation = EdgeType(
+    name="AllowedToDelegate",
+    category=EdgeCategory.DELEGATION,
+    abuse="Constrained delegation with protocol transition - S4U2Self + S4U2Proxy to impersonate users to target SPNs",
+    mitre="T1134.001",
+    exploitability=6,
+    fix_template='# Remove constrained delegation SPNs\nSet-ADComputer -Identity "{source_name}" -Clear msDS-AllowedToDelegateTo\n# Or for specific SPN removal:\n# Set-ADComputer -Identity "{source_name}" -Remove @{{\'msDS-AllowedToDelegateTo\'=\'{target_spn}\'}}',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+RBCD = EdgeType(
+    name="AllowedToAct",
+    category=EdgeCategory.DELEGATION,
+    abuse="Resource-Based Constrained Delegation - impersonate any user to the target service",
+    mitre="T1134.001",
+    exploitability=7,
+    fix_template='# Clear RBCD configuration on target\nSet-ADComputer -Identity "{target_name}" -Clear msDS-AllowedToActOnBehalfOfOtherIdentity',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+# Group/session edges
+MemberOf = EdgeType(
+    name="MemberOf",
+    category=EdgeCategory.GROUP,
+    abuse="Inherits all permissions of the group (transitive through nested groups)",
+    mitre="",
+    exploitability=0,  # not directly exploitable, just inheritance
+    fix_template='Remove-ADGroupMember -Identity "{target_name}" -Members "{source_name}" -Confirm:$false',
+    detection_difficulty="low",
+    reversible=True,
+)
+
+AdminTo = EdgeType(
+    name="AdminTo",
+    category=EdgeCategory.SESSION,
+    abuse="Local administrator on target - full control, credential dumping, lateral movement",
+    mitre="T1078",
+    exploitability=8,
+    fix_template='# Remove from local Administrators group (via GPO is preferred)\n# Restricted Groups or Local Users and Groups GPO:\n# Computer Config > Policies > Windows Settings > Security Settings > Restricted Groups\n# Or directly:\nInvoke-Command -ComputerName "{target_name}" -ScriptBlock {{\n    Remove-LocalGroupMember -Group "Administrators" -Member "{source_name}" -ErrorAction SilentlyContinue\n}}',
+    detection_difficulty="low",
+    reversible=True,
+)
+
+HasSession = EdgeType(
+    name="HasSession",
+    category=EdgeCategory.SESSION,
+    abuse="User has an active session on this machine - credentials can be harvested from memory",
+    mitre="T1003",
+    exploitability=6,
+    fix_template='# Implement Administrative Tier Model:\n# Tier 0 accounts only log on to Tier 0 systems (DCs)\n# Tier 1 accounts only log on to Tier 1 systems (servers)\n# Tier 2 accounts only log on to Tier 2 systems (workstations)\n# GPO: Computer Config > Policies > User Rights Assignment > Deny log on locally/through RDP',
+    detection_difficulty="low",
+    reversible=True,
+)
+
+CanRDP = EdgeType(
+    name="CanRDP",
+    category=EdgeCategory.SESSION,
+    abuse="Remote Desktop access to target machine",
+    mitre="T1021.001",
+    exploitability=5,
+    fix_template='Invoke-Command -ComputerName "{target_name}" -ScriptBlock {{\n    Remove-LocalGroupMember -Group "Remote Desktop Users" -Member "{source_name}" -ErrorAction SilentlyContinue\n}}',
+    detection_difficulty="low",
+    reversible=True,
+)
+
+CanPSRemote = EdgeType(
+    name="CanPSRemote",
+    category=EdgeCategory.SESSION,
+    abuse="PowerShell Remoting / WinRM access to target machine",
+    mitre="T1021.006",
+    exploitability=5,
+    fix_template='Invoke-Command -ComputerName "{target_name}" -ScriptBlock {{\n    Remove-LocalGroupMember -Group "Remote Management Users" -Member "{source_name}" -ErrorAction SilentlyContinue\n}}',
+    detection_difficulty="low",
+    reversible=True,
+)
+
+ExecuteDCOM = EdgeType(
+    name="ExecuteDCOM",
+    category=EdgeCategory.SESSION,
+    abuse="DCOM execution rights - lateral movement via MMC20, ShellWindows, ShellBrowserWindow",
+    mitre="T1021.003",
+    exploitability=5,
+    fix_template='Invoke-Command -ComputerName "{target_name}" -ScriptBlock {{\n    Remove-LocalGroupMember -Group "Distributed COM Users" -Member "{source_name}" -ErrorAction SilentlyContinue\n}}',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+SQLAdmin = EdgeType(
+    name="SQLAdmin",
+    category=EdgeCategory.SESSION,
+    abuse="SQL Server sysadmin role - xp_cmdshell for OS command execution, credential access",
+    mitre="T1505",
+    exploitability=7,
+    fix_template='# Remove sysadmin role in SQL Server:\n# ALTER SERVER ROLE sysadmin DROP MEMBER [{source_name}]',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+# Domain-level edges
+DCSync = EdgeType(
+    name="DCSync",
+    category=EdgeCategory.DOMAIN,
+    abuse="Replicating Directory Changes + Replicating Directory Changes All = dump all domain password hashes",
+    mitre="T1003.006",
+    exploitability=10,
+    fix_template='# Remove Replicating Directory Changes and Replicating Directory Changes All\n$acl = Get-Acl "AD:\\{target_dn}"\n# DS-Replication-Get-Changes: 1131f6aa-9c07-11d1-f79f-00c04fc2dcd2\n# DS-Replication-Get-Changes-All: 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and ($_.ObjectType -eq "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2" -or $_.ObjectType -eq "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2")}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="low",
+    reversible=True,
+    description="Most critical AD attack - dumps NTDS.dit equivalent remotely. Only DCs should have this right.",
+)
+
+GPOControlsObject = EdgeType(
+    name="GPOControlsObject",
+    category=EdgeCategory.DOMAIN,
+    abuse="GPO linked to OU containing target - push scheduled tasks, startup scripts, software installs",
+    mitre="T1484.001",
+    exploitability=7,
+    fix_template='# Restrict GPO edit permissions:\n$gpoAcl = Get-Acl "AD:\\{gpo_dn}"\n$gpoAcl.Access | Where-Object {{$_.IdentityReference -match "{source_name}"}} | ForEach-Object {{$gpoAcl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{gpo_dn}" $gpoAcl',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+Contains = EdgeType(
+    name="Contains",
+    category=EdgeCategory.DOMAIN,
+    abuse="OU/Container contains objects - used for GPO inheritance mapping",
+    mitre="",
+    exploitability=0,
+    fix_template="",
+    detection_difficulty="low",
+    reversible=False,
+    description="Structural relationship, not directly exploitable",
+)
+
+ReadLAPSPassword = EdgeType(
+    name="ReadLAPSPassword",
+    category=EdgeCategory.DOMAIN,
+    abuse="Read the LAPS-managed local administrator password for a computer",
+    mitre="T1003",
+    exploitability=7,
+    fix_template='# Remove ReadProperty on ms-Mcs-AdmPwd (LAPS password attribute)\n$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ObjectType -eq "e6a34e1c-14b3-4359-8e30-26b3ee395c7e"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="low",
+    reversible=True,
+)
+
+ReadGMSAPassword = EdgeType(
+    name="ReadGMSAPassword",
+    category=EdgeCategory.DOMAIN,
+    abuse="Read the Group Managed Service Account password blob",
+    mitre="T1003",
+    exploitability=7,
+    fix_template='# Review msDS-GroupMSAMembership on the gMSA and remove unauthorized readers\nSet-ADServiceAccount -Identity "{target_name}" -PrincipalsAllowedToRetrieveManagedPassword @{{Remove="{source_name}"}}',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+# Trust edges
+TrustedBy = EdgeType(
+    name="TrustedBy",
+    category=EdgeCategory.DOMAIN,
+    abuse="Domain trust - can authenticate to the trusting domain, potentially escalate via SID history",
+    mitre="T1134.005",
+    exploitability=5,
+    fix_template="# Domain trusts require careful review before modification\n# Consider: SID Filtering, Selective Authentication, or trust removal",
+    detection_difficulty="medium",
+    reversible=False,
+    description="Modifying trust relationships is high-risk and requires change management",
+)
+
+# -------------------------------------------------------------------
+# Registry: name -> EdgeType lookup
+# -------------------------------------------------------------------
+
+EDGE_REGISTRY: dict[str, EdgeType] = {}
+
+def _register():
+    import sys
+    module = sys.modules[__name__]
+    for name in dir(module):
+        obj = getattr(module, name)
+        if isinstance(obj, EdgeType):
+            # Use the EdgeType.name as the registry key (not the Python variable name)
+            # Some edge types share a name (e.g. constrained vs unconstrained delegation)
+            # so we register by variable name as well for disambiguation
+            EDGE_REGISTRY[obj.name] = obj
+            EDGE_REGISTRY[name] = obj
+
+_register()
+
+
+def get_edge_type(name: str) -> EdgeType | None:
+    """Look up an edge type by SharpHound relationship name or Python variable name."""
+    return EDGE_REGISTRY.get(name)
+
+
+def exploitability_weight(edge_name: str) -> float:
+    """Return inverse exploitability as path weight (lower = more exploitable = preferred path)."""
+    et = get_edge_type(edge_name)
+    if et is None or et.exploitability == 0:
+        return 100.0  # non-exploitable edges (MemberOf, Contains) get high weight
+    return 10.0 / et.exploitability
+
+
+TIER0_GROUPS = frozenset({
+    "DOMAIN ADMINS",
+    "ENTERPRISE ADMINS",
+    "ADMINISTRATORS",
+    "DOMAIN CONTROLLERS",
+    "SCHEMA ADMINS",
+    "ACCOUNT OPERATORS",
+    "BACKUP OPERATORS",
+    "SERVER OPERATORS",
+    "PRINT OPERATORS",
+    "CERT PUBLISHERS",
+    "KEY ADMINS",
+    "ENTERPRISE KEY ADMINS",
+})
+
+TIER0_SIDS_SUFFIXES = frozenset({
+    "-500",   # Built-in Administrator
+    "-502",   # KRBTGT
+    "-512",   # Domain Admins
+    "-516",   # Domain Controllers
+    "-518",   # Schema Admins
+    "-519",   # Enterprise Admins
+    "-521",   # Read-only Domain Controllers
+})
+
+
+def is_tier0(node_name: str, node_sid: str = "", node_type: str = "") -> bool:
+    """Determine if a node is Tier 0 (high-value target)."""
+    upper = node_name.upper()
+    # Check name against known Tier 0 groups
+    # Strip domain prefix if present (DOMAIN\\Group -> Group)
+    short = upper.split("@")[0] if "@" in upper else upper
+    if short in TIER0_GROUPS:
+        return True
+    # Check SID suffix
+    if node_sid:
+        for suffix in TIER0_SIDS_SUFFIXES:
+            if node_sid.endswith(suffix):
+                return True
+    # Domain Controllers are always Tier 0
+    if node_type.lower() == "computer" and "DC" in upper:
+        return False  # heuristic is unreliable, rely on group membership
+    return False
