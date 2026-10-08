@@ -1,4 +1,12 @@
-"""Path finding algorithms - BFS, shortest paths, all paths, reachability, blast radius."""
+"""Path finding algorithms - BFS, shortest paths, all paths, reachability, blast radius.
+
+Performance notes for large graphs (50k+ nodes):
+- Reverse BFS from targets avoids exploring the full graph from every source
+- Adjacency pre-computation (predecessors dict) avoids repeated NetworkX lookups
+- Visited sets use frozenset for immutable sharing between queue entries
+- Path cap prevents combinatorial explosion
+- Scoring uses lazy blast radius with configurable depth cap
+"""
 from __future__ import annotations
 
 from collections import deque
@@ -100,12 +108,30 @@ def find_all_paths(graph: AttackGraph, targets: set[str],
 
     Uses reverse BFS from targets to avoid exploring the entire graph from every source.
     Caps at max_paths to prevent combinatorial explosion.
+
+    Performance: pre-computes predecessor adjacency and edge data lookups to avoid
+    repeated NetworkX dict access in the inner loop.
     """
-    paths = []
-    sources = set()
+    # Pre-compute predecessor adjacency for all nodes in the graph.
+    # This turns O(dict_lookup) per predecessor() call into a single dict read,
+    # which matters when the queue processes millions of entries.
+    pred_cache: dict[str, list[tuple[str, list[dict]]]] = {}
+
+    def _get_preds(node_id: str) -> list[tuple[str, list[dict]]]:
+        if node_id not in pred_cache:
+            preds = []
+            for src in graph.predecessors(node_id):
+                edges = graph.get_edge_data(src, node_id)
+                if edges:
+                    preds.append((src, edges))
+            pred_cache[node_id] = preds
+        return pred_cache[node_id]
+
+    paths: list[AttackPath] = []
+    sources: set[str] = set()
 
     for target_id in targets:
-        found = _bfs_paths_to(graph, target_id, max_depth, max_paths - len(paths))
+        found = _bfs_paths_to(graph, target_id, max_depth, max_paths - len(paths), _get_preds)
         for p in found:
             paths.append(p)
             sources.add(p.source)
@@ -118,47 +144,50 @@ def find_all_paths(graph: AttackGraph, targets: set[str],
 
 
 def _bfs_paths_to(graph: AttackGraph, target_id: str, max_depth: int,
-                  max_paths: int) -> list[AttackPath]:
-    """BFS from target backwards to find all paths reaching it."""
-    paths = []
-    # (current_node, path_nodes_reversed, path_edges_reversed, visited)
-    queue: deque[tuple[str, list[str], list[dict], frozenset[str]]] = deque()
-    queue.append((target_id, [target_id], [], frozenset({target_id})))
+                  max_paths: int,
+                  get_preds) -> list[AttackPath]:
+    """BFS from target backwards to find all paths reaching it.
+
+    Optimizations vs naive BFS:
+    - Pre-computed predecessor lookup (get_preds) avoids repeated NetworkX access
+    - has_attack_edge tracked incrementally (bool flag) instead of scanning all edges
+    - Weight accumulated incrementally instead of summing at path creation
+    """
+    paths: list[AttackPath] = []
+    # (current_node, path_nodes, path_edges, visited, has_attack_edge, cumulative_weight)
+    queue: deque[tuple[str, list[str], list[dict], frozenset[str], bool, float]] = deque()
+    queue.append((target_id, [target_id], [], frozenset({target_id}), False, 0.0))
 
     while queue and len(paths) < max_paths:
-        current, path_nodes, path_edges, visited = queue.popleft()
+        current, path_nodes, path_edges, visited, has_attack, cum_weight = queue.popleft()
 
         if len(path_nodes) - 1 >= max_depth:
             continue
 
-        # Check predecessors
-        for source_id in graph.predecessors(current):
+        for source_id, edge_data_list in get_preds(current):
             if source_id in visited:
                 continue
 
-            edge_data_list = graph.get_edge_data(source_id, current)
             for edge_data in edge_data_list:
                 edge_type = edge_data.get("edge_type", "")
+                edge_weight = edge_data.get("weight", 1.0)
 
                 new_nodes = [source_id] + path_nodes
                 new_edges = [edge_data] + path_edges
                 new_visited = visited | {source_id}
+                new_has_attack = has_attack or edge_type in _ATTACK_EDGES
+                new_weight = cum_weight + edge_weight
 
                 source_node = graph.get_node(source_id)
-
-                # If source is not Tier 0 and has at least one attack edge in path, it's a valid path start
-                has_attack_edge = any(e.get("edge_type") in _ATTACK_EDGES for e in new_edges)
                 is_non_t0 = source_node is not None and source_node.tier != 0
 
-                if has_attack_edge and is_non_t0:
-                    weight = sum(e.get("weight", 1.0) for e in new_edges)
-                    paths.append(AttackPath(nodes=new_nodes, edges=new_edges, total_weight=weight))
+                if new_has_attack and is_non_t0:
+                    paths.append(AttackPath(nodes=new_nodes, edges=new_edges, total_weight=new_weight))
                     if len(paths) >= max_paths:
                         return paths
 
-                # Keep searching deeper if within depth limit
                 if len(new_nodes) - 1 < max_depth:
-                    queue.append((source_id, new_nodes, new_edges, new_visited))
+                    queue.append((source_id, new_nodes, new_edges, new_visited, new_has_attack, new_weight))
 
     return paths
 

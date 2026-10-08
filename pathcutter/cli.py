@@ -52,6 +52,14 @@ def main(argv: list[str] | None = None) -> int:
     p_fix.add_argument("-o", "--output", help="Output .ps1 file")
     p_fix.add_argument("--no-rollback", action="store_true", help="Skip rollback section")
 
+    # graph - show paths to a specific target
+    p_graph = sub.add_parser("graph", help="Show attack paths to a specific target node")
+    p_graph.add_argument("input", help="SharpHound ZIP or directory")
+    p_graph.add_argument("--target", required=True, help="Target node name (e.g. 'DOMAIN ADMINS')")
+    p_graph.add_argument("--top", type=int, default=20, help="Max paths to show")
+    p_graph.add_argument("--max-depth", type=int, default=20)
+    p_graph.add_argument("--max-paths", type=int, default=10000)
+
     # diff
     p_diff = sub.add_parser("diff", help="Compare two SharpHound snapshots")
     p_diff.add_argument("old", help="Before snapshot (SharpHound ZIP or directory)")
@@ -71,6 +79,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_score(args)
     elif args.command == "fix":
         return _cmd_fix(args)
+    elif args.command == "graph":
+        return _cmd_graph(args)
     elif args.command == "diff":
         return _cmd_diff(args)
 
@@ -125,9 +135,8 @@ def _cmd_analyze(args) -> int:
             print(f"        Fix: {chain.remediation[:120]}")
 
     choke = find_chokepoints(graph, report, max_fixes=args.top)
+    assessments = assess_fixes(graph, choke.fixes) if choke.fixes else []
     if choke.fixes:
-        # Safety analysis
-        assessments = assess_fixes(graph, choke.fixes)
         safety = summarize_safety(assessments)
 
         print(f"\n[*] Top {len(choke.fixes)} Fixes ({choke.elimination_pct:.0f}% path elimination):")
@@ -169,7 +178,10 @@ def _cmd_analyze(args) -> int:
     if args.html:
         try:
             from .report import generate_html_report
-            html = generate_html_report(graph, report, posture, node_scores, choke)
+            html = generate_html_report(
+                graph, report, posture, node_scores, choke,
+                chains=chains, safety=assessments if choke.fixes else None,
+            )
             if out_dir:
                 path = out_dir / "pathcutter-report.html"
                 path.write_text(html, encoding="utf-8")
@@ -209,6 +221,59 @@ def _cmd_fix(args) -> int:
     else:
         print(script)
 
+    return 0
+
+
+def _cmd_graph(args) -> int:
+    """Show attack paths to a specific target node."""
+    from .pathfinder import shortest_paths_to_targets
+
+    t0 = time.time()
+    print(f"[*] Loading SharpHound data from {args.input}...")
+    graph = load_sharphound(args.input)
+    print(f"    {graph.node_count} nodes, {graph.edge_count} edges")
+
+    # Find the target node by name (case-insensitive partial match)
+    target_name = args.target.upper()
+    matches = []
+    for node in graph.all_nodes():
+        if target_name in node.name.upper():
+            matches.append(node)
+
+    if not matches:
+        print(f"\n[!] No node matching '{args.target}' found.", file=sys.stderr)
+        return 1
+
+    if len(matches) > 1:
+        print(f"\n[*] Multiple matches for '{args.target}':")
+        for m in matches[:10]:
+            print(f"    {m.name} ({m.node_type.value}, T{m.tier})")
+        print(f"    Using first match: {matches[0].name}")
+
+    target = matches[0]
+    target_ids = {target.object_id}
+    print(f"\n[*] Finding paths to {target.name}...")
+
+    report = find_all_paths(graph, target_ids, max_depth=args.max_depth, max_paths=args.max_paths)
+    print(f"    {report.total_paths} paths from {report.unique_sources} sources")
+
+    if report.total_paths == 0:
+        print("\n[+] No attack paths found to this target.")
+        return 0
+
+    print(f"\n[*] Top {min(args.top, report.total_paths)} Shortest Paths:")
+    sorted_paths = sorted(report.paths, key=lambda p: p.length)[:args.top]
+    for i, path in enumerate(sorted_paths, 1):
+        parts = []
+        for j, edge in enumerate(path.edges):
+            node = graph.get_node(path.nodes[j])
+            name = node.display_name if node else path.nodes[j]
+            parts.append(f"{name} -[{edge.get('edge_type', '?')}]->")
+        parts.append(target.display_name)
+        print(f"    {i:>3}. {' '.join(parts)}")
+
+    elapsed = time.time() - t0
+    print(f"\n    Completed in {elapsed:.1f}s")
     return 0
 
 

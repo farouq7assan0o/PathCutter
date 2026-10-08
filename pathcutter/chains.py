@@ -49,6 +49,10 @@ def detect_chains(graph: AttackGraph, path_report: PathReport) -> list[AttackCha
     chains.extend(_detect_gpo_abuse(graph, path_report))
     chains.extend(_detect_disabled_account_abuse(graph, path_report))
     chains.extend(_detect_delegation_chains(graph, path_report))
+    chains.extend(_detect_asrep_roasting(graph, path_report))
+    chains.extend(_detect_adcs_abuse(graph, path_report))
+    chains.extend(_detect_laps_abuse(graph, path_report))
+    chains.extend(_detect_gmsa_abuse(graph, path_report))
 
     return sorted(chains, key=lambda c: {"critical": 0, "high": 1, "medium": 2}.get(c.severity, 3))
 
@@ -286,4 +290,151 @@ def _detect_delegation_chains(graph: AttackGraph, report: PathReport) -> list[At
         involved_edges=["AllowedToDelegate"],
         paths=matching,
         remediation="Disable unconstrained delegation on non-DC systems. Use constrained delegation or RBCD instead. Add sensitive accounts to 'Protected Users' group.",
+    )]
+
+
+def _detect_asrep_roasting(graph: AttackGraph, report: PathReport) -> list[AttackChain]:
+    """Detect AS-REP roastable accounts in attack paths.
+
+    Accounts with 'Do not require Kerberos preauthentication' can be AS-REP
+    roasted offline without any credentials. If such an account appears in
+    an attack path, it's a trivial entry point.
+    """
+    asrep_targets = set()
+    for node in graph.all_nodes():
+        if node.properties.get("dontreqpreauth") and node.node_type == NodeType.USER:
+            asrep_targets.add(node.object_id)
+
+    if not asrep_targets:
+        return []
+
+    matching = []
+    for p in report.paths:
+        if p.source in asrep_targets:
+            matching.append(p)
+
+    if not matching:
+        return []
+
+    names = [graph.get_node_name(t) for t in asrep_targets if any(
+        p.source == t for p in matching)]
+
+    return [AttackChain(
+        chain_type="asrep_roasting",
+        description=f"AS-REP Roasting: {len(names)} accounts don't require pre-authentication - passwords crackable offline without credentials",
+        severity="high",
+        mitre=["T1558.004"],
+        involved_nodes=names,
+        involved_edges=[],
+        paths=matching,
+        remediation="Enable Kerberos pre-authentication on all accounts. Set strong passwords (25+ chars). Add to Protected Users group if possible.",
+    )]
+
+
+def _detect_adcs_abuse(graph: AttackGraph, report: PathReport) -> list[AttackChain]:
+    """Detect AD Certificate Services abuse paths (ESC1-ESC8).
+
+    SharpHound/Certify data may expose edges like:
+    - Enroll / AutoEnroll on certificate templates
+    - WritePKIEnrollmentFlag / WritePKINameFlag
+    - ManageCA / ManageCertificates on CA
+    - GenericAll/GenericWrite on templates
+    These enable ESC1 (request cert as anyone), ESC4 (modify template),
+    ESC7 (CA officer abuse), etc.
+    """
+    adcs_edge_types = {
+        "Enroll", "AutoEnroll", "ManageCA", "ManageCertificates",
+        "WritePKIEnrollmentFlag", "WritePKINameFlag",
+    }
+
+    adcs_nodes = set()
+    adcs_edges_found = set()
+    for u, v, data in graph.all_edges():
+        et = data.get("edge_type", "")
+        if et in adcs_edge_types:
+            adcs_edges_found.add(et)
+            adcs_nodes.add(v)
+
+    # Also check for GenericAll/GenericWrite on cert template objects
+    for node in graph.all_nodes():
+        if node.node_type.value in ("CertTemplate", "EnterpriseCA", "AIACA", "RootCA", "NTAuthStore"):
+            adcs_nodes.add(node.object_id)
+
+    if not adcs_edges_found and not adcs_nodes:
+        return []
+
+    matching = []
+    for p in report.paths:
+        for i, e in enumerate(p.edges):
+            et = e.get("edge_type", "")
+            if et in adcs_edge_types:
+                matching.append(p)
+                break
+            if et in ("GenericAll", "GenericWrite", "WriteDacl", "WriteOwner") and p.nodes[i + 1] in adcs_nodes:
+                matching.append(p)
+                break
+
+    if not matching:
+        return []
+
+    node_names = [graph.get_node_name(n) for n in list(adcs_nodes)[:10]]
+    return [AttackChain(
+        chain_type="adcs_abuse",
+        description=f"ADCS abuse (ESC1-8): {len(matching)} paths can abuse certificate services through {', '.join(sorted(adcs_edges_found))} on {len(adcs_nodes)} CA/template objects",
+        severity="critical",
+        mitre=["T1649"],
+        involved_nodes=node_names,
+        involved_edges=list(adcs_edges_found),
+        paths=matching,
+        remediation="Audit certificate templates: disable ENROLLEE_SUPPLIES_SUBJECT, require manager approval, restrict enrollment permissions. Use Certify/Certipy to identify ESC1-8 misconfigurations.",
+    )]
+
+
+def _detect_laps_abuse(graph: AttackGraph, report: PathReport) -> list[AttackChain]:
+    """Detect paths that abuse LAPS password read permissions."""
+    matching = [p for p in report.paths if "ReadLAPSPassword" in p.edge_types]
+    if not matching:
+        return []
+
+    targets = set()
+    for p in matching:
+        for i, e in enumerate(p.edges):
+            if e.get("edge_type") == "ReadLAPSPassword":
+                targets.add(p.nodes[i + 1])
+
+    target_names = [graph.get_node_name(t) for t in targets]
+    return [AttackChain(
+        chain_type="laps_abuse",
+        description=f"LAPS abuse: {len(matching)} paths can read local admin passwords on {len(targets)} computers",
+        severity="high",
+        mitre=["T1003"],
+        involved_nodes=target_names[:10],
+        involved_edges=["ReadLAPSPassword"],
+        paths=matching,
+        remediation="Restrict ms-Mcs-AdmPwd read permissions to dedicated LAPS admin groups only. Use Windows LAPS (2023+) with encrypted passwords.",
+    )]
+
+
+def _detect_gmsa_abuse(graph: AttackGraph, report: PathReport) -> list[AttackChain]:
+    """Detect paths that abuse gMSA password read permissions."""
+    matching = [p for p in report.paths if "ReadGMSAPassword" in p.edge_types]
+    if not matching:
+        return []
+
+    targets = set()
+    for p in matching:
+        for i, e in enumerate(p.edges):
+            if e.get("edge_type") == "ReadGMSAPassword":
+                targets.add(p.nodes[i + 1])
+
+    target_names = [graph.get_node_name(t) for t in targets]
+    return [AttackChain(
+        chain_type="gmsa_abuse",
+        description=f"gMSA abuse: {len(matching)} paths can read gMSA passwords for {len(targets)} service accounts",
+        severity="high",
+        mitre=["T1003"],
+        involved_nodes=target_names[:10],
+        involved_edges=["ReadGMSAPassword"],
+        paths=matching,
+        remediation="Review msDS-GroupMSAMembership on each gMSA. Only authorized service hosts should be listed as principals allowed to retrieve the password.",
     )]
