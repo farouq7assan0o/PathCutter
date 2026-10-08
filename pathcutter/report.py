@@ -22,6 +22,8 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
     chains_data = _build_chains_json(chains) if chains else []
     paths_data = _build_paths_json(path_report, graph)
 
+    summary = graph.summary()
+
     return _HTML_TEMPLATE.format(
         generated=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
         score=posture.score,
@@ -44,6 +46,7 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
         risks_json=json.dumps(risks_data),
         chains_json=json.dumps(chains_data),
         paths_json=json.dumps(paths_data),
+        summary_json=json.dumps(summary),
         grade_color=_grade_color(posture.grade),
     )
 
@@ -274,6 +277,25 @@ tr {{ cursor: pointer; }}
 
 #graph-container {{ width: 100%; height: 700px; background: #0a0f1e; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: relative; }}
 #graph-controls {{ position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 5; }}
+#graph-search {{ position: absolute; top: 10px; left: 10px; z-index: 15; width: 260px; }}
+#graph-search input {{ width: 100%; background: rgba(15,23,42,0.95); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px 7px 30px; color: var(--text); font-size: 0.8rem; outline: none; }}
+#graph-search input:focus {{ border-color: var(--accent); }}
+#graph-search .icon {{ position: absolute; left: 8px; top: 8px; color: var(--text-dimmer); font-size: 0.85rem; pointer-events: none; }}
+#graph-search-results {{ position: absolute; top: 100%; left: 0; width: 100%; background: rgba(15,23,42,0.98); border: 1px solid var(--border); border-radius: 0 0 6px 6px; max-height: 220px; overflow-y: auto; display: none; }}
+#graph-search-results .sr {{ padding: 6px 10px; cursor: pointer; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; }}
+#graph-search-results .sr:hover, #graph-search-results .sr.active {{ background: rgba(59,130,246,0.15); }}
+#graph-search-results .sr .sr-type {{ font-size: 0.7rem; color: var(--text-dimmer); }}
+#edge-filter {{ position: absolute; top: 44px; right: 10px; background: rgba(10,15,30,0.98); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.75rem; z-index: 6; display: none; max-height: 380px; overflow-y: auto; width: 200px; }}
+#edge-filter .ef-title {{ font-weight: 600; color: var(--text-dim); margin-bottom: 6px; }}
+#edge-filter label {{ display: flex; align-items: center; gap: 6px; padding: 3px 0; cursor: pointer; color: var(--text); }}
+#edge-filter label:hover {{ color: var(--accent); }}
+#edge-filter input[type="checkbox"] {{ accent-color: var(--accent); }}
+#edge-filter .ef-sep {{ height: 1px; background: var(--border); margin: 6px 0; }}
+.ctx-menu {{ position: absolute; background: rgba(15,23,42,0.98); border: 1px solid var(--border); border-radius: 8px; padding: 4px 0; z-index: 30; min-width: 180px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }}
+.ctx-menu .ctx-item {{ padding: 7px 14px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px; }}
+.ctx-menu .ctx-item:hover {{ background: rgba(59,130,246,0.15); }}
+.ctx-menu .ctx-sep {{ height: 1px; background: var(--border); margin: 2px 0; }}
+.chart-container {{ width: 100%; height: 180px; }}
 #graph-legend {{ position: absolute; bottom: 10px; left: 10px; background: rgba(10,15,30,0.95); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.75rem; z-index: 5; }}
 #graph-legend .item {{ display: flex; align-items: center; gap: 8px; margin: 4px 0; }}
 #graph-legend .icon {{ width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }}
@@ -385,6 +407,16 @@ tr {{ cursor: pointer; }}
         <div class="detail">Composite attack patterns detected</div>
       </div>
     </div>
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card">
+        <h3>Node Distribution</h3>
+        <div class="chart-container" id="chart-nodes"></div>
+      </div>
+      <div class="card">
+        <h3>Top Edge Types (Attack Surface)</h3>
+        <div class="chart-container" id="chart-edges"></div>
+      </div>
+    </div>
   </div>
 
   <!-- RISKS -->
@@ -444,12 +476,19 @@ tr {{ cursor: pointer; }}
   <div id="graph" class="tab-content">
     <div class="card" style="padding:0;position:relative">
       <div id="graph-container">
+        <div id="graph-search">
+          <span class="icon">&#128269;</span>
+          <input type="text" placeholder="Search nodes..." id="graph-search-input" autocomplete="off">
+          <div id="graph-search-results"></div>
+        </div>
         <div id="graph-controls">
           <button class="btn btn-sm btn-outline" onclick="resetGraph()">Reset</button>
           <button class="btn btn-sm btn-outline" onclick="toggleLabels()">Labels</button>
           <button class="btn btn-sm btn-outline" onclick="toggleEdgeLabels()">Edge Labels</button>
+          <button class="btn btn-sm btn-outline" onclick="toggleEdgeFilter()">Filter</button>
           <button class="btn btn-sm btn-outline" onclick="toggleLayout()">Layout</button>
         </div>
+        <div id="edge-filter"></div>
         <div id="graph-legend">
           <div style="font-weight:600;margin-bottom:4px;color:var(--text-dim)">NODES</div>
           <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="7" r="4" fill="#3b82f6"/><path d="M3 18 Q3 12 10 12 Q17 12 17 18" fill="#3b82f6" opacity="0.5"/></svg></div> User</div>
@@ -481,6 +520,7 @@ const fixesData = {fixes_json};
 const risksData = {risks_json};
 const chainsData = {chains_json};
 const pathsData = {paths_json};
+const summaryData = {summary_json};
 
 // Toast
 function showToast(msg) {{
@@ -775,6 +815,7 @@ function drawGraph() {{
     .data(graphData.nodes).enter().append('g')
     .style('cursor', 'pointer')
     .on('click', (e, d) => {{ e.stopPropagation(); showNodeDetail(d); }})
+    .on('contextmenu', (e, d) => showContextMenu(e, d))
     .on('mouseenter', (e, d) => showTooltip(e, d))
     .on('mouseleave', () => hideTooltip())
     .call(d3.drag()
@@ -945,6 +986,257 @@ function highlightPathInGraph(nodeIds) {{
     }}
   }}, 150);
 }}
+
+// ---- GRAPH SEARCH ----
+(function() {{
+  const input = document.getElementById('graph-search-input');
+  const results = document.getElementById('graph-search-results');
+  let activeIdx = -1;
+
+  input.addEventListener('input', () => {{
+    const q = input.value.toLowerCase().trim();
+    results.innerHTML = '';
+    activeIdx = -1;
+    if (q.length < 2) {{ results.style.display = 'none'; return; }}
+    const matches = graphData.nodes.filter(n => n.name.toLowerCase().includes(q)).slice(0, 12);
+    if (!matches.length) {{ results.style.display = 'none'; return; }}
+    matches.forEach((m, i) => {{
+      const div = document.createElement('div');
+      div.className = 'sr';
+      div.innerHTML = `<span>${{m.name}}</span><span class="sr-type">${{m.type}} T${{m.tier}}</span>`;
+      div.addEventListener('click', () => zoomToNode(m));
+      div.addEventListener('mouseenter', () => {{
+        results.querySelectorAll('.sr').forEach(s => s.classList.remove('active'));
+        div.classList.add('active');
+        activeIdx = i;
+      }});
+      results.appendChild(div);
+    }});
+    results.style.display = 'block';
+  }});
+
+  input.addEventListener('keydown', (e) => {{
+    const items = results.querySelectorAll('.sr');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {{ e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); }}
+    else if (e.key === 'ArrowUp') {{ e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); }}
+    else if (e.key === 'Enter' && activeIdx >= 0) {{ e.preventDefault(); items[activeIdx].click(); return; }}
+    else if (e.key === 'Escape') {{ results.style.display = 'none'; return; }}
+    else return;
+    items.forEach(s => s.classList.remove('active'));
+    if (activeIdx >= 0) items[activeIdx].classList.add('active');
+  }});
+
+  document.addEventListener('click', (e) => {{
+    if (!e.target.closest('#graph-search')) results.style.display = 'none';
+  }});
+}})();
+
+function zoomToNode(node) {{
+  if (!window._graphDrawn) drawGraph();
+  document.getElementById('graph-search-results').style.display = 'none';
+  document.getElementById('graph-search-input').value = node.name;
+  const d = graphData.nodes.find(n => n.id === node.id);
+  if (!d || d.x == null) return;
+  const container = document.getElementById('graph-container');
+  const w = container.clientWidth, h = container.clientHeight;
+  const scale = 2.5;
+  const tx = w / 2 - d.x * scale, ty = h / 2 - d.y * scale;
+  svg.transition().duration(600)
+    .call(window._zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  // Pulse the node
+  const nodeIds = new Set([d.id]);
+  const paths = pathsData.filter(p => p.node_ids.includes(d.id));
+  paths.forEach(p => p.node_ids.forEach(n => nodeIds.add(n)));
+  nodeGroups.transition().duration(400).attr('opacity', n => nodeIds.has(n.id) ? 1 : 0.12);
+  linkElements.transition().duration(400)
+    .attr('stroke-opacity', l => nodeIds.has(l.source.id) && nodeIds.has(l.target.id) ? 0.85 : 0.03)
+    .attr('stroke-width', l => nodeIds.has(l.source.id) && nodeIds.has(l.target.id) ? 3 : 0.3);
+}}
+
+// ---- EDGE TYPE FILTER ----
+let edgeFilterVisible = false;
+const hiddenEdgeTypes = new Set();
+
+function toggleEdgeFilter() {{
+  edgeFilterVisible = !edgeFilterVisible;
+  const panel = document.getElementById('edge-filter');
+  if (edgeFilterVisible) {{
+    buildEdgeFilter();
+    panel.style.display = 'block';
+  }} else {{
+    panel.style.display = 'none';
+  }}
+}}
+
+function buildEdgeFilter() {{
+  const panel = document.getElementById('edge-filter');
+  if (panel.querySelector('.ef-title')) return;
+  const types = {{}};
+  graphData.links.forEach(l => {{ types[l.type] = (types[l.type] || 0) + 1; }});
+  const sorted = Object.entries(types).sort((a, b) => b[1] - a[1]);
+  const categories = {{
+    'Critical ACL': ['GenericAll', 'DCSync', 'WriteDacl', 'WriteOwner', 'Owns'],
+    'Dangerous ACL': ['GenericWrite', 'ForceChangePassword', 'AddMember', 'WriteSPN', 'WriteKeyCredentialLink', 'AddAllowedToAct'],
+    'Session/Admin': ['AdminTo', 'HasSession', 'CanRDP', 'CanPSRemote', 'ExecuteDCOM', 'SQLAdmin'],
+    'Delegation': ['AllowedToDelegate', 'AllowedToAct'],
+    'ADCS': ['Enroll', 'AutoEnroll', 'ManageCA', 'ManageCertificates', 'WritePKIEnrollmentFlag', 'WritePKINameFlag'],
+    'Structural': ['MemberOf', 'Contains', 'TrustedBy', 'GPOControlsObject'],
+  }};
+
+  let html = '<div class="ef-title">EDGE FILTERS</div>';
+  html += '<label style="margin-bottom:4px"><input type="checkbox" checked onchange="toggleAllEdges(this.checked)"> <strong>All</strong></label>';
+  html += '<div class="ef-sep"></div>';
+  for (const [cat, edgeTypes] of Object.entries(categories)) {{
+    const present = edgeTypes.filter(t => types[t]);
+    if (!present.length) continue;
+    html += `<div style="color:var(--text-dim);font-size:0.7rem;margin-top:4px;margin-bottom:2px">${{cat}}</div>`;
+    present.forEach(t => {{
+      const color = EDGE_COLORS[t] || '#475569';
+      html += `<label><input type="checkbox" checked data-edge="${{t}}" onchange="filterEdge('${{t}}',this.checked)"><span style="color:${{color}}">${{t}}</span> <span style="color:var(--text-dimmer)">(${{types[t]}})</span></label>`;
+    }});
+  }}
+  const categorized = new Set(Object.values(categories).flat());
+  const other = sorted.filter(([t]) => !categorized.has(t));
+  if (other.length) {{
+    html += '<div class="ef-sep"></div><div style="color:var(--text-dim);font-size:0.7rem;margin-bottom:2px">Other</div>';
+    other.forEach(([t, count]) => {{
+      html += `<label><input type="checkbox" checked data-edge="${{t}}" onchange="filterEdge('${{t}}',this.checked)">${{t}} <span style="color:var(--text-dimmer)">(${{count}})</span></label>`;
+    }});
+  }}
+  panel.innerHTML = html;
+}}
+
+function filterEdge(edgeType, visible) {{
+  if (visible) hiddenEdgeTypes.delete(edgeType);
+  else hiddenEdgeTypes.add(edgeType);
+  applyEdgeFilter();
+}}
+
+function toggleAllEdges(visible) {{
+  const panel = document.getElementById('edge-filter');
+  panel.querySelectorAll('input[data-edge]').forEach(cb => {{ cb.checked = visible; }});
+  if (visible) hiddenEdgeTypes.clear();
+  else graphData.links.forEach(l => hiddenEdgeTypes.add(l.type));
+  applyEdgeFilter();
+}}
+
+function applyEdgeFilter() {{
+  if (!linkElements) return;
+  linkElements.attr('display', d => hiddenEdgeTypes.has(d.type) ? 'none' : 'block');
+  if (linkLabels) linkLabels.attr('display', d => hiddenEdgeTypes.has(d.type) ? 'none' : (edgeLabelsVisible ? 'block' : 'none'));
+}}
+
+// ---- CONTEXT MENU ----
+(function() {{
+  document.addEventListener('click', () => {{
+    const m = document.querySelector('.ctx-menu');
+    if (m) m.remove();
+  }});
+}})();
+
+function showContextMenu(e, d) {{
+  e.preventDefault();
+  e.stopPropagation();
+  const old = document.querySelector('.ctx-menu');
+  if (old) old.remove();
+  const menu = document.createElement('div');
+  menu.className = 'ctx-menu';
+  const rect = document.getElementById('graph-container').getBoundingClientRect();
+  menu.style.left = (e.clientX - rect.left) + 'px';
+  menu.style.top = (e.clientY - rect.top) + 'px';
+  const c = NODE_COLORS[d.type] || '#64748b';
+  menu.innerHTML = `
+    <div style="padding:6px 14px;font-weight:600;color:${{c}};font-size:0.85rem;border-bottom:1px solid var(--border)">${{d.name}}</div>
+    <div class="ctx-item" onclick="showNodeDetail(graphData.nodes.find(n=>n.id==='${{d.id}}'))">Show details</div>
+    <div class="ctx-item" onclick="goToPath('${{d.name.split('@')[0]}}')">Find attack paths</div>
+    <div class="ctx-item" onclick="isolateNode('${{d.id}}')">Isolate neighborhood</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" onclick="copyText('${{d.name}}')">Copy name</div>
+    <div class="ctx-item" onclick="copyText('${{d.id}}')">Copy SID</div>
+  `;
+  document.getElementById('graph-container').appendChild(menu);
+}}
+
+function isolateNode(nodeId) {{
+  const neighbors = new Set([nodeId]);
+  graphData.links.forEach(l => {{
+    const sid = typeof l.source === 'object' ? l.source.id : l.source;
+    const tid = typeof l.target === 'object' ? l.target.id : l.target;
+    if (sid === nodeId) neighbors.add(tid);
+    if (tid === nodeId) neighbors.add(sid);
+  }});
+  nodeGroups.transition().duration(400).attr('opacity', n => neighbors.has(n.id) ? 1 : 0.04);
+  linkElements.transition().duration(400)
+    .attr('stroke-opacity', l => {{
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      return (sid === nodeId || tid === nodeId) ? 0.9 : 0.01;
+    }})
+    .attr('stroke-width', l => {{
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      return (sid === nodeId || tid === nodeId) ? 3 : 0.2;
+    }});
+}}
+
+function copyText(text) {{
+  navigator.clipboard.writeText(text);
+  showToast('Copied: ' + text.substring(0, 40));
+}}
+
+// ---- OVERVIEW CHARTS ----
+function drawOverviewCharts() {{
+  const nodeTypes = summaryData.node_types || {{}};
+  const edgeTypes = summaryData.edge_types || {{}};
+
+  // Node distribution bar chart
+  const nd = Object.entries(nodeTypes).sort((a, b) => b[1] - a[1]);
+  if (nd.length) {{
+    const ct = document.getElementById('chart-nodes');
+    const w = ct.clientWidth, h = ct.clientHeight;
+    const svgN = d3.select('#chart-nodes').append('svg').attr('width', w).attr('height', h);
+    const margin = {{top: 8, right: 12, bottom: 24, left: 50}};
+    const iw = w - margin.left - margin.right, ih = h - margin.top - margin.bottom;
+    const g = svgN.append('g').attr('transform', `translate(${{margin.left}},${{margin.top}})`);
+    const x = d3.scaleLinear().domain([0, d3.max(nd, d => d[1])]).range([0, iw]);
+    const y = d3.scaleBand().domain(nd.map(d => d[0])).range([0, ih]).padding(0.3);
+    g.selectAll('rect').data(nd).enter().append('rect')
+      .attr('x', 0).attr('y', d => y(d[0])).attr('width', d => x(d[1])).attr('height', y.bandwidth())
+      .attr('fill', d => NODE_COLORS[d[0]] || '#64748b').attr('rx', 3).attr('opacity', 0.85);
+    g.selectAll('.label').data(nd).enter().append('text')
+      .attr('x', d => x(d[1]) + 4).attr('y', d => y(d[0]) + y.bandwidth() / 2)
+      .attr('dy', '0.35em').attr('fill', '#94a3b8').attr('font-size', '10px').text(d => d[1]);
+    g.selectAll('.name').data(nd).enter().append('text')
+      .attr('x', -4).attr('y', d => y(d[0]) + y.bandwidth() / 2)
+      .attr('dy', '0.35em').attr('text-anchor', 'end').attr('fill', '#e2e8f0').attr('font-size', '10px')
+      .text(d => d[0].length > 8 ? d[0].substring(0, 7) + '..' : d[0]);
+  }}
+
+  // Edge type distribution (top 10)
+  const ed = Object.entries(edgeTypes).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  if (ed.length) {{
+    const ct = document.getElementById('chart-edges');
+    const w = ct.clientWidth, h = ct.clientHeight;
+    const svgE = d3.select('#chart-edges').append('svg').attr('width', w).attr('height', h);
+    const margin = {{top: 8, right: 12, bottom: 24, left: 80}};
+    const iw = w - margin.left - margin.right, ih = h - margin.top - margin.bottom;
+    const g = svgE.append('g').attr('transform', `translate(${{margin.left}},${{margin.top}})`);
+    const x = d3.scaleLinear().domain([0, d3.max(ed, d => d[1])]).range([0, iw]);
+    const y = d3.scaleBand().domain(ed.map(d => d[0])).range([0, ih]).padding(0.25);
+    g.selectAll('rect').data(ed).enter().append('rect')
+      .attr('x', 0).attr('y', d => y(d[0])).attr('width', d => x(d[1])).attr('height', y.bandwidth())
+      .attr('fill', d => EDGE_COLORS[d[0]] || '#475569').attr('rx', 3).attr('opacity', 0.85);
+    g.selectAll('.label').data(ed).enter().append('text')
+      .attr('x', d => x(d[1]) + 4).attr('y', d => y(d[0]) + y.bandwidth() / 2)
+      .attr('dy', '0.35em').attr('fill', '#94a3b8').attr('font-size', '10px').text(d => d[1]);
+    g.selectAll('.name').data(ed).enter().append('text')
+      .attr('x', -4).attr('y', d => y(d[0]) + y.bandwidth() / 2)
+      .attr('dy', '0.35em').attr('text-anchor', 'end').attr('fill', '#e2e8f0').attr('font-size', '10px')
+      .text(d => d[0]);
+  }}
+}}
+drawOverviewCharts();
 </script>
 </body>
 </html>'''
