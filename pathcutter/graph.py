@@ -103,7 +103,40 @@ class AttackGraph:
         )
         if edge.edge_type == "MemberOf":
             self._group_members.setdefault(edge.target_id, set()).add(edge.source_id)
-            self._transitive_cache.clear()
+            if self._transitive_cache:
+                self._transitive_cache.clear()
+
+    def add_edges_bulk(self, edges: list[ADEdge]) -> None:
+        """Add multiple edges efficiently (defers cache invalidation)."""
+        for edge in edges:
+            weight = exploitability_weight(edge.edge_type)
+            self.graph.add_edge(
+                edge.source_id,
+                edge.target_id,
+                edge_type=edge.edge_type,
+                inherited=edge.inherited,
+                weight=weight,
+                **edge.properties,
+            )
+            if edge.edge_type == "MemberOf":
+                self._group_members.setdefault(edge.target_id, set()).add(edge.source_id)
+        self._transitive_cache.clear()
+
+    def add_nodes_bulk(self, nodes: list[ADNode]) -> None:
+        """Add multiple nodes efficiently."""
+        for node in nodes:
+            self._nodes[node.object_id] = node
+            self.graph.add_node(
+                node.object_id,
+                name=node.name,
+                type=node.node_type.value,
+                domain=node.domain,
+                enabled=node.enabled,
+                tier=node.tier,
+            )
+            if is_tier0(node.name, node.object_id, node.node_type.value):
+                node.tier = 0
+                self._tier0.add(node.object_id)
 
     def get_node(self, node_id: str) -> ADNode | None:
         return self._nodes.get(node_id)

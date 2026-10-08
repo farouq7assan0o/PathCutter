@@ -18,13 +18,19 @@ def build_large_graph(num_users=5000, num_computers=3000, num_groups=200,
     """Build a realistic large AD graph."""
     g = AttackGraph()
     random.seed(42)
+    randchoice = random.choice
+    randint = random.randint
+    randrand = random.random
 
     domain = "MEGACORP.LOCAL"
     all_users = []
     all_computers = []
     all_groups = []
 
-    # Tier 0 groups
+    # -- Nodes (bulk) --
+    nodes = []
+    edges = []
+
     t0_groups = [
         ("S-DA", "DOMAIN ADMINS"),
         ("S-EA", "ENTERPRISE ADMINS"),
@@ -32,85 +38,76 @@ def build_large_graph(num_users=5000, num_computers=3000, num_groups=200,
         ("S-BA", "ADMINISTRATORS"),
     ]
     for sid, name in t0_groups:
-        g.add_node(ADNode(sid, f"{name}@{domain}", NodeType.GROUP))
+        nodes.append(ADNode(sid, f"{name}@{domain}", NodeType.GROUP))
         all_groups.append(sid)
 
-    # Domain controllers
     for i in range(3):
         sid = f"S-DC-{i}"
-        g.add_node(ADNode(sid, f"DC{i+1}.{domain}", NodeType.COMPUTER))
-        g.add_edge(ADEdge(sid, "S-DA", "MemberOf"))
+        nodes.append(ADNode(sid, f"DC{i+1}.{domain}", NodeType.COMPUTER))
+        edges.append(ADEdge(sid, "S-DA", "MemberOf"))
         all_computers.append(sid)
 
-    # Regular groups with nesting
     for i in range(num_groups):
         sid = f"S-G-{i}"
-        name = f"GROUP_{i}@{domain}"
-        g.add_node(ADNode(sid, name, NodeType.GROUP))
+        nodes.append(ADNode(sid, f"GROUP_{i}@{domain}", NodeType.GROUP))
         all_groups.append(sid)
-        # Some groups nest into other groups (creates inheritance chains)
-        if i > 10 and random.random() < 0.15:
-            parent = random.choice(all_groups[:i])
-            g.add_edge(ADEdge(sid, parent, "MemberOf"))
+        if i > 10 and randrand() < 0.15:
+            parent = randchoice(all_groups[:i])
+            edges.append(ADEdge(sid, parent, "MemberOf"))
 
-    # Service accounts (some with SPNs)
     svc_count = num_users // 20
     for i in range(svc_count):
         sid = f"S-SVC-{i}"
-        props = {"hasspn": True} if random.random() < 0.5 else {}
-        if random.random() < 0.1:
+        props = {"hasspn": True} if randrand() < 0.5 else {}
+        if randrand() < 0.1:
             props["dontreqpreauth"] = True
-        g.add_node(ADNode(sid, f"SVC_{i}@{domain}", NodeType.USER, properties=props))
+        nodes.append(ADNode(sid, f"SVC_{i}@{domain}", NodeType.USER, properties=props))
         all_users.append(sid)
-        # Service accounts often in groups
-        grp = random.choice(all_groups)
-        g.add_edge(ADEdge(sid, grp, "MemberOf"))
+        edges.append(ADEdge(sid, randchoice(all_groups), "MemberOf"))
 
-    # Regular users
     for i in range(num_users - svc_count):
         sid = f"S-U-{i}"
-        g.add_node(ADNode(sid, f"USER_{i}@{domain}", NodeType.USER))
+        nodes.append(ADNode(sid, f"USER_{i}@{domain}", NodeType.USER))
         all_users.append(sid)
-        # Users belong to 1-3 groups
-        for _ in range(random.randint(1, 3)):
-            grp = random.choice(all_groups)
-            g.add_edge(ADEdge(sid, grp, "MemberOf"))
+        grp_count = randint(1, 3)
+        for _ in range(grp_count):
+            edges.append(ADEdge(sid, randchoice(all_groups), "MemberOf"))
 
-    # Computers
     for i in range(num_computers):
         sid = f"S-C-{i}"
-        g.add_node(ADNode(sid, f"WS{i}.{domain}", NodeType.COMPUTER))
+        nodes.append(ADNode(sid, f"WS{i}.{domain}", NodeType.COMPUTER))
         all_computers.append(sid)
 
-    # ACL edges (the attack surface)
+    g.add_nodes_bulk(nodes)
+
+    # -- Attack edges (pre-concat source pools once) --
     acl_types = ["GenericAll", "GenericWrite", "WriteOwner", "WriteDacl",
                  "ForceChangePassword", "AddMember", "WriteSPN",
                  "WriteKeyCredentialLink", "AddAllowedToAct", "ReadLAPSPassword"]
+    session_types = ["HasSession", "AdminTo", "CanRDP"]
+
+    acl_src_pool = all_users + all_groups
+    acl_tgt_pool = all_users + all_groups + all_computers
+
     for _ in range(num_acl_edges):
-        src = random.choice(all_users + all_groups)
-        tgt = random.choice(all_users + all_groups + all_computers)
+        src = randchoice(acl_src_pool)
+        tgt = randchoice(acl_tgt_pool)
         if src != tgt:
-            et = random.choice(acl_types)
-            g.add_edge(ADEdge(src, tgt, et))
+            edges.append(ADEdge(src, tgt, randchoice(acl_types)))
 
-    # Session edges
     for _ in range(num_session_edges):
-        user = random.choice(all_users)
-        comp = random.choice(all_computers)
-        g.add_edge(ADEdge(user, comp, random.choice(["HasSession", "AdminTo", "CanRDP"])))
+        edges.append(ADEdge(randchoice(all_users), randchoice(all_computers), randchoice(session_types)))
 
-    # Some DCSync edges
     for i in range(5):
-        user = random.choice(all_users)
-        g.add_edge(ADEdge(user, "S-DA", "DCSync"))
+        edges.append(ADEdge(randchoice(all_users), "S-DA", "DCSync"))
 
-    # Delegation edges
     for i in range(20):
-        comp = random.choice(all_computers)
-        tgt = random.choice(all_computers)
+        comp = randchoice(all_computers)
+        tgt = randchoice(all_computers)
         if comp != tgt:
-            g.add_edge(ADEdge(comp, tgt, "AllowedToDelegate"))
+            edges.append(ADEdge(comp, tgt, "AllowedToDelegate"))
 
+    g.add_edges_bulk(edges)
     g.classify_tiers()
     return g
 
