@@ -272,11 +272,17 @@ tr {{ cursor: pointer; }}
 .search-box:focus {{ border-color: var(--accent); }}
 .search-box::placeholder {{ color: var(--text-dimmer); }}
 
-#graph-container {{ width: 100%; height: 600px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: relative; }}
-#graph-controls {{ position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; z-index: 5; }}
-#graph-legend {{ position: absolute; bottom: 8px; left: 8px; background: rgba(15,23,42,0.9); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 0.72rem; z-index: 5; }}
-#graph-legend .item {{ display: flex; align-items: center; gap: 6px; margin: 2px 0; }}
-#graph-legend .dot {{ width: 10px; height: 10px; border-radius: 50%; }}
+#graph-container {{ width: 100%; height: 700px; background: #0a0f1e; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: relative; }}
+#graph-controls {{ position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 5; }}
+#graph-legend {{ position: absolute; bottom: 10px; left: 10px; background: rgba(10,15,30,0.95); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.75rem; z-index: 5; }}
+#graph-legend .item {{ display: flex; align-items: center; gap: 8px; margin: 4px 0; }}
+#graph-legend .icon {{ width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }}
+#graph-edge-legend {{ position: absolute; bottom: 10px; right: 10px; background: rgba(10,15,30,0.95); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.72rem; z-index: 5; max-width: 180px; }}
+#graph-edge-legend .item {{ display: flex; align-items: center; gap: 6px; margin: 3px 0; }}
+#graph-edge-legend .line {{ width: 20px; height: 2px; border-radius: 1px; }}
+#graph-tooltip {{ position: absolute; background: rgba(10,15,30,0.95); border: 1px solid var(--accent); border-radius: 6px; padding: 8px 12px; font-size: 0.8rem; z-index: 20; pointer-events: none; display: none; max-width: 280px; }}
+#graph-tooltip .tt-name {{ font-weight: 700; margin-bottom: 4px; }}
+#graph-tooltip .tt-type {{ color: var(--text-dim); font-size: 0.72rem; }}
 
 .node-detail {{ position: absolute; top: 8px; left: 8px; width: 280px; max-height: calc(100% - 16px); overflow-y: auto; background: rgba(15,23,42,0.95); border: 1px solid var(--border); border-radius: 8px; padding: 12px; z-index: 10; font-size: 0.8rem; }}
 .node-detail h4 {{ font-size: 0.9rem; margin-bottom: 8px; }}
@@ -439,17 +445,29 @@ tr {{ cursor: pointer; }}
     <div class="card" style="padding:0;position:relative">
       <div id="graph-container">
         <div id="graph-controls">
-          <button class="btn btn-sm btn-outline" onclick="resetGraph()">Reset Zoom</button>
+          <button class="btn btn-sm btn-outline" onclick="resetGraph()">Reset</button>
           <button class="btn btn-sm btn-outline" onclick="toggleLabels()">Labels</button>
+          <button class="btn btn-sm btn-outline" onclick="toggleEdgeLabels()">Edge Labels</button>
+          <button class="btn btn-sm btn-outline" onclick="toggleLayout()">Layout</button>
         </div>
         <div id="graph-legend">
-          <div class="item"><div class="dot" style="background:#3b82f6"></div> User</div>
-          <div class="item"><div class="dot" style="background:#10b981"></div> Computer</div>
-          <div class="item"><div class="dot" style="background:#f59e0b"></div> Group</div>
-          <div class="item"><div class="dot" style="background:#ef4444"></div> Domain</div>
-          <div class="item"><div class="dot" style="background:#8b5cf6"></div> GPO</div>
-          <div class="item"><div class="dot" style="background:transparent;border:2px solid #ef4444"></div> Tier 0</div>
+          <div style="font-weight:600;margin-bottom:4px;color:var(--text-dim)">NODES</div>
+          <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="7" r="4" fill="#3b82f6"/><path d="M3 18 Q3 12 10 12 Q17 12 17 18" fill="#3b82f6" opacity="0.5"/></svg></div> User</div>
+          <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><rect x="2" y="4" width="16" height="10" rx="1" fill="#10b981"/><rect x="7" y="14" width="6" height="2" fill="#10b981" opacity="0.6"/><rect x="5" y="16" width="10" height="1" rx="0.5" fill="#10b981" opacity="0.4"/></svg></div> Computer</div>
+          <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><circle cx="7" cy="7" r="3" fill="#f59e0b"/><circle cx="13" cy="7" r="3" fill="#f59e0b"/><circle cx="10" cy="13" r="3" fill="#f59e0b"/></svg></div> Group</div>
+          <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="8" fill="none" stroke="#ef4444" stroke-width="1.5"/><path d="M2 10 H18 M10 2 Q14 10 10 18 M10 2 Q6 10 10 18" fill="none" stroke="#ef4444" stroke-width="1" opacity="0.6"/></svg></div> Domain</div>
+          <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><rect x="3" y="2" width="14" height="16" rx="1.5" fill="none" stroke="#8b5cf6" stroke-width="1.5"/><line x1="6" y1="6" x2="14" y2="6" stroke="#8b5cf6" stroke-width="1" opacity="0.5"/><line x1="6" y1="9" x2="14" y2="9" stroke="#8b5cf6" stroke-width="1" opacity="0.5"/><line x1="6" y1="12" x2="14" y2="12" stroke="#8b5cf6" stroke-width="1" opacity="0.5"/></svg></div> GPO</div>
+          <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><path d="M10 2 L18 10 L10 18 L2 10 Z" fill="none" stroke="#ef4444" stroke-width="2"/></svg></div> Tier 0</div>
         </div>
+        <div id="graph-edge-legend">
+          <div style="font-weight:600;margin-bottom:4px;color:var(--text-dim)">EDGES</div>
+          <div class="item"><div class="line" style="background:#ef4444"></div> Critical ACL</div>
+          <div class="item"><div class="line" style="background:#f97316"></div> Dangerous ACL</div>
+          <div class="item"><div class="line" style="background:#eab308"></div> Moderate Risk</div>
+          <div class="item"><div class="line" style="background:#a855f7"></div> Session/Admin</div>
+          <div class="item"><div class="line" style="background:#334155"></div> Structural</div>
+        </div>
+        <div id="graph-tooltip"></div>
       </div>
     </div>
   </div>
@@ -639,88 +657,223 @@ function getEdgeColor(edgeType) {{
   return colors[edgeType] || 'var(--warning)';
 }}
 
-// ---- D3 GRAPH ----
-let simulation, svg, g, nodeElements, linkElements, labelElements;
-let labelsVisible = true;
+// ---- D3 GRAPH (BloodHound-style) ----
+let simulation, svg, gRoot, nodeGroups, linkElements, linkLabels, labelElements;
+let labelsVisible = true, edgeLabelsVisible = false, hierarchicalLayout = false;
+
+const NODE_COLORS = {{ User: '#3b82f6', Computer: '#10b981', Group: '#f59e0b', Domain: '#ef4444', GPO: '#8b5cf6', OU: '#6366f1', Container: '#64748b', CertTemplate: '#ec4899', EnterpriseCA: '#ec4899', RootCA: '#ec4899', AIACA: '#ec4899', NTAuthStore: '#ec4899', Unknown: '#64748b' }};
+const NODE_SIZES = {{ 0: 18, 1: 12, 2: 8 }};
+const EDGE_COLORS = {{
+  GenericAll: '#ef4444', GenericWrite: '#f97316', WriteDacl: '#f97316', WriteOwner: '#f97316', Owns: '#f97316',
+  DCSync: '#ff2222', ForceChangePassword: '#eab308', AddMember: '#eab308', WriteSPN: '#eab308',
+  AllowedToDelegate: '#ef4444', AllowedToAct: '#f97316', AddAllowedToAct: '#f97316',
+  WriteKeyCredentialLink: '#ef4444', ReadLAPSPassword: '#eab308', ReadGMSAPassword: '#eab308',
+  AdminTo: '#a855f7', HasSession: '#8b5cf6', CanRDP: '#8b5cf6', CanPSRemote: '#8b5cf6', ExecuteDCOM: '#8b5cf6', SQLAdmin: '#a855f7',
+  GPOControlsObject: '#f97316', Enroll: '#ec4899', ManageCA: '#ec4899',
+  MemberOf: '#334155', Contains: '#334155', TrustedBy: '#64748b',
+}};
+
+function nodeShape(g, d) {{
+  const r = NODE_SIZES[d.tier] || 8;
+  const c = NODE_COLORS[d.type] || '#64748b';
+  if (d.type === 'User') {{
+    g.append('circle').attr('r', r * 0.55).attr('cy', -r * 0.2).attr('fill', c);
+    g.append('path').attr('d', `M${{-r*0.8}} ${{r}} Q${{-r*0.8}} ${{r*0.15}} 0 ${{r*0.15}} Q${{r*0.8}} ${{r*0.15}} ${{r*0.8}} ${{r}}`).attr('fill', c).attr('opacity', 0.55);
+  }} else if (d.type === 'Computer') {{
+    g.append('rect').attr('x', -r).attr('y', -r*0.7).attr('width', r*2).attr('height', r*1.2).attr('rx', 2).attr('fill', c);
+    g.append('rect').attr('x', -r*0.3).attr('y', r*0.5).attr('width', r*0.6).attr('height', r*0.35).attr('fill', c).attr('opacity', 0.5);
+    g.append('rect').attr('x', -r*0.55).attr('y', r*0.85).attr('width', r*1.1).attr('height', r*0.15).attr('rx', 1).attr('fill', c).attr('opacity', 0.35);
+  }} else if (d.type === 'Group') {{
+    g.append('circle').attr('r', r*0.42).attr('cx', -r*0.35).attr('cy', -r*0.15).attr('fill', c);
+    g.append('circle').attr('r', r*0.42).attr('cx', r*0.35).attr('cy', -r*0.15).attr('fill', c);
+    g.append('circle').attr('r', r*0.42).attr('cx', 0).attr('cy', r*0.35).attr('fill', c);
+  }} else if (d.type === 'Domain') {{
+    g.append('circle').attr('r', r).attr('fill', 'none').attr('stroke', c).attr('stroke-width', 1.8);
+    g.append('path').attr('d', `M${{-r}} 0 H${{r}} M0 ${{-r}} Q${{r*0.4}} 0 0 ${{r}} M0 ${{-r}} Q${{-r*0.4}} 0 0 ${{r}}`).attr('fill', 'none').attr('stroke', c).attr('stroke-width', 0.8).attr('opacity', 0.5);
+  }} else if (d.type === 'GPO') {{
+    g.append('rect').attr('x', -r*0.65).attr('y', -r).attr('width', r*1.3).attr('height', r*2).attr('rx', 2).attr('fill', 'none').attr('stroke', c).attr('stroke-width', 1.5);
+    [-.4, 0, .4].forEach(y => g.append('line').attr('x1', -r*0.35).attr('x2', r*0.35).attr('y1', r*y).attr('y2', r*y).attr('stroke', c).attr('stroke-width', 0.8).attr('opacity', 0.4));
+  }} else {{
+    g.append('circle').attr('r', r * 0.7).attr('fill', c);
+  }}
+  // Tier 0 diamond outline
+  if (d.tier === 0) {{
+    const s = r * 1.4;
+    g.append('path').attr('d', `M0 ${{-s}} L${{s}} 0 L0 ${{s}} L${{-s}} 0 Z`).attr('fill', 'none').attr('stroke', '#ef4444').attr('stroke-width', 2.2).attr('stroke-dasharray', d.type === 'Domain' ? 'none' : 'none');
+  }}
+  // Risk glow for high-risk nodes
+  if (d.score > 50) {{
+    const glowR = r * 1.6;
+    g.insert('circle', ':first-child').attr('r', glowR).attr('fill', 'none').attr('stroke', '#ef4444').attr('stroke-width', 1).attr('opacity', 0.3 + (d.score / 200));
+  }}
+}}
+
+function edgeStroke(d) {{ return EDGE_COLORS[d.type] || '#475569'; }}
+function isStructural(d) {{ return d.type === 'MemberOf' || d.type === 'Contains'; }}
 
 function drawGraph() {{
   window._graphDrawn = true;
   const container = document.getElementById('graph-container');
   const width = container.clientWidth;
-  const height = container.clientHeight || 600;
+  const height = container.clientHeight || 700;
 
   svg = d3.select('#graph-container').append('svg')
     .attr('width', width).attr('height', height);
 
-  g = svg.append('g');
-  const zoom = d3.zoom().scaleExtent([0.1, 6]).on('zoom', (e) => g.attr('transform', e.transform));
+  // Arrow markers for each edge color
+  const defs = svg.append('defs');
+  const usedColors = new Set(graphData.links.map(l => edgeStroke(l)));
+  usedColors.forEach(c => {{
+    const id = 'arrow-' + c.replace('#','');
+    defs.append('marker').attr('id', id).attr('viewBox', '0 -4 8 8').attr('refX', 22).attr('refY', 0)
+      .attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
+      .append('path').attr('d', 'M0,-3.5L7,0L0,3.5').attr('fill', c);
+  }});
+  // Glow filter
+  const glow = defs.append('filter').attr('id', 'glow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+  glow.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
+  glow.append('feMerge').html('<feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/>');
+
+  gRoot = svg.append('g');
+  const zoom = d3.zoom().scaleExtent([0.08, 8]).on('zoom', (e) => gRoot.attr('transform', e.transform));
   svg.call(zoom);
   window._zoom = zoom;
 
-  const colorMap = {{ User: '#3b82f6', Computer: '#10b981', Group: '#f59e0b', Domain: '#ef4444', GPO: '#8b5cf6', OU: '#6366f1', Container: '#64748b' }};
-  const tierRadius = {{ 0: 14, 1: 8, 2: 5 }};
+  // Detect parallel edges and assign curve offset
+  const edgePairCount = {{}};
+  graphData.links.forEach(l => {{
+    const k = [l.source, l.target].sort().join('|');
+    edgePairCount[k] = (edgePairCount[k] || 0) + 1;
+    l._pairIndex = edgePairCount[k];
+  }});
+  graphData.links.forEach(l => {{
+    const k = [typeof l.source === 'object' ? l.source.id : l.source, typeof l.target === 'object' ? l.target.id : l.target].sort().join('|');
+    const total = edgePairCount[k] || 1;
+    l._curveOffset = total > 1 ? (l._pairIndex - (total + 1) / 2) * 18 : 0;
+  }});
 
-  // Edge type -> color for links
-  const edgeColors = {{
-    GenericAll: '#ef4444', GenericWrite: '#f97316', WriteDacl: '#f97316', WriteOwner: '#f97316',
-    DCSync: '#ef4444', AddMember: '#eab308', AdminTo: '#a855f7', HasSession: '#8b5cf6',
-    MemberOf: '#334155', Contains: '#334155',
-  }};
+  // Links as curved paths
+  linkElements = gRoot.append('g').attr('class', 'links').selectAll('path')
+    .data(graphData.links).enter().append('path')
+    .attr('fill', 'none')
+    .attr('stroke', d => edgeStroke(d))
+    .attr('stroke-width', d => isStructural(d) ? 0.6 : 1.8)
+    .attr('stroke-opacity', d => isStructural(d) ? 0.15 : 0.55)
+    .attr('marker-end', d => isStructural(d) ? '' : `url(#arrow-${{edgeStroke(d).replace('#','')}})`)
+    .style('transition', 'stroke-opacity 0.3s, stroke-width 0.3s');
 
-  simulation = d3.forceSimulation(graphData.nodes)
-    .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(70))
-    .force('charge', d3.forceManyBody().strength(-120))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => (tierRadius[d.tier] || 5) + 3));
+  // Edge labels (hidden by default)
+  linkLabels = gRoot.append('g').attr('class', 'link-labels').selectAll('text')
+    .data(graphData.links.filter(d => !isStructural(d))).enter().append('text')
+    .text(d => d.type)
+    .attr('font-size', '7px').attr('fill', d => edgeStroke(d)).attr('text-anchor', 'middle')
+    .attr('dy', -4).attr('opacity', 0.7)
+    .style('pointer-events', 'none').style('display', 'none');
 
-  linkElements = g.append('g').selectAll('line')
-    .data(graphData.links).enter().append('line')
-    .attr('stroke', d => edgeColors[d.type] || '#475569')
-    .attr('stroke-width', d => d.type === 'MemberOf' || d.type === 'Contains' ? 0.5 : 1.5)
-    .attr('stroke-opacity', d => d.type === 'MemberOf' || d.type === 'Contains' ? 0.2 : 0.5);
-
-  nodeElements = g.append('g').selectAll('circle')
-    .data(graphData.nodes).enter().append('circle')
-    .attr('r', d => tierRadius[d.tier] || 5)
-    .attr('fill', d => colorMap[d.type] || '#64748b')
-    .attr('stroke', d => d.tier === 0 ? '#ef4444' : 'none')
-    .attr('stroke-width', d => d.tier === 0 ? 3 : 0)
+  // Node groups with shaped icons
+  nodeGroups = gRoot.append('g').attr('class', 'nodes').selectAll('g')
+    .data(graphData.nodes).enter().append('g')
     .style('cursor', 'pointer')
-    .on('click', (e, d) => showNodeDetail(d))
+    .on('click', (e, d) => {{ e.stopPropagation(); showNodeDetail(d); }})
+    .on('mouseenter', (e, d) => showTooltip(e, d))
+    .on('mouseleave', () => hideTooltip())
     .call(d3.drag()
       .on('start', (e, d) => {{ if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }})
       .on('drag', (e, d) => {{ d.fx = e.x; d.fy = e.y; }})
       .on('end', (e, d) => {{ if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }})
     );
+  nodeGroups.each(function(d) {{ nodeShape(d3.select(this), d); }});
 
-  labelElements = g.append('g').selectAll('text')
-    .data(graphData.nodes.filter(n => n.tier === 0 || n.score > 30)).enter().append('text')
-    .text(d => d.name).attr('font-size', '9px').attr('fill', '#94a3b8')
-    .attr('dx', 12).attr('dy', 3).style('pointer-events', 'none');
+  // Labels
+  labelElements = gRoot.append('g').attr('class', 'labels').selectAll('text')
+    .data(graphData.nodes.filter(n => n.tier === 0 || n.score > 25)).enter().append('text')
+    .text(d => d.name.length > 20 ? d.name.substring(0, 18) + '..' : d.name)
+    .attr('font-size', d => d.tier === 0 ? '10px' : '8px')
+    .attr('font-weight', d => d.tier === 0 ? '600' : '400')
+    .attr('fill', d => d.tier === 0 ? '#fca5a5' : '#94a3b8')
+    .attr('text-anchor', 'middle')
+    .attr('dy', d => -(NODE_SIZES[d.tier] || 8) - 6)
+    .style('pointer-events', 'none')
+    .style('text-shadow', '0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)');
+
+  // Force simulation
+  simulation = d3.forceSimulation(graphData.nodes)
+    .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(d => isStructural(d) ? 40 : 90).strength(d => isStructural(d) ? 0.8 : 0.4))
+    .force('charge', d3.forceManyBody().strength(d => d.tier === 0 ? -300 : -80))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(d => (NODE_SIZES[d.tier] || 8) + 6))
+    .force('y', d3.forceY().y(d => {{ const h = height; return d.tier === 0 ? h * 0.85 : d.tier === 1 ? h * 0.5 : h * 0.2; }}).strength(0.05));
+
+  function linkPath(d) {{
+    const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+    if (Math.abs(d._curveOffset) < 1) return `M${{d.source.x}},${{d.source.y}}L${{d.target.x}},${{d.target.y}}`;
+    const mx = (d.source.x + d.target.x) / 2, my = (d.source.y + d.target.y) / 2;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const cx = mx + nx * d._curveOffset, cy = my + ny * d._curveOffset;
+    return `M${{d.source.x}},${{d.source.y}}Q${{cx}},${{cy}} ${{d.target.x}},${{d.target.y}}`;
+  }}
 
   simulation.on('tick', () => {{
-    linkElements.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-    nodeElements.attr('cx', d => d.x).attr('cy', d => d.y);
+    linkElements.attr('d', linkPath);
+    nodeGroups.attr('transform', d => `translate(${{d.x}},${{d.y}})`);
     labelElements.attr('x', d => d.x).attr('y', d => d.y);
+    linkLabels.attr('x', d => (d.source.x + d.target.x) / 2).attr('y', d => (d.source.y + d.target.y) / 2);
+  }});
+
+  // Click background to deselect
+  svg.on('click', () => {{
+    const detail = document.querySelector('.node-detail');
+    if (detail) detail.remove();
+    resetHighlights();
   }});
 }}
 
+function showTooltip(e, d) {{
+  const tt = document.getElementById('graph-tooltip');
+  const c = NODE_COLORS[d.type] || '#64748b';
+  tt.innerHTML = `<div class="tt-name" style="color:${{c}}">${{d.name}}</div><div class="tt-type">${{d.type}} - Tier ${{d.tier}}${{d.score > 0 ? ' - Risk: ' + d.score : ''}}</div>`;
+  tt.style.display = 'block';
+  const rect = document.getElementById('graph-container').getBoundingClientRect();
+  tt.style.left = (e.clientX - rect.left + 12) + 'px';
+  tt.style.top = (e.clientY - rect.top - 10) + 'px';
+}}
+function hideTooltip() {{ document.getElementById('graph-tooltip').style.display = 'none'; }}
+
+function resetHighlights() {{
+  if (!nodeGroups) return;
+  nodeGroups.attr('opacity', 1);
+  linkElements
+    .attr('stroke-opacity', d => isStructural(d) ? 0.15 : 0.55)
+    .attr('stroke-width', d => isStructural(d) ? 0.6 : 1.8);
+}}
+
 function resetGraph() {{
-  if (svg && window._zoom) {{
-    svg.transition().duration(500).call(window._zoom.transform, d3.zoomIdentity);
-  }}
-  // Reset highlights
-  if (nodeElements) {{
-    nodeElements.attr('opacity', 1);
-    linkElements.attr('opacity', d => d.type === 'MemberOf' || d.type === 'Contains' ? 0.2 : 0.5)
-      .attr('stroke-width', d => d.type === 'MemberOf' || d.type === 'Contains' ? 0.5 : 1.5);
-  }}
+  if (svg && window._zoom) svg.transition().duration(500).call(window._zoom.transform, d3.zoomIdentity);
+  resetHighlights();
+  const detail = document.querySelector('.node-detail');
+  if (detail) detail.remove();
 }}
 
 function toggleLabels() {{
   labelsVisible = !labelsVisible;
   if (labelElements) labelElements.style('display', labelsVisible ? 'block' : 'none');
+}}
+
+function toggleEdgeLabels() {{
+  edgeLabelsVisible = !edgeLabelsVisible;
+  if (linkLabels) linkLabels.style('display', edgeLabelsVisible ? 'block' : 'none');
+}}
+
+function toggleLayout() {{
+  hierarchicalLayout = !hierarchicalLayout;
+  if (!simulation) return;
+  const height = document.getElementById('graph-container').clientHeight || 700;
+  simulation.force('y', d3.forceY().y(d => {{
+    if (!hierarchicalLayout) return height / 2;
+    return d.tier === 0 ? height * 0.85 : d.tier === 1 ? height * 0.5 : height * 0.15;
+  }}).strength(hierarchicalLayout ? 0.15 : 0.02));
+  simulation.alpha(0.5).restart();
 }}
 
 function showNodeDetail(d) {{
@@ -730,33 +883,38 @@ function showNodeDetail(d) {{
   const paths = pathsData.filter(p => p.node_ids.includes(d.id));
   const div = document.createElement('div');
   div.className = 'node-detail';
-  let html = `<span class="close" onclick="this.parentElement.remove()">&times;</span>`;
-  html += `<h4>${{d.name}}</h4>`;
+  div.onclick = e => e.stopPropagation();
+  const c = NODE_COLORS[d.type] || '#64748b';
+  let html = `<span class="close" onclick="this.parentElement.remove();resetHighlights()">&times;</span>`;
+  html += `<h4 style="color:${{c}}">${{d.name}}</h4>`;
   html += `<div class="stat"><span>Type</span><span>${{d.type}}</span></div>`;
   html += `<div class="stat"><span>Tier</span><span class="tier-badge tier-${{d.tier}}">T${{d.tier}}</span></div>`;
-  html += `<div class="stat"><span>Risk Score</span><span>${{d.score}}</span></div>`;
+  html += `<div class="stat"><span>Risk Score</span><span style="color:${{d.score > 60 ? '#ef4444' : d.score > 30 ? '#eab308' : '#94a3b8'}}">${{d.score}}</span></div>`;
   html += `<div class="stat"><span>In Paths</span><span>${{paths.length}}</span></div>`;
 
   if (paths.length > 0) {{
-    html += '<div class="path-list"><strong style="font-size:0.75rem;color:var(--text-dim)">PATHS THROUGH THIS NODE:</strong>';
-    paths.slice(0, 8).forEach(p => {{
-      html += `<div class="path-item" onclick="goToPath('${{p.source}}')">${{p.source}} -> ${{p.target}} (${{p.length}} hops)</div>`;
+    html += '<div class="path-list"><strong style="font-size:0.75rem;color:var(--text-dim)">ATTACK PATHS:</strong>';
+    paths.slice(0, 10).forEach(p => {{
+      html += `<div class="path-item" onclick="goToPath('${{p.source}}')">${{p.source}} &#8594; ${{p.target}} <span style="color:var(--text-dimmer)">(${{p.length}} hops)</span></div>`;
     }});
-    if (paths.length > 8) html += `<div style="font-size:0.72rem;color:var(--text-dimmer);margin-top:4px">+ ${{paths.length - 8}} more paths</div>`;
+    if (paths.length > 10) html += `<div style="font-size:0.72rem;color:var(--text-dimmer);margin-top:4px">+ ${{paths.length - 10}} more</div>`;
     html += '</div>';
   }}
 
   div.innerHTML = html;
   document.getElementById('graph-container').appendChild(div);
 
-  // Highlight this node's paths in the graph
+  // Highlight connected paths with animation
   const nodeIds = new Set();
   paths.forEach(p => p.node_ids.forEach(n => nodeIds.add(n)));
+  nodeIds.add(d.id);
 
-  if (nodeElements) {{
-    nodeElements.attr('opacity', n => nodeIds.has(n.id) ? 1 : 0.15);
-    linkElements.attr('opacity', l => nodeIds.has(l.source.id) && nodeIds.has(l.target.id) ? 0.8 : 0.05)
-      .attr('stroke-width', l => nodeIds.has(l.source.id) && nodeIds.has(l.target.id) ? 2.5 : 0.5);
+  if (nodeGroups) {{
+    nodeGroups.transition().duration(300)
+      .attr('opacity', n => nodeIds.has(n.id) ? 1 : 0.08);
+    linkElements.transition().duration(300)
+      .attr('stroke-opacity', l => nodeIds.has(l.source.id) && nodeIds.has(l.target.id) ? 0.85 : 0.02)
+      .attr('stroke-width', l => nodeIds.has(l.source.id) && nodeIds.has(l.target.id) ? 3 : 0.3);
   }}
 }}
 
@@ -770,7 +928,6 @@ function goToPath(sourceName) {{
 }}
 
 function highlightPathInGraph(nodeIds) {{
-  // Switch to graph tab
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.querySelector('[data-tab="graph"]').classList.add('active');
@@ -779,12 +936,14 @@ function highlightPathInGraph(nodeIds) {{
 
   const idSet = new Set(nodeIds);
   setTimeout(() => {{
-    if (nodeElements) {{
-      nodeElements.attr('opacity', n => idSet.has(n.id) ? 1 : 0.1);
-      linkElements.attr('opacity', l => idSet.has(l.source.id) && idSet.has(l.target.id) ? 0.9 : 0.03)
-        .attr('stroke-width', l => idSet.has(l.source.id) && idSet.has(l.target.id) ? 3 : 0.3);
+    if (nodeGroups) {{
+      nodeGroups.transition().duration(400)
+        .attr('opacity', n => idSet.has(n.id) ? 1 : 0.05);
+      linkElements.transition().duration(400)
+        .attr('stroke-opacity', l => idSet.has(l.source.id) && idSet.has(l.target.id) ? 0.95 : 0.01)
+        .attr('stroke-width', l => idSet.has(l.source.id) && idSet.has(l.target.id) ? 3.5 : 0.2);
     }}
-  }}, 100);
+  }}, 150);
 }}
 </script>
 </body>
