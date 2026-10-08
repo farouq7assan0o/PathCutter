@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.claude/
+pathcutter-report.*
+pathcutter-snapshot.*
+pathcutter-remediate.*
+*.zip
+datasets/
+test-data/
