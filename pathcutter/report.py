@@ -584,10 +584,47 @@ tr {{ cursor: pointer; }}
 .toast {{ position: fixed; bottom: 20px; right: 20px; background: var(--success); color: white; padding: 10px 20px; border-radius: 8px; font-size: 0.85rem; z-index: 1000; opacity: 0; transition: opacity 0.3s; pointer-events: none; }}
 .toast.show {{ opacity: 1; }}
 
+#whatif-gauge {{ width: 160px; height: 160px; margin: 0 auto 8px; position: relative; }}
+#whatif-gauge svg {{ width: 100%; height: 100%; }}
+#whatif-gauge .label {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }}
+#whatif-gauge .num {{ font-size: 2.8rem; font-weight: 800; transition: all 0.4s ease; }}
+#whatif-gauge .grade {{ font-size: 1rem; color: var(--text-dim); }}
+
+.whatif-layout {{ display: grid; grid-template-columns: 1fr 340px; gap: 16px; }}
+.whatif-fixes {{ max-height: 600px; overflow-y: auto; }}
+.whatif-fix {{ background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; transition: all 0.2s; }}
+.whatif-fix.applied {{ border-color: var(--success); background: rgba(34,197,94,0.06); }}
+.whatif-fix .fix-info {{ flex: 1; }}
+.whatif-fix .fix-label {{ font-weight: 600; font-size: 0.85rem; }}
+.whatif-fix .fix-meta {{ color: var(--text-dim); font-size: 0.75rem; margin-top: 2px; }}
+.whatif-fix .fix-impact {{ text-align: right; font-size: 0.8rem; }}
+.whatif-fix .fix-impact .cut {{ font-size: 1.1rem; font-weight: 700; color: var(--success); }}
+
+.toggle {{ position: relative; width: 42px; height: 22px; flex-shrink: 0; }}
+.toggle input {{ opacity: 0; width: 0; height: 0; }}
+.toggle .slider {{ position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--border); border-radius: 11px; transition: 0.3s; }}
+.toggle .slider:before {{ content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: var(--text-dim); border-radius: 50%; transition: 0.3s; }}
+.toggle input:checked + .slider {{ background: var(--success); }}
+.toggle input:checked + .slider:before {{ transform: translateX(20px); background: white; }}
+
+.whatif-summary {{ position: sticky; top: 0; }}
+.whatif-delta {{ display: flex; align-items: center; gap: 8px; margin: 12px 0; padding: 10px; background: var(--surface-2); border-radius: 8px; }}
+.whatif-delta .arrow-down {{ color: var(--success); font-size: 1.3rem; font-weight: 700; }}
+.whatif-delta .arrow-up {{ color: var(--danger); font-size: 1.3rem; font-weight: 700; }}
+.whatif-delta .delta-text {{ font-size: 0.85rem; }}
+.whatif-delta .delta-text strong {{ font-size: 1.1rem; }}
+
+.whatif-bar {{ height: 20px; background: var(--border); border-radius: 10px; overflow: hidden; margin: 8px 0; position: relative; }}
+.whatif-bar-fill {{ height: 100%; border-radius: 10px; transition: width 0.5s ease; }}
+.whatif-bar-label {{ position: absolute; top: 50%; transform: translateY(-50%); font-size: 0.7rem; font-weight: 600; padding: 0 8px; }}
+
+.whatif-btns {{ display: flex; gap: 6px; margin-bottom: 12px; }}
+
 @media (max-width: 768px) {{
   .path-explorer {{ grid-template-columns: 1fr; }}
   .node-detail {{ width: calc(100% - 16px); }}
   .tab {{ padding: 8px 12px; font-size: 0.8rem; }}
+  .whatif-layout {{ grid-template-columns: 1fr; }}
 }}
 </style>
 </head>
@@ -602,6 +639,7 @@ tr {{ cursor: pointer; }}
     <div class="tab" data-tab="fixes">Remediation<span class="badge">{fix_count}</span></div>
     <div class="tab" data-tab="chains">Attack Chains<span class="badge">{chain_count}</span></div>
     <div class="tab" data-tab="defend">Defend</div>
+    <div class="tab" data-tab="whatif">What If</div>
     <div class="tab" data-tab="paths">Path Explorer<span class="badge">{total_paths}</span></div>
     <div class="tab" data-tab="graph">Attack Graph</div>
   </div>
@@ -730,6 +768,66 @@ tr {{ cursor: pointer; }}
         </thead>
         <tbody id="defend-table"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- WHAT IF -->
+  <div id="whatif" class="tab-content">
+    <div class="whatif-layout">
+      <div>
+        <div class="whatif-btns">
+          <button class="btn btn-sm" onclick="whatifApplyAll()">Apply All</button>
+          <button class="btn btn-sm btn-outline" onclick="whatifClearAll()">Clear All</button>
+          <button class="btn btn-sm btn-outline" onclick="whatifApplyTopN(5)">Top 5</button>
+          <button class="btn btn-sm btn-outline" onclick="whatifApplyTopN(10)">Top 10</button>
+        </div>
+        <div class="whatif-fixes" id="whatif-fixes"></div>
+      </div>
+      <div class="whatif-summary">
+        <div class="card" style="text-align:center">
+          <h3>Projected Risk Score</h3>
+          <div id="whatif-gauge">
+            <svg viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--border)" stroke-width="8"/>
+              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--text-dim)" stroke-width="8"
+                stroke-dasharray="326.7" stroke-dashoffset="326.7" stroke-linecap="round"
+                transform="rotate(-90 60 60)" id="whatif-arc"/>
+            </svg>
+            <div class="label">
+              <div class="num" id="whatif-score">{score}</div>
+              <div class="grade" id="whatif-grade">Grade {grade}</div>
+            </div>
+          </div>
+          <div id="whatif-delta"></div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>Path Elimination</h3>
+          <div class="whatif-bar">
+            <div class="whatif-bar-fill" id="whatif-elim-bar" style="width:0%;background:var(--success)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text-dim)">
+            <span id="whatif-paths-cut">0 paths cut</span>
+            <span id="whatif-paths-remain">{total_paths} remain</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>Exposure After Fixes</h3>
+          <div class="whatif-bar">
+            <div class="whatif-bar-fill" id="whatif-exposure-bar" style="width:{exposure_pct}%;background:var(--warning)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text-dim)">
+            <span id="whatif-exposure-pct">{exposure_pct}%</span>
+            <span>of Tier 2 exposed</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <h3>Fixes Applied</h3>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="value" id="whatif-fix-count" style="font-size:2rem">0</span>
+            <span style="color:var(--text-dim)">of {fix_count}</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1608,6 +1706,138 @@ const defendTabBtn = document.querySelector('[data-tab="defend"]');
 let defendChartsDrawn = false;
 defendTabBtn.addEventListener('click', () => {{
   if (!defendChartsDrawn) {{ drawDefendCharts(); defendChartsDrawn = true; }}
+}});
+
+// ---- WHAT IF SIMULATOR ----
+const WHATIF_ORIGINAL_SCORE = {score};
+const WHATIF_TOTAL_PATHS = {total_paths};
+const WHATIF_EXPOSURE_PCT = {exposure_pct};
+const WHATIF_CIRCUMFERENCE = 2 * Math.PI * 52;
+
+function whatifGradeFromScore(s) {{
+  if (s <= 20) return 'A';
+  if (s <= 40) return 'B';
+  if (s <= 60) return 'C';
+  if (s <= 80) return 'D';
+  return 'F';
+}}
+
+function whatifGradeColor(g) {{
+  return {{'A':'#22c55e','B':'#86efac','C':'#eab308','D':'#f97316','F':'#ef4444'}}[g] || '#94a3b8';
+}}
+
+function renderWhatIf() {{
+  const container = document.getElementById('whatif-fixes');
+  container.innerHTML = '';
+  fixesData.forEach((f, i) => {{
+    const div = document.createElement('div');
+    div.className = 'whatif-fix';
+    div.id = 'whatif-fix-' + i;
+    const safety = f.safety || 'safe';
+    const safetyLabel = {{safe:'OK',caution:'WARN',dangerous:'RISK'}}[safety] || safety;
+    div.innerHTML = `<label class="toggle"><input type="checkbox" data-fix-idx="${{i}}" onchange="whatifUpdate()"><span class="slider"></span></label><div class="fix-info"><div class="fix-label">#${{f.rank}} ${{f.description}}</div><div class="fix-meta">${{f.edge_type}} <span class="safety-badge safety-${{safety}}" style="margin-left:4px">${{safetyLabel}}</span></div></div><div class="fix-impact"><div class="cut">-${{f.paths_eliminated}}</div><div style="color:var(--text-dim);font-size:0.72rem">paths</div></div>`;
+    container.appendChild(div);
+  }});
+}}
+
+function whatifUpdate() {{
+  const checks = document.querySelectorAll('#whatif-fixes input[type="checkbox"]');
+  let appliedCount = 0;
+  let totalEliminated = 0;
+
+  checks.forEach((cb, i) => {{
+    const card = document.getElementById('whatif-fix-' + i);
+    if (cb.checked) {{
+      appliedCount++;
+      card.classList.add('applied');
+    }} else {{
+      card.classList.remove('applied');
+    }}
+  }});
+
+  // Use greedy ordering: when fixes 1..N are all checked, use cumulative_pct from fix N
+  // For sparse selections, sum individual paths_eliminated (capped at total)
+  let lastConsecutive = -1;
+  for (let i = 0; i < checks.length; i++) {{
+    if (checks[i].checked) lastConsecutive = i;
+    else break;
+  }}
+
+  if (lastConsecutive >= 0 && appliedCount === lastConsecutive + 1) {{
+    // All checked fixes are the top-N consecutive ones - use exact cumulative
+    totalEliminated = Math.round(fixesData[lastConsecutive].cumulative_pct / 100 * WHATIF_TOTAL_PATHS);
+  }} else {{
+    // Sparse selection - sum individual (may overcount due to overlap, but reasonable estimate)
+    checks.forEach((cb, i) => {{
+      if (cb.checked) totalEliminated += fixesData[i].paths_eliminated;
+    }});
+    totalEliminated = Math.min(totalEliminated, WHATIF_TOTAL_PATHS);
+  }}
+
+  const pathsRemain = WHATIF_TOTAL_PATHS - totalEliminated;
+  const elimPct = WHATIF_TOTAL_PATHS > 0 ? (totalEliminated / WHATIF_TOTAL_PATHS * 100) : 0;
+
+  // Project score: scale linearly by path reduction
+  const reductionFactor = WHATIF_TOTAL_PATHS > 0 ? pathsRemain / WHATIF_TOTAL_PATHS : 1;
+  const projScore = Math.max(0, Math.round(WHATIF_ORIGINAL_SCORE * reductionFactor));
+  const projGrade = whatifGradeFromScore(projScore);
+  const projColor = whatifGradeColor(projGrade);
+
+  // Update gauge
+  const arc = document.getElementById('whatif-arc');
+  arc.setAttribute('stroke-dashoffset', WHATIF_CIRCUMFERENCE * (1 - projScore / 100));
+  arc.setAttribute('stroke', projColor);
+
+  const scoreEl = document.getElementById('whatif-score');
+  scoreEl.textContent = projScore;
+  scoreEl.style.color = projColor;
+  document.getElementById('whatif-grade').textContent = 'Grade ' + projGrade;
+
+  // Delta
+  const delta = WHATIF_ORIGINAL_SCORE - projScore;
+  const deltaEl = document.getElementById('whatif-delta');
+  if (delta > 0) {{
+    deltaEl.innerHTML = `<div class="whatif-delta"><span class="arrow-down">&#9660;</span><div class="delta-text"><strong>-${{delta}} points</strong> from baseline ${{WHATIF_ORIGINAL_SCORE}}</div></div>`;
+  }} else if (delta === 0) {{
+    deltaEl.innerHTML = `<div class="whatif-delta" style="opacity:0.5"><div class="delta-text">No change from baseline</div></div>`;
+  }} else {{
+    deltaEl.innerHTML = `<div class="whatif-delta"><span class="arrow-up">&#9650;</span><div class="delta-text"><strong>+${{Math.abs(delta)}} points</strong> above baseline</div></div>`;
+  }}
+
+  // Path elimination bar
+  document.getElementById('whatif-elim-bar').style.width = elimPct + '%';
+  document.getElementById('whatif-paths-cut').textContent = totalEliminated + ' paths cut';
+  document.getElementById('whatif-paths-remain').textContent = pathsRemain + ' remain';
+
+  // Exposure projection
+  const projExposure = Math.max(0, WHATIF_EXPOSURE_PCT * reductionFactor);
+  document.getElementById('whatif-exposure-bar').style.width = projExposure.toFixed(1) + '%';
+  document.getElementById('whatif-exposure-pct').textContent = projExposure.toFixed(1) + '%';
+
+  // Fix count
+  document.getElementById('whatif-fix-count').textContent = appliedCount;
+}}
+
+function whatifApplyAll() {{
+  document.querySelectorAll('#whatif-fixes input[type="checkbox"]').forEach(cb => cb.checked = true);
+  whatifUpdate();
+}}
+
+function whatifClearAll() {{
+  document.querySelectorAll('#whatif-fixes input[type="checkbox"]').forEach(cb => cb.checked = false);
+  whatifUpdate();
+}}
+
+function whatifApplyTopN(n) {{
+  const checks = document.querySelectorAll('#whatif-fixes input[type="checkbox"]');
+  checks.forEach((cb, i) => cb.checked = i < n);
+  whatifUpdate();
+}}
+
+// Init What If when tab is first shown
+let whatifInit = false;
+document.querySelector('[data-tab="whatif"]').addEventListener('click', () => {{
+  if (!whatifInit) {{ renderWhatIf(); whatifInit = true; }}
 }});
 </script>
 </body>
