@@ -1,0 +1,23 @@
+{
+  "schema": "pathcutter.policy/1",
+  "block_severity": "high",
+  "block_kinds": ["TIER0_PROMOTION", "NEW_EXPOSURE", "COMBINED_EFFECT"],
+  "review_severity": "medium",
+  "max_new_exposed_actors": 0,
+  "fail_on_unmodeled": false,
+  "extra_tier0": [],
+  "max_baseline_age_days": 14,
+  "require_waiver_expiry": true,
+  "waivers": [
+    {
+      "id": "CHG-20417",
+      "reason": "Weekend backup rota approved by the CISO; compensating SIEM alert in place",
+      "approver": "j.doe",
+      "expires": "2099-12-31",
+      "source": "jsmith",
+      "edge": "MemberOf",
+      "target": "BACKUP OPERATORS",
+      "kinds": ["TIER0_PROMOTION"]
+    }
+  ]
+}

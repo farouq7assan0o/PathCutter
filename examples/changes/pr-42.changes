@@ -1,0 +1,11 @@
+# Example change set for `pathcutter check` (works against: pathcutter demo --snapshot demo.pcsnap)
+#
+#   pathcutter check --baseline demo.pcsnap --changes examples/changes --policy examples/policy.json
+#
+# One change per line. Text after # is a note shown in the report (use it for ticket ids).
+
+add-member jsmith "BACKUP OPERATORS"      # CHG-20417 weekend backup duty (Tier 0 group)
+add-member kpatel HELPDESK                # new helpdesk hire
+grant SUPPORT GenericWrite SVC_SCOM       # let support restart SCOM
+local-admin DEVOPS SRV01                  # deployment access
+remove-member admin.jsmith "DOMAIN ADMINS"

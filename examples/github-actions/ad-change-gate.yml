@@ -1,0 +1,98 @@
+# Gate AD changes in pull requests with PathCutter.
+#
+# Convention: a PR that proposes an AD change adds or edits a file under ad-changes/
+# (a .changes file, or the PowerShell that will run it). This workflow checks it against the latest
+# baseline and fails the job when it would open a new route to Tier 0.
+#
+# SECURITY: the pull request author is the adversary here. Therefore
+#   * the POLICY (thresholds, crown jewels, WAIVERS) is read from the protected BASE branch, never from
+#     the PR, so a PR cannot waive its own findings;
+#   * only ad-changes/ comes from the PR head;
+#   * the workflow uses `pull_request` (no secrets for forks) and never executes PR code.
+# Protect the base branch and require review on ad-policy.json (CODEOWNERS) so waivers are approved.
+#
+# Copy to .github/workflows/ad-change-gate.yml and adapt the "Fetch baseline" step.
+
+name: AD change gate
+
+on:
+  pull_request:
+    paths:
+      - "ad-changes/**"
+
+permissions:
+  contents: read
+  pull-requests: write      # post the summary comment
+  security-events: write    # upload SARIF annotations
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the PR (changes only)
+        uses: actions/checkout@v4
+        with:
+          path: head
+
+      - name: Checkout the protected base branch (policy and waivers)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Pin to a reviewed release or commit in production instead of the default branch.
+      - name: Install PathCutter
+        run: pip install "git+https://github.com/farouq7assan0o/PathCutter.git"
+
+      # The baseline is your AD topology: keep it in an access-controlled place, never in the repo.
+      # Replace this step with however you store it (private artifact, internal storage, OIDC + cloud bucket).
+      - name: Fetch baseline
+        env:
+          GH_TOKEN: ${{ secrets.BASELINE_REPO_TOKEN }}
+        run: |
+          gh run download --repo your-org/ad-baseline --name baseline --dir .
+          test -f baseline.pcsnap
+
+      - name: Check proposed AD changes
+        id: gate
+        continue-on-error: true
+        run: |
+          mkdir -p out
+          pathcutter check \
+            --baseline baseline.pcsnap \
+            --changes head/ad-changes/ \
+            --policy base/ad-policy.json \
+            --html out/review.html --json out/check.json \
+            --markdown out/comment.md --sarif out/check.sarif
+
+      - name: Annotate the PR (SARIF)
+        if: always() && hashFiles('out/check.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: out/check.sarif
+          category: pathcutter-ad-change
+
+      - name: Comment on the PR
+        if: always() && hashFiles('out/comment.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file out/comment.md --edit-last --create-if-none
+
+      - name: Attach the review page
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ad-change-review
+          path: out/
+          retention-days: 30
+
+      # exit 2 = blocked by policy, 1 = could not run (fix the input). Anything else passes.
+      - name: Enforce verdict
+        if: steps.gate.outcome == 'failure'
+        run: |
+          echo "PathCutter blocked this change set. Download the 'ad-change-review' artifact for the full report."
+          exit 1

@@ -67,7 +67,8 @@ def _edge_key(source_id: str, target_id: str, edge_type: str) -> tuple[str, str,
 
 
 def find_chokepoints(graph: AttackGraph, path_report: PathReport,
-                     max_fixes: int = 50, prefer_safe: bool = True) -> ChokeReport:
+                     max_fixes: int = 50, prefer_safe: bool = True,
+                     exclude_edges: set[tuple[str, str, str]] | None = None) -> ChokeReport:
     """Greedy set cover: iteratively find the edge whose removal eliminates the most remaining paths.
 
     For each remaining path, identify which edges are "cuttable" (attack edges, not MemberOf/Contains).
@@ -75,6 +76,7 @@ def find_chokepoints(graph: AttackGraph, path_report: PathReport,
 
     When prefer_safe is True and two edges eliminate the same number of paths,
     prefer the one targeting a non-service-account source (safer to fix).
+    exclude_edges are (source, target, edge_type) keys that must not be proposed as fixes.
     """
     if not path_report.paths:
         return ChokeReport(fixes=[], total_paths=0, paths_after_fixes=0)
@@ -93,6 +95,8 @@ def find_chokepoints(graph: AttackGraph, path_report: PathReport,
             if et in STRUCTURAL:
                 continue
             key = _edge_key(path.nodes[j], path.nodes[j + 1], et)
+            if exclude_edges and key in exclude_edges:
+                continue
             edge_to_paths.setdefault(key, set()).add(i)
 
     remaining_paths = set(range(len(path_report.paths)))

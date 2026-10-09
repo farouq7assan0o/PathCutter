@@ -84,9 +84,15 @@ def main(argv: list[str] | None = None) -> int:
                            help="Exit non-zero if Tier 2 exposure exceeds this percentage")
     p_export.add_argument("--compact", action="store_true", help="Minimal JSON (no indentation)")
 
+    # change impact gate
+    from .check_cli import add_parsers as _add_check_parsers
+    _add_check_parsers(sub)
+
     # demo
     p_demo = sub.add_parser("demo", help="Generate a realistic demo AD environment and run full analysis")
     p_demo.add_argument("-o", "--output", default=".", help="Output directory for reports")
+    p_demo.add_argument("--snapshot", metavar="FILE",
+                         help="Also save the demo environment as a baseline for `pathcutter check`")
     p_demo.add_argument("--size", choices=["small", "medium", "large", "huge"], default="medium",
                          help="Environment size: small (~50 nodes), medium (~200), large (~1000), huge (~12000)")
 
@@ -108,6 +114,12 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_diff(args)
     elif args.command == "export":
         return _cmd_export(args)
+    elif args.command == "snapshot":
+        from .check_cli import cmd_snapshot
+        return cmd_snapshot(args)
+    elif args.command == "check":
+        from .check_cli import cmd_check
+        return cmd_check(args)
     elif args.command == "demo":
         return _cmd_demo(args)
 
@@ -613,6 +625,10 @@ def _cmd_demo(args) -> int:
             g.add_edge(ADEdge(groups[i], groups[i + 1], "MemberOf"))
 
     g.classify_tiers()
+    if getattr(args, "snapshot", None):
+        from .snapshot import save_snapshot
+        meta = save_snapshot(g, args.snapshot, source=None)
+        print(f"[+] Baseline snapshot for `pathcutter check`: {args.snapshot} ({meta['bytes'] / 1024:.0f} KiB)")
     summary = g.summary()
     print(f"    {g.node_count} nodes, {g.edge_count} edges")
     print(f"    Tier 0: {summary['tier_0_count']} | Tier 1: {summary['tier_1_count']} | Tier 2: {summary['tier_2_count']}")

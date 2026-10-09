@@ -1570,7 +1570,7 @@ document.addEventListener('keydown', (e) => {{
       e.preventDefault();
     }}
   }} else if (e.key === '?') {{
-    showToast('Keys: 1-8 tabs | ← → navigate | / search | Esc blur');
+    showToast('Keys: 1-8 tabs | Left/Right navigate | / search | Esc blur');
   }}
 }});
 </script>

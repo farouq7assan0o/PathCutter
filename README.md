@@ -5,6 +5,44 @@
 PathCutter answers the question no tool answers well:
 > "What 5 changes eliminate 80% of attack paths to Domain Admin?"
 
+## New: stop attack paths before they are created
+
+Almost every AD security tool tells you about damage that already exists. `pathcutter check` evaluates a
+**proposed** change (a ticket, a PowerShell script, a pull request) against your latest collection and
+tells you, before it ships, who would gain a route to Domain Admin, with the exact path, and which existing
+weakness to fix first so the change becomes safe. It exits non-zero when the answer is "don't", so it works
+as a CI gate.
+
+```bash
+pathcutter demo --size medium -o ./demo --snapshot demo.pcsnap         # try it with no SharpHound data
+pathcutter check --baseline demo.pcsnap \
+    --change 'add-member jsmith "BACKUP OPERATORS"' \
+    --change 'add-member kpatel HELPDESK' --html review.html
+```
+
+```
+Verdict  : BLOCK - 1 blocking finding (1 critical)
+
+#1  add jsmith to group BACKUP OPERATORS   [BLOCK]
+    [critical] Tier 0 promotion: JSMITH would become Tier 0
+      path : JSMITH -[MemberOf]-> BACKUP OPERATORS
+
+#2  add kpatel to group HELPDESK   [REVIEW]
+    [medium] Shorter path: Attack paths get shorter for 1 object
+      path : KPATEL -[+MemberOf]-> HELPDESK -[WriteSPN]-> SVC_EXCHANGE
+```
+
+When a change opens a brand-new route, the finding also lists who is exposed and a `fix first:` line naming the
+existing edge to remove so the change becomes safe (`+` marks the edge the change itself adds).
+
+- **Exact, not sampled**: reachability to Tier 0 is computed by reverse search, not capped path counting
+- **Understands AD semantics**: group-membership changes promote and demote principals; it catches effects that only appear when changes are combined; a risky change that another change in the set cancels is not a blocker
+- **Never skips silently**: a name it cannot resolve, or PowerShell it cannot model, is an error or a flagged finding, not a pass
+- **Governance built in**: policy file, crown-jewel assets, and waivers with reason, approver and expiry
+- **Fits your pipeline**: exit codes, SARIF annotations on the change file, PR-comment Markdown, offline HTML review page
+
+Full guide: [docs/ad-change-gate.md](docs/ad-change-gate.md). CI examples: [examples/github-actions](examples/github-actions).
+
 ## What it does
 
 - **Quantified risk**: scores your AD posture 0-100 with a letter grade
@@ -48,6 +86,11 @@ pathcutter export <sharphound-dir> --fail-above 50 --fail-exposure 30 -o report.
 
 # Generate a demo environment (no SharpHound data needed)
 pathcutter demo --size medium -o ./demo
+
+# Save a reusable baseline, then check proposed AD changes against it before they ship
+pathcutter snapshot <sharphound-zip-or-dir> -o baseline.pcsnap
+pathcutter check --baseline baseline.pcsnap --changes ad-changes/ --policy policy.json --html review.html
+# exit codes: 0 pass | 1 could not run | 2 blocked | 3 needs review (with --fail-on review)
 ```
 
 ## Example output
@@ -133,7 +176,7 @@ The export command outputs structured JSON with posture scores, top fixes, attac
 python -m pytest tests/ -v
 ```
 
-139 tests covering ingestion, graph construction, pathfinding, scoring, chokepoint analysis, chain detection, remediation, diffing, and CLI commands.
+296 tests covering ingestion, graph construction, pathfinding, scoring, chokepoint analysis, chain detection, remediation, diffing, the report generators, and the whole AD change gate (parsing, resolution, exposure, impact, policy and waivers, snapshots, every output format, CLI exit codes).
 
 ## Architecture
 

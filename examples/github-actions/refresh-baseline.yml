@@ -1,0 +1,40 @@
+# Rebuild the PathCutter baseline on a schedule.
+#
+# Run this in a private repository (or any pipeline) that can reach your SharpHound collection.
+# Collection itself (running SharpHound/BloodHound CE collectors) happens elsewhere; this job
+# turns the newest export into a reusable baseline for the AD change gate.
+
+name: Refresh AD baseline
+
+on:
+  schedule:
+    - cron: "17 3 * * *"       # nightly
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PathCutter
+        run: pip install "git+https://github.com/farouq7assan0o/PathCutter.git"
+
+      # Replace with your own retrieval of the latest SharpHound ZIP (secure storage, OIDC, etc.).
+      - name: Fetch latest SharpHound export
+        run: ./scripts/fetch-sharphound.sh sharphound.zip
+
+      - name: Build baseline snapshot
+        run: pathcutter snapshot sharphound.zip -o baseline.pcsnap
+
+      - name: Publish baseline (private artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline
+          path: baseline.pcsnap
+          retention-days: 7

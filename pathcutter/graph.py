@@ -1,7 +1,7 @@
 """Attack graph construction - builds a directed multigraph from AD nodes and edges."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 import networkx as nx
@@ -142,6 +142,55 @@ class AttackGraph:
             if is_tier0(node.name, node.object_id, node.node_type.value):
                 node.tier = 0
                 self._tier0.add(node.object_id)
+
+    def clone(self) -> "AttackGraph":
+        """Independent deep copy (own nodes, edges, tier state)."""
+        new = AttackGraph()
+        new.add_nodes_bulk([replace(n, properties=dict(n.properties)) for n in self._nodes.values()])
+        edges = []
+        for u, v, d in self.all_edges():
+            props = {k: val for k, val in d.items() if k not in ("edge_type", "inherited", "weight")}
+            edges.append(ADEdge(u, v, d.get("edge_type", ""), d.get("inherited", False), props))
+        new.add_edges_bulk(edges)
+        new._tier0 = set(self._tier0)
+        return new
+
+    def has_edge_type(self, source_id: str, target_id: str, edge_type: str) -> bool:
+        return any(d.get("edge_type") == edge_type for d in self.get_edge_data(source_id, target_id))
+
+    def remove_edge(self, source_id: str, target_id: str, edge_type: str) -> int:
+        """Remove every edge of this type between the two nodes. Returns how many were removed."""
+        data = self.graph.get_edge_data(source_id, target_id)
+        if not data:
+            return 0
+        keys = [k for k, d in data.items() if d.get("edge_type") == edge_type]
+        for k in keys:
+            self.graph.remove_edge(source_id, target_id, k)
+        if keys and edge_type == "MemberOf":
+            if not self.has_edge_type(source_id, target_id, "MemberOf"):
+                self._group_members.get(target_id, set()).discard(source_id)
+            self._transitive_cache.clear()
+        return len(keys)
+
+    def retier(self, extra_tier0: set[str] | None = None) -> None:
+        """Recompute every tier from scratch.
+
+        Needed after the graph is edited: classify_tiers() only ever promotes,
+        so a removed membership would otherwise leave a stale Tier 0 behind.
+        extra_tier0 lets a caller declare additional crown-jewel object ids.
+        """
+        self._tier0 = set()
+        for node in self._nodes.values():
+            node.tier = 2
+            if is_tier0(node.name, node.object_id, node.node_type.value) or (
+                    extra_tier0 and node.object_id in extra_tier0):
+                node.tier = 0
+                self._tier0.add(node.object_id)
+        self._transitive_cache.clear()
+        self.classify_tiers()
+        for node in self._nodes.values():
+            if node.object_id in self.graph:
+                self.graph.nodes[node.object_id]["tier"] = node.tier
 
     def get_node(self, node_id: str) -> ADNode | None:
         return self._nodes.get(node_id)

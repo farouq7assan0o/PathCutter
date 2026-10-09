@@ -123,3 +123,58 @@ def nested_groups():
 
     g.classify_tiers()
     return g
+
+
+# ---------------------------------------------------------------------------
+# Fixtures for the change-impact gate (pathcutter check)
+# ---------------------------------------------------------------------------
+
+def _corp():
+    """A small AD with one known weakness.
+
+    users:   alice, bob, carol (disabled), dave, svc_backup (member of Domain Admins)
+    groups:  HELPDESK (GenericAll on svc_backup), IT ADMINS, TEAM, DOMAIN ADMINS (Tier 0), BACKUP OPERATORS (Tier 0)
+    hosts:   SRV01 (IT ADMINS are admins), DC01
+    bob is in IT ADMINS; nobody is in HELPDESK; alice/dave/carol have no privileges.
+    """
+    g = AttackGraph()
+    add = lambda i, n, t: g.add_node(ADNode(i, n, t, "corp.local"))  # noqa: E731
+    for i, n in [("u-alice", "alice@corp.local"), ("u-bob", "bob@corp.local"), ("u-dave", "dave@corp.local"),
+                 ("u-svc", "svc_backup@corp.local")]:
+        add(i, n, NodeType.USER)
+    g.add_node(ADNode("u-carol", "carol@corp.local", NodeType.USER, "corp.local", enabled=False))
+    for i, n in [("g-help", "HELPDESK@CORP.LOCAL"), ("g-it", "IT ADMINS@CORP.LOCAL"), ("g-team", "TEAM@CORP.LOCAL"),
+                 ("g-da", "DOMAIN ADMINS@CORP.LOCAL"), ("g-bo", "BACKUP OPERATORS@CORP.LOCAL")]:
+        add(i, n, NodeType.GROUP)
+    add("c-srv01", "SRV01.CORP.LOCAL", NodeType.COMPUTER)
+    add("c-dc01", "DC01.CORP.LOCAL", NodeType.COMPUTER)
+    add("d-corp", "CORP.LOCAL", NodeType.DOMAIN)
+    g.add_edge(ADEdge("u-svc", "g-da", "MemberOf"))
+    g.add_edge(ADEdge("g-help", "u-svc", "GenericAll"))
+    g.add_edge(ADEdge("u-bob", "g-it", "MemberOf"))
+    g.add_edge(ADEdge("g-it", "c-srv01", "AdminTo"))
+    g.classify_tiers()
+    return g
+
+
+@pytest.fixture
+def corp():
+    return _corp()
+
+
+@pytest.fixture
+def run_check():
+    """run_check(graph, ["add-member alice HELPDESK", ...], policy=None) -> (report, resolved)."""
+    from pathcutter.changes import load_changes, resolve_changes
+    from pathcutter.impact import analyze_impact
+    from pathcutter.policy import Policy, evaluate
+
+    def _run(graph, lines, policy=None, today=None, on_unresolved="error", **kw):
+        specs, warns = load_changes(inline=lines)
+        resolved, errors = resolve_changes(graph, specs, on_unresolved)
+        assert not errors, errors
+        report = analyze_impact(graph, resolved, unmodeled=kw.pop("unmodeled", warns), **kw)
+        evaluate(report, policy or Policy(), resolved, today)
+        return report, resolved
+
+    return _run

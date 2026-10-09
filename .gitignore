@@ -14,3 +14,7 @@ test-data/
 tests/test_sharphound_data/
 tests/test_sharphound_data.zip
 test_output/
+
+# PathCutter baselines contain full AD topology: never commit them
+*.pcsnap
+_view/
