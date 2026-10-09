@@ -58,7 +58,10 @@ _KIND_TYPE = {"AZSubscription": NodeType.AZ_SUBSCRIPTION, "AZResourceGroup": Nod
 GRANT_ROLE_PERMS = {"9E3F62CF-CA93-4989-B6CE-BF83C28F9FE8": "RoleManagement.ReadWrite.Directory",
                     "06B708A9-E830-4DB3-A914-8E69DA51D44F": "AppRoleAssignment.ReadWrite.All"}
 ADD_SECRET_PERMS = {"1BFEFB4E-E0B5-418B-A88F-73C46D2CC8E9": "Application.ReadWrite.All"}
-_ATTACK_KINDS = {"AZMGGrantRole", "AZMGAddSecret", "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo"}
+ADD_MEMBER_PERMS = {"62A82D76-70EA-41E2-9197-370581804D09": "Group.ReadWrite.All", "DBAAE8CF-10B5-4B86-A4A1-F871C94C6695": "GroupMember.ReadWrite.All",
+                    "19DBC75E-C2E2-444C-A770-EC69D8559FC7": "Directory.ReadWrite.All"}
+RESET_PW_PERMS = {"741F803B-C850-494E-B5DF-CDE7C675A1CA": "User.ReadWrite.All", "50483E42-D915-4231-9639-7FDB7FD190E5": "UserAuthenticationMethod.ReadWrite.All"}
+_ATTACK_KINDS = {"AZMGGrantRole", "AZMGAddSecret", "AZMGAddMember", "AZMGResetPassword", "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo"}
 
 
 def _id(x) -> str:
@@ -153,7 +156,7 @@ def _relationships(kind: str, d, graph: AttackGraph) -> None:
                 _ensure(graph, who, NodeType.AZ_SP)
                 node = graph.get_node(who)
             perms = node.properties.setdefault("_graph_perms", [])
-            if role in GRANT_ROLE_PERMS or role in ADD_SECRET_PERMS:
+            if role in GRANT_ROLE_PERMS or role in ADD_SECRET_PERMS or role in ADD_MEMBER_PERMS or role in RESET_PW_PERMS:
                 perms.append(role)
     elif kind in ("AZSubscription", "AZResourceGroup", "AZVM", "AZKeyVault") and isinstance(d, dict):
         _resource(kind, d, graph)
@@ -254,6 +257,20 @@ def _graph_permissions(graph: AttackGraph) -> None:
         if perms & set(GRANT_ROLE_PERMS):
             _ensure(graph, ga, NodeType.AZ_ROLE, TIER0_ROLES[ga])
             _edge(graph, n.object_id, ga, "AZMGGrantRole")
+    privileged = set()
+    for rid in TIER0_ROLES:
+        if graph.get_node(rid) is not None:
+            privileged |= {u for u, _, d in graph.in_edges(rid) if d.get("edge_type") == "MemberOf"}
+    for n in graph.nodes_by_type(NodeType.AZ_SP):
+        perms = set(n.properties.get("_graph_perms") or [])
+        if perms & set(ADD_MEMBER_PERMS):
+            for gr in graph.nodes_by_type(NodeType.AZ_GROUP):           # role-assignable groups are protected from this permission
+                if not gr.properties.get("isAssignableToRole") and gr.object_id != n.object_id and _has_onward(graph, gr.object_id):
+                    _edge(graph, n.object_id, gr.object_id, "AZMGAddMember")
+        if perms & set(RESET_PW_PERMS):
+            for u in graph.nodes_by_type(NodeType.AZ_USER):             # privileged users cannot be reset by these permissions
+                if u.object_id not in privileged and _has_onward(graph, u.object_id):
+                    _edge(graph, n.object_id, u.object_id, "AZMGResetPassword")
     for n in graph.nodes_by_type(NodeType.AZ_SP):
         if set(n.properties.get("_graph_perms") or []) & set(ADD_SECRET_PERMS):
             for t in graph.nodes_by_type(NodeType.AZ_APP) + graph.nodes_by_type(NodeType.AZ_SP):

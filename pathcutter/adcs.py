@@ -13,6 +13,7 @@ collected data:
   GoldenCert  local administrator of the host of a trusted CA (the CA key can be extracted)
   ADCSESC15 schema-version-1 template with an enrollee-supplied subject (EKUwu, CVE-2024-49019): assumes an unpatched CA
   ADCSESC13 an issuance policy linked to a group: enrolling gives that group's membership (edge principal -> group)
+  ADCSESC10 same as ESC9 with weak mapping instead of a missing security extension (needs DC registry data)
   ADCSESC9  UPN-change attack: GenericWrite over an account that can enroll in a no-security-extension template,
             while a domain controller does not enforce strong certificate binding (needs DC registry data)
 
@@ -128,7 +129,7 @@ def auth_template(p: dict) -> bool:
 def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
     """Add ADCSESC* edges (principal -> its domain). Returns how many of each were added."""
     counts = {"ADCSESC1": 0, "ADCSESC3": 0, "ADCSESC4": 0, "ADCSESC5": 0, "ADCSESC6": 0, "ADCSESC7": 0, "ADCSESC9": 0,
-              "ADCSESC15": 0, "ADCSESC13": 0, "GoldenCert": 0}
+              "ADCSESC15": 0, "ADCSESC13": 0, "ADCSESC10": 0, "GoldenCert": 0}
     domains = {n.name.upper(): n.object_id for n in graph.nodes_by_type(NodeType.DOMAIN)}
     added: set[tuple[str, str, str]] = set()
 
@@ -203,6 +204,14 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
                     for src, v in _user_writes(graph):           # a victim is a user that can enroll, reached through the writes
                         if _ancestors(graph, v, cache) & enrollers:
                             emit(src, dom, "ADCSESC9")
+        # ESC10: weak mapping on a domain controller (binding not enforced, or UPN mapping enabled) and any authentication template
+        if _weak_mapping(graph):
+            for t in enabled:
+                if auth_template(t.properties):
+                    enrollers = _holders(graph, t.object_id, _ENROLL)
+                    for src, v in _user_writes(graph):
+                        if _ancestors(graph, v, cache) & enrollers:
+                            emit(src, dom, "ADCSESC10")
     # ESC5: control of the objects the PKI trust hangs from
     for store in graph.nodes_by_type(NodeType.NTAUTH_STORE) + graph.nodes_by_type(NodeType.ENTERPRISE_CA):
         d = domains.get(str(store.domain).upper())
@@ -240,6 +249,19 @@ def _accepts_agent(p: dict) -> bool:
     if (p.get("schemaversion") or 1) == 1:
         return True
     return (p.get("authorizedsignatures") or 0) == 1 and _AGENT_EKU in set(p.get("applicationpolicies") or [])
+
+
+def _weak_mapping(graph: AttackGraph) -> bool:
+    """ESC10 preconditions on a collected domain controller: StrongCertificateBindingEnforcement = 0, or UPN mapping (0x4) enabled."""
+    for n in graph.nodes_by_type(NodeType.COMPUTER):
+        if not n.properties.get("isdc"):
+            continue
+        if n.properties.get("_strong_binding") == 0:
+            return True
+        cm = n.properties.get("_cert_mapping")
+        if isinstance(cm, int) and cm & 0x4:
+            return True
+    return False
 
 
 def _weak_binding(graph: AttackGraph, dom: str) -> bool:

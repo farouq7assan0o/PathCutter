@@ -713,6 +713,9 @@ def _capture_dc_registry(data: dict, graph: AttackGraph) -> None:
         sb = reg.get("StrongCertificateBindingEnforcement")
         if node is not None and isinstance(sb, dict) and sb.get("Collected") and sb.get("Value") is not None:
             node.properties["_strong_binding"] = sb.get("Value")
+        cm = reg.get("CertificateMappingMethods")
+        if node is not None and isinstance(cm, dict) and cm.get("Collected") and cm.get("Value") is not None:
+            node.properties["_cert_mapping"] = cm.get("Value")
 
 
 def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:

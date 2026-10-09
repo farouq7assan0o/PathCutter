@@ -243,3 +243,17 @@ def test_harmless_and_non_graph_permissions_do_nothing(tmp_path):
                          perm("SP9", "df021288-bdef-4463-88db-98f22de89214"),                       # User.Read.All
                          perm("SP9", "9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8", resource="Contoso API")])   # same GUID on someone else's API
     assert "SP9" not in compute_exposure(g).exposed()
+
+
+def test_group_and_user_write_permissions_reach_only_what_they_can_change(tmp_path):
+    g = build(tmp_path, [{"kind": "AZServicePrincipal", "data": {"id": "sp9", "appId": "9999", "displayName": "Automation"}},
+                         user("A1", "ada@x.com"), user("B2", "bob@x.com"), user("C3", "cy@x.com"),
+                         assignment(GA, "A1"),
+                         {"kind": "AZGroup", "data": {"id": "gplain", "displayName": "Plain", "tenantId": TENANT}},
+                         {"kind": "AZGroup", "data": {"id": "grole", "displayName": "Roles", "tenantId": TENANT, "isAssignableToRole": True}},
+                         assignment(PRA, "GPLAIN", "GROLE"),
+                         {"kind": "AZGroupOwner", "data": {"groupId": "gplain", "owners": [{"owner": {"id": "b2"}, "groupId": "gplain"}]}},
+                         perm("SP9", "62a82d76-70ea-41e2-9197-370581804d09"), perm("SP9", "741f803b-c850-494e-b5df-cde7c675a1ca")])
+    # gplain holds a role (so it is Tier 0) only because we granted it above; Group.ReadWrite.All reaches the non-role-assignable one
+    assert g.has_edge_type("SP9", "GPLAIN", "AZMGAddMember") and not g.has_edge_type("SP9", "GROLE", "AZMGAddMember")
+    assert not g.has_edge_type("SP9", "A1", "AZMGResetPassword"), "a Global Administrator cannot be reset by these permissions"

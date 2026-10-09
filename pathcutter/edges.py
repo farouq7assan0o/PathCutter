@@ -759,6 +759,42 @@ GetChangesInFilteredSet = EdgeType(
     description="One of the two replication rights; DCSync is derived for principals that hold both",
 )
 
+ADCSESC10 = EdgeType(
+    name="ADCSESC10",
+    category=EdgeCategory.SPECIAL,
+    abuse="Change a victim account's UPN, enroll in an authentication template and authenticate as any principal while weak certificate mapping is enabled on a domain controller (ESC10)",
+    mitre="T1649",
+    exploitability=8,
+    fix_template="# Enforce StrongCertificateBindingEnforcement=2 and remove UPN from CertificateMappingMethods on domain controllers",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from template, CA and domain controller registry data",
+)
+
+AZMGAddMember = EdgeType(
+    name="AZMGAddMember",
+    category=EdgeCategory.SPECIAL,
+    abuse="Holds a Graph application permission (Group.ReadWrite.All, GroupMember.ReadWrite.All or Directory.ReadWrite.All) that adds members to any group that is not role-assignable",
+    mitre="T1098",
+    exploitability=8,
+    fix_template="# Remove the permission; use scoped group ownership instead",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Graph application permission edge",
+)
+
+AZMGResetPassword = EdgeType(
+    name="AZMGResetPassword",
+    category=EdgeCategory.SPECIAL,
+    abuse="Holds a Graph application permission (User.ReadWrite.All or UserAuthenticationMethod.ReadWrite.All) that resets the credentials of non-privileged users",
+    mitre="T1098",
+    exploitability=8,
+    fix_template="# Remove the permission or scope it with an administrative unit",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Graph application permission edge",
+)
+
 # -------------------------------------------------------------------
 # Registry: name -> EdgeType lookup
 # -------------------------------------------------------------------

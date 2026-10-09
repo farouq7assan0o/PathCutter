@@ -410,3 +410,22 @@ def test_both_equals_the_unbounded_definition_on_random_graphs(seed):
     # same principals, up to ones the reference lists redundantly because a cycle makes two groups mutual ancestors
     assert _down(g, got) == _down(g, expected), f"seed {seed}"
     assert got <= da | db and (da & db) <= _down(g, got), f"seed {seed}"
+
+
+def test_esc10_needs_weak_mapping_on_a_dc_and_a_writable_victim():
+    def build(binding=None, mapping=None):
+        g = lab(template={"enrolleesuppliessubject": False}, enroll_t=("u-alice",), enroll_ca=("u-alice",))
+        props = {"isdc": True}
+        if binding is not None:
+            props["_strong_binding"] = binding
+        if mapping is not None:
+            props["_cert_mapping"] = mapping
+        g.add_node(ADNode("dc", "DC01.X.LOCAL", NodeType.COMPUTER, "X.LOCAL", properties=props))
+        g.add_edge(ADEdge("u-other", "u-alice", "GenericWrite"))
+        g.classify_tiers()
+        derive_adcs_edges(g)
+        return kinds(g)
+    assert ("u-other", "ADCSESC10") in build(binding=0)
+    assert ("u-other", "ADCSESC10") in build(binding=2, mapping=0x4)
+    assert ("u-other", "ADCSESC10") not in build(binding=2, mapping=0x18)
+    assert ("u-other", "ADCSESC10") not in build()
