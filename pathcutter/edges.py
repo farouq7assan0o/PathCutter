@@ -856,6 +856,9 @@ TIER0_AZ_ROLE_IDS = frozenset({"62E90394-69F5-4237-9190-012177145E10", "E8611AB8
                                "7BE44C8A-ADAF-4E2A-84D6-AB2649E08A13", "E00E864A-17C5-4A4B-9C06-F5B95A8D5BD8"})
 
 
+_T0_SID_ENDINGS = tuple(TIER0_SIDS_SUFFIXES) + tuple("-" + b for b in TIER0_BUILTIN_SIDS)     # one C-level endswith per node
+
+
 def is_tier0(node_name: str, node_sid: str = "", node_type: str = "") -> bool:
     """Determine if a node is Tier 0 (high-value target)."""
     if node_type == "AZRole" and node_sid.upper() in TIER0_AZ_ROLE_IDS:
@@ -871,12 +874,8 @@ def is_tier0(node_name: str, node_sid: str = "", node_type: str = "") -> bool:
     if short in TIER0_GROUPS:
         return True
     # Check SID suffix
-    if node_sid:
-        if node_sid in TIER0_BUILTIN_SIDS or any(node_sid.endswith("-" + b) for b in TIER0_BUILTIN_SIDS):
-            return True
-        for suffix in TIER0_SIDS_SUFFIXES:
-            if node_sid.endswith(suffix):
-                return True
+    if node_sid and (node_sid in TIER0_BUILTIN_SIDS or node_sid.endswith(_T0_SID_ENDINGS)):
+        return True
     # Domain Controllers are always Tier 0
     if node_type.lower() == "computer" and "DC" in upper:
         return False  # heuristic is unreliable, rely on group membership
