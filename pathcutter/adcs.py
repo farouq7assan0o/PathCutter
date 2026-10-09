@@ -18,8 +18,10 @@ collected data:
             while a domain controller does not enforce strong certificate binding (needs DC registry data)
 
 Each edge runs principal -> domain (the domain object is Tier 0), so the existing exposure search needs no special case.
-Not derived, and said so by `pathcutter syntax model`: ESC2 (no direct edge: it feeds ESC3), ESC8 and ESC11 (relay to
-enrollment endpoints: not visible in LDAP data), ESC10/16 (certificate mapping settings), ESC13-15.
+  ADCSESC8 / ADCSESC11  relay of a coerced DC to a CA web-enrollment endpoint (HTTP, or HTTPS without EPA) / to an RPC
+            interface that does not enforce encryption; needs the optional *_adcsrelay.json from tools/Export-AdCsRelay.ps1
+  ADCSESC16 same as ESC9, but the CA omits the security extension for every template (DisableExtensionList; needs the sidecar)
+Not derived, and said so by `pathcutter syntax model`: ESC14. ESC2 has no edge of its own: an Any Purpose template counts as an enrollment-agent template, so it feeds ESC3.
 
 A CA is trusted for authentication when its certificate is in the NTAuth store (BloodHound's rule). When no NTAuth
 store was collected the CA is assumed trusted, which can only over-report.
@@ -32,6 +34,7 @@ _ENROLL = {"Enroll", "GenericAll"}
 _CONTROL = {"GenericAll", "GenericWrite", "WriteDacl", "WriteOwner", "Owns", "WritePKINameFlag", "WritePKIEnrollmentFlag"}
 _MANAGE = {"ManageCA", "ManageCertificates", "GenericAll", "WriteDacl", "WriteOwner", "Owns"}
 _AGENT_EKU = "1.3.6.1.4.1.311.20.2.1"
+_ANY_PURPOSE = "2.5.29.37.0"
 _PKI_CONTROL = {"GenericAll", "GenericWrite", "WriteDacl", "WriteOwner", "Owns"}
 _MAX_CROSS = 2000        # cap for the rare "member of group A and of group B" intersection
 
@@ -129,7 +132,7 @@ def auth_template(p: dict) -> bool:
 def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
     """Add ADCSESC* edges (principal -> its domain). Returns how many of each were added."""
     counts = {"ADCSESC1": 0, "ADCSESC3": 0, "ADCSESC4": 0, "ADCSESC5": 0, "ADCSESC6": 0, "ADCSESC7": 0, "ADCSESC9": 0,
-              "ADCSESC15": 0, "ADCSESC13": 0, "ADCSESC10": 0, "GoldenCert": 0}
+              "ADCSESC15": 0, "ADCSESC13": 0, "ADCSESC10": 0, "ADCSESC8": 0, "ADCSESC11": 0, "ADCSESC16": 0, "GoldenCert": 0}
     domains = {n.name.upper(): n.object_id for n in graph.nodes_by_type(NodeType.DOMAIN)}
     added: set[tuple[str, str, str]] = set()
 
@@ -190,6 +193,15 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
                     both = _both(graph, _holders(graph, a.object_id, _ENROLL), _holders(graph, b.object_id, _ENROLL), cache)
                     for src in _both(graph, both, ca_enrollers, cache):
                         emit(src, dom, "ADCSESC3")
+        # ESC8 / ESC11: any domain account or computer can coerce a DC; relaying it to a vulnerable CA endpoint yields a DC
+        # certificate when a DC may enroll in an authentication template on this CA
+        relay = [k for k, p in (("ADCSESC8", "_relay_web"), ("ADCSESC11", "_relay_rpc")) if ca.properties.get(p)]
+        if relay and _dc_can_enroll(graph, enabled, ca_enrollers, cache):
+            for rid in ("513", "515"):                            # Domain Users, Domain Computers
+                src = f"{dom}-{rid}"
+                if graph.get_node(src) is not None:
+                    for kind in relay:
+                        emit(src, dom, kind)
         # golden certificate: the machine that holds the CA key can forge any certificate (BloodHound models it the same
         # way: host -> domain; whoever administers the host then reaches it through AdminTo)
         host = ca.properties.get("_host")
@@ -204,6 +216,14 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
                     for src, v in _user_writes(graph):           # a victim is a user that can enroll, reached through the writes
                         if _ancestors(graph, v, cache) & enrollers:
                             emit(src, dom, "ADCSESC9")
+        # ESC16: the CA itself omits the security extension from every certificate (needs the relay sidecar) and binding is weak
+        if ca.properties.get("_no_security_ext") and _weak_binding(graph, dom):
+            for t in enabled:
+                if auth_template(t.properties):
+                    enrollers = _holders(graph, t.object_id, _ENROLL)
+                    for src, v in _user_writes(graph):
+                        if _ancestors(graph, v, cache) & enrollers:
+                            emit(src, dom, "ADCSESC16")
         # ESC10: weak mapping on a domain controller (binding not enforced, or UPN mapping enabled) and any authentication template
         if _weak_mapping(graph):
             for t in enabled:
@@ -220,6 +240,20 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
         for src in _holders(graph, store.object_id, _PKI_CONTROL):
             emit(src, d, "ADCSESC5")
     return counts
+
+
+def _dc_can_enroll(graph: AttackGraph, enabled: list, ca_enrollers: set[str], cache: dict) -> bool:
+    from .ingest import find_dc_sids
+    dcs = find_dc_sids(graph)
+    for t in enabled:
+        if not auth_template(t.properties):
+            continue
+        enrollers = _holders(graph, t.object_id, _ENROLL)
+        for dc in dcs:
+            anc = _ancestors(graph, dc, cache)
+            if anc & enrollers and anc & ca_enrollers:
+                return True
+    return False
 
 
 def _user_writes(graph: AttackGraph) -> list[tuple[str, str]]:
@@ -240,7 +274,8 @@ def _user_writes(graph: AttackGraph) -> list[tuple[str, str]]:
 
 def _is_agent_template(p: dict) -> bool:
     ekus = set(p.get("effectiveekus") or p.get("ekus") or [])
-    return _AGENT_EKU in ekus and not p.get("requiresmanagerapproval") and not (p.get("authorizedsignatures") or 0)
+    # ESC2: an Any Purpose certificate can also act as an enrollment agent, so it feeds ESC3 exactly like an agent template
+    return (_AGENT_EKU in ekus or _ANY_PURPOSE in ekus) and not p.get("requiresmanagerapproval") and not (p.get("authorizedsignatures") or 0)
 
 
 def _accepts_agent(p: dict) -> bool:

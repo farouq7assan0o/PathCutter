@@ -257,3 +257,63 @@ def test_group_and_user_write_permissions_reach_only_what_they_can_change(tmp_pa
     # gplain holds a role (so it is Tier 0) only because we granted it above; Group.ReadWrite.All reaches the non-role-assignable one
     assert g.has_edge_type("SP9", "GPLAIN", "AZMGAddMember") and not g.has_edge_type("SP9", "GROLE", "AZMGAddMember")
     assert not g.has_edge_type("SP9", "A1", "AZMGResetPassword"), "a Global Administrator cannot be reset by these permissions"
+
+
+# ---------------------------------------------------------------- scoped role assignments
+
+def scoped(role, principal, scope):
+    return {"kind": "AZRoleAssignment", "data": {"roleDefinitionId": role.lower(), "tenantId": TENANT,
+            "roleAssignments": [{"principalId": principal.lower(), "roleDefinitionId": role.lower(), "directoryScopeId": scope}]}}
+
+
+def au(i, *members):
+    return {"kind": "AZAdministrativeUnit", "data": {"id": i, "displayName": i, "members": [{"id": m.lower()} for m in members]}}
+
+
+def _tenant(extra):
+    return [user("H1", "help@x.com"), user("V1", "vic@x.com"), user("V2", "other@x.com"), user("G1", "ga@x.com"),
+            assignment(GA, "G1"),
+            {"kind": "AZGroup", "data": {"id": "grp", "displayName": "Admins", "tenantId": TENANT}},
+            {"kind": "AZGroupMember", "data": {"groupId": "grp", "members": [{"member": {"id": "v1"}}, {"member": {"id": "v2"}}]}},
+            assignment(PRA, "GRP")] + extra
+
+
+def test_unit_scoped_helpdesk_reaches_only_unit_members(tmp_path):
+    g = build(tmp_path, _tenant([scoped(HELPDESK, "H1", "/administrativeUnits/AU1"), au("AU1", "V1")]))
+    assert g.has_edge_type("H1", "V1", "AZResetPassword")
+    assert not g.has_edge_type("H1", "V2", "AZResetPassword")
+    assert not g.has_edge_type("H1", HELPDESK, "MemberOf")
+    assert g.meta["scoped_roles_unresolved"] == 0
+
+
+def test_tenant_wide_helpdesk_is_unchanged(tmp_path):
+    g = build(tmp_path, _tenant([scoped(HELPDESK, "H1", "/")]))
+    assert g.has_edge_type("H1", HELPDESK, "MemberOf")
+
+
+def test_unit_without_members_is_reported_not_guessed(tmp_path):
+    from pathcutter.hygiene import audit
+    g = build(tmp_path, _tenant([scoped(HELPDESK, "H1", "/administrativeUnits/AU9")]))
+    assert not g.has_edge_type("H1", HELPDESK, "MemberOf")
+    assert g.meta["scoped_roles_unresolved"] == 1
+    assert any(f.rule == "entra-scoped-roles-unresolved" for f in audit(g))
+
+
+def test_role_scoped_to_one_object(tmp_path):
+    g = build(tmp_path, _tenant([scoped(HELPDESK, "H1", "/V1")]))
+    assert g.has_edge_type("H1", "V1", "AZResetPassword") and not g.has_edge_type("H1", "V2", "AZResetPassword")
+
+
+def test_scoped_eligibility_is_scoped_too(tmp_path):
+    g = build(tmp_path, _tenant([{"kind": "AZRoleEligibilityScheduleInstance", "data": {
+        "principalId": "h1", "roleDefinitionId": HELPDESK.lower(), "directoryScopeId": "/administrativeUnits/AU1"}}, au("AU1", "V2")]))
+    assert g.has_edge_type("H1", "V2", "AZResetPassword") and not g.has_edge_type("H1", HELPDESK, "AZEligibleRole")
+
+
+def test_unknown_azure_role_definitions_are_reported(tmp_path):
+    from pathcutter.hygiene import audit
+    item = {"kind": "AZSubscriptionRoleAssignment", "data": {"subscriptionId": "S1", "roleAssignments": [
+        {"roleAssignment": {"properties": {"principalId": "h1", "roleDefinitionId": "/subscriptions/S1/providers/x/roleDefinitions/CUSTOM-1"}}}]}}
+    g = build(tmp_path, [user("H1", "help@x.com"), assignment(GA, "H1"), item])
+    assert g.meta.get("azure_unevaluated_roles") == ["CUSTOM-1"]
+    assert any(f.rule == "azure-roles-unevaluated" for f in audit(g))

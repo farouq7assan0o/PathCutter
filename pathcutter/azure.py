@@ -22,7 +22,10 @@ Dangerous Microsoft Graph application permissions held by service principals: Ro
 AppRoleAssignment.ReadWrite.All (the holder can make itself Global Administrator) and Application.ReadWrite.All (the holder can
 add a secret to any application).
 
-Not modeled (said so by `pathcutter syntax model`): administrative units, other Graph application permissions, custom roles,
+Roles scoped to an administrative unit or to one object only reach that scope (edges to the unit's collected members; an assignment
+whose unit was not collected adds nothing and is reported by `audit`).
+
+Not modeled (said so by `pathcutter syntax model`): other Graph application permissions, the contents of custom roles,
 deny assignments, key vault data-plane access policies.
 The schema is taken from the AzureHound source models; it has been exercised on synthetic data shaped from them, not on
 a real tenant export.
@@ -128,6 +131,17 @@ def _ensure(graph: AttackGraph, oid: str, node_type: NodeType, name: str = "") -
         graph.add_node(ADNode(oid, (name or oid).upper(), node_type, ""))
 
 
+def _grant(graph: AttackGraph, who: str, rid: str, scope, edge_kind: str) -> None:
+    """A role assignment. Tenant-wide (or a role that cannot be scoped) is membership of the role; a user-management or
+    application role scoped to an administrative unit or to one object only reaches that scope, so it is kept aside and
+    turned into edges to exactly those objects once every file is loaded (`_scoped_roles`)."""
+    sc = str(scope or "/").strip().upper()
+    if sc in ("/", "") or rid not in RESET_ROLES and rid not in SECRET_ROLES:
+        _edge(graph, who, rid, edge_kind)
+    elif who:
+        graph.meta.setdefault("scoped_roles", []).append({"who": who, "role": rid, "scope": sc, "eligible": edge_kind != "MemberOf"})
+
+
 def _relationships(kind: str, d, graph: AttackGraph) -> None:
     if kind == "AZGroupMember" and isinstance(d, dict):
         gid = _id(d.get("groupId"))
@@ -141,11 +155,15 @@ def _relationships(kind: str, d, graph: AttackGraph) -> None:
         rid = _id(d.get("roleDefinitionId"))
         _ensure(graph, rid, NodeType.AZ_ROLE, KNOWN_ROLES.get(rid, ""))
         for ra in d.get("roleAssignments") or []:
-            _edge(graph, _id(ra.get("principalId")), rid, "MemberOf")
+            _grant(graph, _id(ra.get("principalId")), rid, ra.get("directoryScopeId") or d.get("directoryScopeId"), "MemberOf")
     elif kind in ("AZRoleEligibilityScheduleInstance", "AZRoleEligibility") and isinstance(d, dict):
         rid = _id(d.get("roleDefinitionId"))
         _ensure(graph, rid, NodeType.AZ_ROLE, KNOWN_ROLES.get(rid, ""))
-        _edge(graph, _id(d.get("principalId")), rid, "AZEligibleRole")
+        _grant(graph, _id(d.get("principalId")), rid, d.get("directoryScopeId"), "AZEligibleRole")
+    elif kind == "AZAdministrativeUnit" and isinstance(d, dict):
+        au = _id(d.get("id"))
+        if au:
+            graph.meta.setdefault("admin_units", []).append({"id": au, "members": [_member_id(m) or _id(m.get("id")) for m in d.get("members") or [] if isinstance(m, dict)]})
     elif kind == "AZApp" and isinstance(d, dict):
         pass    # the app -> service principal link comes from the service principal's appId (finalize)
     elif kind == "AZAppRoleAssignment" and isinstance(d, dict):
@@ -206,6 +224,8 @@ def _rbac(scope_kind: str, role: str, d: dict, graph: AttackGraph) -> None:
                 if isinstance(v, dict) and isinstance(v.get("properties"), dict):
                     rid = _id(v["properties"].get("roleDefinitionId", "")).rsplit("/", 1)[-1]
             edge = _ROLE_DEF_EDGE.get(rid)
+            if edge is None and rid:
+                graph.meta.setdefault("azure_unevaluated_roles", []).append(rid)
         if who and edge:
             _ensure(graph, scope, {"Subscription": NodeType.AZ_SUBSCRIPTION, "ResourceGroup": NodeType.AZ_RG,
                                    "ManagementGroup": NodeType.AZ_MGMTGROUP, "VM": NodeType.AZ_VM, "KeyVault": NodeType.AZ_KEYVAULT}[scope_kind])
@@ -248,6 +268,7 @@ def finalize_azure(graph: AttackGraph) -> None:
             _edge(graph, str(sid), u.object_id, "SyncedTo")
     _graph_permissions(graph)
     _fan_out(graph)
+    _scoped_roles(graph)
 
 
 def _graph_permissions(graph: AttackGraph) -> None:
@@ -298,3 +319,39 @@ def _fan_out(graph: AttackGraph) -> None:
         if graph.get_node(rid) is not None:
             for n in objects:
                 _edge(graph, rid, n.object_id, "AZAddSecret")
+
+
+def _scoped_roles(graph: AttackGraph) -> None:
+    """Edges for role assignments scoped to an administrative unit or a single object (see `_grant`)."""
+    scoped = graph.meta.get("scoped_roles") or []
+    if not scoped:
+        return
+    units = {u["id"]: u["members"] for u in graph.meta.get("admin_units", [])}
+    privileged = set()
+    for rid in TIER0_ROLES:
+        if graph.get_node(rid) is not None:
+            privileged |= {u for u, _, d in graph.in_edges(rid) if d.get("edge_type") == "MemberOf"}
+    unresolved = 0
+    for s in scoped:
+        reset = s["role"] in RESET_ROLES
+        kind = "AZResetPassword" if reset else "AZAddSecret"
+        scope = s["scope"]
+        if scope.startswith("/ADMINISTRATIVEUNITS/"):
+            members = units.get(scope.rsplit("/", 1)[-1])
+            if members is None:
+                unresolved += 1
+                continue
+            victims = [m for m in members if graph.get_node(m) is not None]
+        else:
+            victims = [scope.rsplit("/", 1)[-1]]              # scoped to one object (a user or an application)
+        for v in victims:
+            n = graph.get_node(v)
+            if n is None or v == s["who"]:
+                continue
+            if reset and (n.node_type != NodeType.AZ_USER or v in privileged):
+                continue
+            if not reset and n.node_type not in (NodeType.AZ_APP, NodeType.AZ_SP):
+                continue
+            if _has_onward(graph, v):
+                _edge(graph, s["who"], v, kind)
+    graph.meta["scoped_roles_unresolved"] = unresolved

@@ -429,3 +429,78 @@ def test_esc10_needs_weak_mapping_on_a_dc_and_a_writable_victim():
     assert ("u-other", "ADCSESC10") in build(binding=2, mapping=0x4)
     assert ("u-other", "ADCSESC10") not in build(binding=2, mapping=0x18)
     assert ("u-other", "ADCSESC10") not in build()
+
+
+# ---------------------------------------------------------------- ESC8 / ESC11 (relay)
+
+def relay_lab(relay_web=False, relay_rpc=False, dc_enrolls=True, template=None):
+    tpl = {"enrolleesuppliessubject": False}
+    tpl.update(template or {})
+    g = lab(template=tpl, ca={"_relay_web": relay_web, "_relay_rpc": relay_rpc}, enroll_t=("dcs",) if dc_enrolls else ("u-other",),
+            enroll_ca=("dcs",))
+    for nid, name in (("dom-513", "DOMAIN USERS@X.LOCAL"), ("dom-515", "DOMAIN COMPUTERS@X.LOCAL"), ("dcs", "DOMAIN CONTROLLERS@X.LOCAL")):
+        g.add_node(ADNode(nid, name, NodeType.GROUP, "X.LOCAL"))
+    g.add_node(ADNode("dc1", "DC1.X.LOCAL", NodeType.COMPUTER, "X.LOCAL", properties={"isdc": True}))
+    g.add_edge(ADEdge("dc1", "dcs", "MemberOf"))
+    g.add_edge(ADEdge("u-alice", "dom-513", "MemberOf"))
+    return g
+
+
+def test_esc8_when_web_enrollment_is_relayable():
+    g = relay_lab(relay_web=True)
+    c = derive_adcs_edges(g)
+    assert c["ADCSESC8"] == 2 and c["ADCSESC11"] == 0           # Domain Users and Domain Computers
+    assert ("dom-513", "ADCSESC8") in kinds(g)
+    assert "u-alice" in compute_exposure(g).exposed()
+
+
+def test_esc11_when_rpc_encryption_is_not_enforced():
+    g = relay_lab(relay_rpc=True)
+    assert derive_adcs_edges(g)["ADCSESC11"] == 2
+
+
+@pytest.mark.parametrize("kw", [{"relay_web": False, "relay_rpc": False}, {"relay_web": True, "dc_enrolls": False},
+                                {"relay_web": True, "template": {"authenticationenabled": False}}])
+def test_no_relay_edge_without_all_conditions(kw):
+    g = relay_lab(**kw)
+    c = derive_adcs_edges(g)
+    assert c["ADCSESC8"] == 0 and c["ADCSESC11"] == 0
+
+
+def test_relay_sidecar_is_parsed(tmp_path):
+    import json
+    import zipfile
+    from pathcutter.ingest import _capture_relay
+    g = lab()
+    g.get_node("ca").properties.update({"caname": "X-CA", "dnshostname": "ca.x.local"})
+    rec = lambda web, rpc: {"meta": {"type": "adcsrelay", "version": 1}, "data": [{"CA": "x-ca", "WebEnrollment": web, "RpcEncryptionEnforced": rpc}]}
+    _capture_relay(rec({"Http": False, "Https": True, "ExtendedProtection": "Required"}, True), g)
+    assert g.get_node("ca").properties["_relay_web"] is False and g.get_node("ca").properties["_relay_rpc"] is False
+    _capture_relay(rec({"Http": False, "Https": True, "ExtendedProtection": "Off"}, False), g)
+    assert g.get_node("ca").properties["_relay_web"] is True and g.get_node("ca").properties["_relay_rpc"] is True
+    _capture_relay(rec({"Http": False, "Https": True, "ExtendedProtection": "Unknown"}, None), g)
+    assert g.get_node("ca").properties["_relay_web"] is True       # an unknown reading leaves the earlier value alone
+
+
+def test_esc2_any_purpose_template_acts_as_an_enrollment_agent():
+    g = lab3(agent={"ekus": ["2.5.29.37.0"], "effectiveekus": ["2.5.29.37.0"]})
+    derive_adcs_edges(g)
+    assert ("u-grp", "ADCSESC3") in kinds(g)
+
+
+def _esc16_lab(no_ext=True, strong=0):
+    g = lab(template={"enrolleesuppliessubject": False}, ca={"_no_security_ext": no_ext})
+    g.add_node(ADNode("dc1", "DC1.X.LOCAL", NodeType.COMPUTER, "X.LOCAL", properties={"isdc": True, "_strong_binding": strong}))
+    g.add_node(ADNode("u-victim", "VICTIM@X.LOCAL", NodeType.USER, "X.LOCAL"))
+    g.add_edge(ADEdge("u-victim", "u-grp", "MemberOf"))
+    g.add_node(ADNode("u-writer", "WRITER@X.LOCAL", NodeType.USER, "X.LOCAL"))
+    g.add_edge(ADEdge("u-writer", "u-victim", "GenericWrite"))
+    return g
+
+
+def test_esc16_needs_the_ca_flag_and_weak_binding():
+    g = _esc16_lab()
+    assert derive_adcs_edges(g)["ADCSESC16"] >= 1 and ("u-writer", "ADCSESC16") in kinds(g)
+    for kw in ({"no_ext": False}, {"strong": 2}):
+        g = _esc16_lab(**kw)
+        assert derive_adcs_edges(g)["ADCSESC16"] == 0

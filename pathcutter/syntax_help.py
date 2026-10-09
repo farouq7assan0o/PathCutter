@@ -141,9 +141,10 @@ MODELED (exposure is computed exactly for these)
   rights, DCSync, gMSA/LAPS reads, containment, trusts, implicit membership of Everyone and Authenticated Users.
   AD CS escalation, derived from collected template and CA data, on CAs trusted via NTAuth: ESC1 (enrollee-supplied
   subject), ESC3 (enrollment agents), ESC4 (template control), ESC5 (NTAuth / CA object control), ESC6 (CA accepts a
-  requester SAN), ESC7 (ManageCA/ManageCertificates), ESC9 (needs domain controller registry data), golden certificate.
+  requester SAN), ESC7 (ManageCA/ManageCertificates), ESC9 and ESC10 (need domain controller registry data), ESC8, ESC11 and ESC16 (need tools/Export-AdCsRelay.ps1), ESC2 (an Any Purpose template counts as an
+  enrollment-agent template and feeds ESC3), golden certificate.
   Microsoft Entra ID and hybrid identity from AzureHound output: users, groups, applications, service principals,
-  directory roles, ownership, active and PIM-eligible role assignments, password-reset and add-secret roles, and the
+  directory roles, ownership, active and PIM-eligible role assignments, password-reset and add-secret roles (also scoped to an administrative unit or one object), and the
   on-premises -> cloud sync link, so one search follows a path across the boundary. Azure resource RBAC: subscriptions,
   resource groups, VMs and key vaults with Owner / Contributor / User Access Administrator / VM login assignments, the
   scope hierarchy, and VM managed identities (name a subscription in policy extra_tier0 to make it a target). Tier 0 roles: Global Administrator,
@@ -170,8 +171,8 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
   but every trust is treated as traversable (conservative: it can over-report, not under-report).
 
 NOT MODELED (stated so nobody assumes otherwise)
-  AD CS ESC2 (feeds ESC3), ESC8 and ESC11 (relay to enrollment endpoints), ESC14/16; AD CS paths are only as
-  good as the template, CA and NTAuth data collected. Entra administrative units, Graph application
+  AD CS ESC14 (and ESC8/ESC11/ESC16 unless the relay sidecar was collected); AD CS paths are only as
+  good as the template, CA and NTAuth data collected. Graph application
   permissions other than the role, secret, group-member and user-password ones, custom Azure roles, deny assignments and key vault data-plane access policies.
   Whether MFA / PIM approval is really enforced at sign-in (Conditional Access is evaluated and reported, not turned
   into graph edges), authentication silos as graph restrictions, smart-card

@@ -481,6 +481,8 @@ def _guess_file_type(filename: str) -> str:
     lower = filename.lower()
     if "denies" in lower:
         return "denies"
+    if "adcsrelay" in lower:
+        return "adcsrelay"
     if "sessions" in lower:
         return "sessions"
     for key in _TYPE_MAP:
@@ -705,6 +707,30 @@ def _capture_issuance_policies(data: dict, graph: AttackGraph) -> None:
             graph.add_edge(ADEdge(node.object_id, str(link), "OIDGroupLink"))
 
 
+def _capture_relay(data: dict, graph: AttackGraph) -> None:
+    """Per-CA relay facts from tools/Export-AdCsRelay.ps1: web enrollment (ESC8) and RPC encryption (ESC11).
+    Stored as `_relay_web` / `_relay_rpc` (True = relayable) only when the value was actually collected."""
+    cas = {}
+    for ca in graph.nodes_by_type(NodeType.ENTERPRISE_CA):
+        for key in (ca.properties.get("caname"), ca.properties.get("dnshostname"), ca.display_name.split("@")[0]):
+            if key:
+                cas[str(key).lower()] = ca
+    for rec in data.get("data", []):
+        ca = cas.get(str(rec.get("CA", "")).lower()) or cas.get(str(rec.get("Host", "")).lower())
+        if ca is None:
+            continue
+        web = rec.get("WebEnrollment")
+        if isinstance(web, dict) and web.get("Collected", True):
+            http, https, epa = bool(web.get("Http")), bool(web.get("Https")), str(web.get("ExtendedProtection", "Unknown"))
+            if epa != "Unknown" or http or not https:
+                ca.properties["_relay_web"] = http or (https and epa in ("Off", "Allowed"))
+        if rec.get("RpcEncryptionEnforced") is not None:
+            ca.properties["_relay_rpc"] = not bool(rec["RpcEncryptionEnforced"])
+        if rec.get("SecurityExtensionDisabled") is not None:
+            ca.properties["_no_security_ext"] = bool(rec["SecurityExtensionDisabled"])
+    graph.meta["relay_collected"] = True
+
+
 def _capture_dc_registry(data: dict, graph: AttackGraph) -> None:
     """StrongCertificateBindingEnforcement from domain controllers (only newer collectors gather it)."""
     for obj in data.get("data", []):
@@ -722,6 +748,9 @@ def _capture_dc_registry(data: dict, graph: AttackGraph) -> None:
 
 def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
     """Route to v4 or v5 parser based on format detection."""
+    if str((data.get("meta") or {}).get("type", "")).lower() == "adcsrelay" or file_type == "adcsrelay":
+        _capture_relay(data, graph)
+        return 0
     if str((data.get("meta") or {}).get("type", "")).lower() == "denies" or file_type == "denies":
         _parse_denies(data, graph)
         return 0

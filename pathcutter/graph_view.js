@@ -21,7 +21,7 @@ const EDGE_COLORS = {
   AdminTo: '#a855f7', HasSession: '#8b5cf6', CanRDP: '#8b5cf6', CanPSRemote: '#8b5cf6', ExecuteDCOM: '#8b5cf6', SQLAdmin: '#a855f7',
   GPOControlsObject: '#f97316', Enroll: '#ec4899', ManageCA: '#ec4899',
   ADCSESC1: '#ec4899', ADCSESC3: '#ec4899', ADCSESC4: '#ec4899', ADCSESC5: '#ec4899', ADCSESC6: '#ec4899', ADCSESC7: '#ec4899',
-  ADCSESC9: '#ec4899', ADCSESC10: '#ec4899', AZMGAddMember: '#f43f5e', AZMGResetPassword: '#f43f5e', ADCSESC13: '#ec4899', ADCSESC15: '#ec4899', GoldenCert: '#ec4899',
+  ADCSESC9: '#ec4899', ADCSESC10: '#ec4899', ADCSESC8: '#ec4899', ADCSESC16: '#ec4899', ADCSESC11: '#ec4899', AZMGAddMember: '#f43f5e', AZMGResetPassword: '#f43f5e', ADCSESC13: '#ec4899', ADCSESC15: '#ec4899', GoldenCert: '#ec4899',
   AZOwns: '#38bdf8', AZRunsAs: '#38bdf8', AZEligibleRole: '#38bdf8', AZResetPassword: '#38bdf8', AZAddSecret: '#38bdf8', AZMGGrantRole: '#f43f5e',
   AZMGAddSecret: '#f43f5e', AZOwner: '#0ea5e9', AZContributor: '#0ea5e9', AZUserAccessAdmin: '#0ea5e9', AZVMAdminLogin: '#0ea5e9',
   AZManagedIdentity: '#22c55e', SyncedTo: '#22d3ee',

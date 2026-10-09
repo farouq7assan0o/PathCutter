@@ -88,6 +88,30 @@ def _enabled(n) -> bool:
 # ---------------------------------------------------------------------------------------------- accounts
 
 @rule
+def azure_roles_unevaluated(ctx):
+    ids = ctx.graph.meta.get("azure_unevaluated_roles") or []
+    if not ids:
+        return []
+    return [HygieneFinding("azure-roles-unevaluated", f"{len(ids)} Azure role assignment(s) use a role definition that is not evaluated ({len(set(ids))} distinct)", "info",
+                           "Only Owner, Contributor, User Access Administrator and VM Administrator Login are turned into edges. Custom roles (their "
+                           "permissions are not in the export) and other built-in roles are not, and Azure deny assignments are never collected, "
+                           "so a custom role that can write role assignments or run code on VMs is invisible here.",
+                           "Review custom role definitions with Microsoft.Authorization/roleAssignments/write or Microsoft.Compute/virtualMachines/runCommand actions.",
+                           "T1098", sorted(set(ids))[:10], len(ids))]
+
+
+@rule
+def scoped_roles_unresolved(ctx):
+    n = ctx.graph.meta.get("scoped_roles_unresolved", 0)
+    if not n:
+        return []
+    return [HygieneFinding("entra-scoped-roles-unresolved", f"{n} Entra role assignment(s) are scoped to an administrative unit whose members were not collected", "info",
+                           "A helpdesk or application role scoped to an administrative unit only reaches that unit, so it is not treated as tenant-wide. "
+                           "Without the unit's members the reachable accounts are unknown and the assignment adds no edges: exposure from it is a floor.",
+                           "Collect administrative units (AzureHound 'AZAdministrativeUnit' with members), or review those assignments by hand.", "T1098", [], n)]
+
+
+@rule
 def delegation_neutralized(ctx):
     out = []
     for r in ctx.graph.meta.get("restrictions", []):

@@ -31,6 +31,12 @@ class Fix:
     def description(self) -> str:
         et = self.edge_type
         if et.startswith("ADCSESC"):                         # derived from template / CA settings: nothing to "remove"
+            if et == "ADCSESC8":
+                return "Close AD CS ESC8: turn off HTTP web enrollment or require HTTPS with Extended Protection on the CA"
+            if et == "ADCSESC16":
+                return "Close AD CS ESC16: stop the CA disabling the security extension (DisableExtensionList) and enforce strong certificate binding"
+            if et == "ADCSESC11":
+                return "Close AD CS ESC11: enforce RPC encryption (IF_ENFORCEENCRYPTICERTREQUEST) on the CA"
             return f"Close AD CS {et[4:]} for {self.source_name} (fix the template or CA setting, or restrict who can enroll)"
         if et == "GoldenCert":
             return f"Treat {self.source_name} (it holds a CA key) as Tier 0: remove non-admin local administrators"

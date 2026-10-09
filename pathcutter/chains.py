@@ -340,7 +340,7 @@ def _detect_adcs_abuse(graph: AttackGraph, report: PathReport) -> list[AttackCha
     """
     # the derived escalation edges (adcs.py) are the attack steps; the raw rights are only their inputs
     adcs_edge_types = {
-        "ADCSESC1", "ADCSESC3", "ADCSESC4", "ADCSESC5", "ADCSESC6", "ADCSESC7", "ADCSESC9", "ADCSESC13", "ADCSESC15",
+        "ADCSESC1", "ADCSESC3", "ADCSESC4", "ADCSESC5", "ADCSESC6", "ADCSESC7", "ADCSESC9", "ADCSESC10", "ADCSESC8", "ADCSESC11", "ADCSESC16", "ADCSESC13", "ADCSESC15",
         "GoldenCert", "ADCSAbuse",
     }
 

@@ -519,6 +519,42 @@ ADCSESC9 = EdgeType(
     description="Derived from certificate template, CA and domain controller data, not collected directly",
 )
 
+ADCSESC8 = EdgeType(
+    name="ADCSESC8",
+    category=EdgeCategory.SPECIAL,
+    abuse="Coerce a domain controller to authenticate and relay the NTLM authentication to the CA's HTTP(S) web enrollment endpoint, obtaining a certificate as the DC machine account (ESC8)",
+    mitre="T1649",
+    exploitability=8,
+    fix_template="# Disable HTTP web enrollment or require HTTPS with Extended Protection for Authentication on the CA (and disable NTLM on it). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from CA web enrollment settings (tools/Export-AdCsRelay.ps1) and DC-enrollable templates",
+)
+
+ADCSESC11 = EdgeType(
+    name="ADCSESC11",
+    category=EdgeCategory.SPECIAL,
+    abuse="Coerce a domain controller to authenticate and relay it to the CA's RPC certificate-request interface, which does not enforce encryption, obtaining a DC machine certificate (ESC11)",
+    mitre="T1649",
+    exploitability=8,
+    fix_template="# Enforce RPC encryption on the CA: certutil -setreg CA\\InterfaceFlags +IF_ENFORCEENCRYPTICERTREQUEST, then restart Certificate Services. Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from CA RPC settings (tools/Export-AdCsRelay.ps1) and DC-enrollable templates",
+)
+
+ADCSESC16 = EdgeType(
+    name="ADCSESC16",
+    category=EdgeCategory.SPECIAL,
+    abuse="Change a victim account's UPN and enroll in any authentication template on a CA that no longer adds the security extension to certificates, while certificate binding is not enforced, then authenticate as any principal (ESC16)",
+    mitre="T1649",
+    exploitability=8,
+    fix_template="# Remove 1.3.6.1.4.1.311.25.2 from the CA's DisableExtensionList and enforce StrongCertificateBindingEnforcement=2 on domain controllers. Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from CA policy-module settings (tools/Export-AdCsRelay.ps1) and domain controller data",
+)
+
 AZOwns = EdgeType(
     name="AZOwns",
     category=EdgeCategory.SPECIAL,

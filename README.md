@@ -72,13 +72,14 @@ CI examples: [examples/github-actions](examples/github-actions).
 | Area | Covered |
 |---|---|
 | Active Directory | ACLs (allow and deny), nested groups, primary group, local admin / RDP / PSRemote / DCOM, sessions, GPO links and GPO-granted rights, delegation (unconstrained, constrained, RBCD), SID history, DCSync (both replication rights, also via two groups), shadow credentials, gMSA / LAPS reads, trusts, implicit Everyone / Authenticated Users membership |
-| AD CS | ESC1, 3, 4, 5, 6, 7, 9, 10, 13, 15 and golden certificate, derived from template, CA, NTAuth and DC registry data |
-| Microsoft Entra ID | users, groups, apps, service principals, directory roles, PIM eligibility, ownership, password-reset and add-secret roles, dangerous Graph application permissions, the on-premises to cloud sync link, Conditional Access coverage (in `audit`) |
+| AD CS | ESC1, 2 (as a feeder of 3), 3, 4, 5, 6, 7, 9, 10, 13, 15 and golden certificate, derived from template, CA, NTAuth and DC registry data; ESC8, 11 and 16 once `tools/Export-AdCsRelay.ps1` has collected the CA relay settings |
+| Microsoft Entra ID | users, groups, apps, service principals, directory roles, PIM eligibility, ownership, password-reset and add-secret roles (also when scoped to an administrative unit or one object), dangerous Graph application permissions, the on-premises to cloud sync link, Conditional Access coverage (in `audit`) |
 | Azure | resource RBAC (subscriptions, resource groups, VMs, key vaults), the scope hierarchy, VM managed identities |
+| Restrictions | Protected Users / "sensitive" accounts: delegation edges into hosts whose administrators are all protected are dropped, and `audit` says so |
 | Tier 0 | the built-in list (by name **and** SID), domain objects, GPOs linked to the domain / DC OU, PKI trust anchors, published templates, Tier 0 Entra roles, plus your own crown jewels in the policy |
 
-Not modeled, stated so nobody assumes otherwise: ESC2/8/11/14/16, Entra administrative units, custom Azure roles and deny
-assignments, whether MFA or PIM approval is really enforced at sign-in, network reachability, GPO content beyond local groups.
+Not modeled, stated so nobody assumes otherwise: ESC14, the contents of custom Azure roles and Azure deny assignments (reported by `audit`
+as unevaluated), whether MFA or PIM approval is really enforced at sign-in, network reachability, GPO content beyond local groups.
 Entra and Azure support was built from AzureHound's source models and has not been run against a real tenant export.
 
 ## Trusting the data
@@ -125,7 +126,7 @@ knowledge drifts between modules. See [docs/extending.md](docs/extending.md).
 ## Input formats
 
 SharpHound legacy (v4) and BloodHound CE (v5, v6) JSON, ZIP or directory; AzureHound JSON; an optional `*_denies.json` from
-`tools/Export-AdDenyAces.ps1`; an optional Conditional Access policy export (`Get-MgIdentityConditionalAccessPolicy`).
+`tools/Export-AdDenyAces.ps1`; an optional `*_adcsrelay.json` from `tools/Export-AdCsRelay.ps1`; an optional Conditional Access policy export (`Get-MgIdentityConditionalAccessPolicy`).
 
 ## Layout
 
