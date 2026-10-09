@@ -203,16 +203,6 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
                     for src, v in _user_writes(graph):           # a victim is a user that can enroll, reached through the writes
                         if _ancestors(graph, v, cache) & enrollers:
                             emit(src, dom, "ADCSESC9")
-    # a published template is a Tier 0 object (BloodHound tags them too): changing one makes it an ESC1 template.
-    # Done after the loop so the ESC edges above are still derived for the non-Tier-0 principals around it.
-    for ca in trusted_cas(graph):
-        for tid in ca.properties.get("_enabled_templates") or []:
-            t = graph.get_node(tid)
-            if t is not None and t.node_type == NodeType.CERT_TEMPLATE and tid not in graph.tier0_nodes:
-                t.tier = 0
-                graph._tier0.add(tid)
-                graph._seed_t0.add(tid)
-                graph._tiered.add(tid)
     # ESC5: control of the objects the PKI trust hangs from
     for store in graph.nodes_by_type(NodeType.NTAUTH_STORE) + graph.nodes_by_type(NodeType.ENTERPRISE_CA):
         d = domains.get(str(store.domain).upper())

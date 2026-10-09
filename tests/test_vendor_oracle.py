@@ -84,3 +84,14 @@ def test_trust_directions_follow_bloodhound(sides):
     theirs = {tuple(p) for p in exp["edges"]["TrustedBy"]}
     mine = mine_by_kind(g)["TrustedBy"]
     assert theirs <= mine and len(mine) == len(theirs), (len(theirs), len(mine))
+
+
+@pytest.mark.parametrize("zip_name", ["adcs_fixture.zip", "ad_v6.zip"])
+def test_a_snapshot_has_exactly_the_tier_zero_of_a_fresh_load(tmp_path, zip_name):
+    """Structural Tier 0 (GPOs linked to the domain, published templates, PKI objects, domains) must survive save/load."""
+    from pathcutter.snapshot import load_snapshot, save_snapshot
+    g = load_sharphound(V / zip_name)
+    save_snapshot(g, tmp_path / "s.pcsnap")
+    g2, _ = load_snapshot(tmp_path / "s.pcsnap")
+    assert g2.tier0_nodes == g.tier0_nodes
+    assert {(u, v, d["edge_type"]) for u, v, d in g2.all_edges()} == {(u, v, d["edge_type"]) for u, v, d in g.all_edges()}

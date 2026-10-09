@@ -456,6 +456,17 @@ class AttackGraph:
 
     def classify_tiers(self) -> None:
         """Classify all nodes into tiers based on group membership and proximity to Tier 0."""
+        # a published certificate template is Tier 0 (BloodHound tags them too): changing one makes it an ESC1 template
+        if any(n.node_type == NodeType.ENTERPRISE_CA for n in self._nodes.values()):
+            from .adcs import trusted_cas
+            for ca in trusted_cas(self):
+                for tid in ca.properties.get("_enabled_templates") or []:
+                    t = self._nodes.get(tid)
+                    if t is not None and t.node_type == NodeType.CERT_TEMPLATE:
+                        t.tier = 0
+                        self._tier0.add(tid)
+                        self._seed_t0.add(tid)
+                        self._tiered.add(tid)
         # GPOs linked to the domain root or to the Domain Controllers OU apply to every domain controller: Tier 0
         for u, v, d in self.graph.edges(data="edge_type"):
             if d == "GPOControlsObject":
