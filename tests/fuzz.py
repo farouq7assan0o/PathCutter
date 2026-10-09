@@ -6,7 +6,7 @@
 Every seed builds a random AD-shaped graph and checks, against independent implementations:
   engine    production exposure == reference exposure (sets, hops, unverified)
   oracle    reference exposure == brute-force simple-path oracle (small graphs)
-  fork      incremental exposure after added edges == full recomputation
+  fork      incremental exposure after added / removed edges == full recomputation
   deny      identity-sensitive exposure with random denies == forward oracle
   probe     a journaled in-place trial restores the graph exactly
 Exit code 1 and the failing seeds are printed if anything disagrees.
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from oracle import oracle_hops                                   # noqa: E402
 from pathcutter import exposure, exposure_ref                    # noqa: E402
-from pathcutter.exposure import fork_with_added_edges           # noqa: E402
+from pathcutter.exposure import fork_with_added_edges, fork_with_removed_edges   # noqa: E402
 from pathcutter.graph import ADEdge, ADNode, NodeType            # noqa: E402
 from test_deny import add_random_denies, oracle_hops_deny        # noqa: E402
 from test_probe import scramble, state                            # noqa: E402
@@ -55,6 +55,16 @@ def check(seed: int):
         f, full = fork_with_added_edges(a, h, added), exposure.compute_exposure(h)
         if f.exposed() != full.exposed() or {n: f.hops(n) for n in f.exposed()} != {n: full.hops(n) for n in full.exposed()}:
             return "fork"
+    r = g.clone()
+    removed = []
+    for u, v, dd in rng.sample(list(r.all_edges()), min(len(list(r.all_edges())), rng.randint(1, 3))):
+        if r.remove_edge(u, v, dd["edge_type"]):
+            removed.append((u, v, dd["edge_type"]))
+    r.retier()
+    if removed and frozenset(r.tier0_nodes) == a.tier0:
+        f, full = fork_with_removed_edges(a, r, removed), exposure.compute_exposure(r)
+        if f.exposed() != full.exposed() or {n: f.hops(n) for n in f.exposed()} != {n: full.hops(n) for n in full.exposed()}:
+            return "decremental"
     d = add_random_denies(g.clone(), seed)
     e = exposure.compute_exposure(d)
     if not e.unverified and {n: e.hops(n) for n in e.exposed()} != oracle_hops_deny(d):

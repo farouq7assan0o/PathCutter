@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from .changes import ResolvedChange, apply_change, undo_change, replace_node
 from .choke import find_chokepoints
 from .edges import get_edge_type
-from .exposure import Exposure, compute_exposure, fork_with_added_edges, shortened_nodes
+from .exposure import Exposure, compute_exposure, fork_with_added_edges, fork_with_removed_edges, shortened_nodes
 from .graph import AttackGraph, NodeType
 from .pathfinder import AttackPath, PathReport, find_all_paths
 from .safety import assess_fixes
@@ -415,6 +415,11 @@ def _analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], stack
                     and getattr(exp_b, "fx", None) is not None):
                 # adding edges only shortens or creates routes: derive the result from the baseline instead of recomputing
                 exp_i = fork_with_added_edges(exp_b, scratch, [(s, t, probe.spec.edge_type) for s, t in probe.added_pairs])
+            elif (probe.spec.op in ("remove", "delete") and not probe.spec.deny and t0_i == t0_b and not scratch.denies
+                  and getattr(exp_b, "fx", None) is not None and probe.removed_edges):
+                # removing edges can only lengthen or cut routes: re-attach just the states that used them
+                exp_i = fork_with_removed_edges(exp_b, scratch, [(s, t, d.get("edge_type", probe.spec.edge_type))
+                                                                 for s, t, d in probe.removed_edges])
             else:
                 exp_i = compute_exposure(scratch)
             prom_i = t0_i - t0_b

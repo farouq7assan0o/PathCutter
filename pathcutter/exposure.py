@@ -37,6 +37,7 @@ class Exposure:
     override: dict = field(default_factory=dict)        # verified simple paths (node id -> steps)
     unverified: set = field(default_factory=set)        # kept, but the exact check hit its budget
     _exposed: set | None = None
+    _kids: tuple | None = None                          # (first_child, next_sibling): the reverse of `nxt`, built on demand
     # --- a fork is a base result plus a sparse overlay of the states that an added edge improved
     base: "Exposure | None" = None
     over: dict = field(default_factory=dict)            # state -> (dist, successor state, edge type)
@@ -59,7 +60,9 @@ class Exposure:
         if self.base is not None:
             ids, t0 = self.fx.ids, self.tier0
             out = set(self.base._walk_exposed())
-            out.update(ids[s >> 1] for s in self.over if s & 1 and ids[s >> 1] not in t0)
+            for s, (d, _, _) in self.over.items():
+                if s & 1 and ids[s >> 1] not in t0:
+                    (out.add if d >= 0 else out.discard)(ids[s >> 1])
             return out - self.removed
         return self._walk_exposed() - self.removed
 
@@ -206,6 +209,114 @@ def fork_with_added_edges(base: Exposure, graph: AttackGraph, edges: list[tuple[
         if len({st.node_id for st in steps}) == len(steps):
             continue
         found, exhausted = _simple_attack_path(graph, node, base.tier0, len(steps) - 1)
+        if found:
+            fork.override[node] = found
+        elif exhausted:
+            fork.unverified.add(node)
+        else:
+            fork.removed.add(node)
+    return fork
+
+
+def _children(base: Exposure) -> tuple[list[int], list[int]]:
+    """first_child / next_sibling arrays of the shortest-route forest (state -> states whose route goes through it)."""
+    if base._kids is None:
+        n = len(base.nxt)
+        first, sib = [-1] * n, [-1] * n
+        for s in range(n):
+            p = base.nxt[s]
+            if p >= 0:
+                sib[s] = first[p]
+                first[p] = s
+        base._kids = (first, sib)
+    return base._kids
+
+
+def fork_with_removed_edges(base: Exposure, graph: AttackGraph, edges: list[tuple[str, str, str]]) -> Exposure:
+    """Exposure after REMOVING edges, derived from `base` (decremental single-source-style update).
+
+    Only states whose shortest route used a removed edge, and the states routed through them, can change. They are marked
+    unreachable, then re-attached from their surviving out-edges by a Dijkstra restricted to that affected set. `graph`
+    must already have the edges removed and the same Tier 0 set as `base`. Equivalent to compute_exposure(graph).
+    """
+    fx = graph.fast()
+    root = base.base or base
+    pos = fx.pos
+    fork = Exposure(fx=fx, tier0=base.tier0, base=root)
+    ids, t0 = fx.ids, base.tier0
+    attack = _ATTACK_EDGES
+    first, sib = _children(root)
+    n_base = len(root.nxt)
+    gone = {(pos[u], pos[v], et) for u, v, et in edges if u in pos and v in pos}
+    seeds = []
+    for iu, iv, et in gone:
+        for f in (0, 1):
+            s = 2 * iu + f
+            if s < n_base:
+                p = root.nxt[s]
+                if p >= 0 and (p >> 1) == iv and root.nxt_et[s] == et:
+                    seeds.append(s)
+    affected: set[int] = set()
+    stack = list(seeds)
+    while stack:
+        s = stack.pop()
+        if s in affected:
+            continue
+        affected.add(s)
+        c = first[s]
+        while c >= 0:
+            stack.append(c)
+            c = sib[c]
+    over = fork.over
+    for s in affected:
+        over[s] = (-1, -1, None)
+    heap: list = []
+    g = graph.graph
+    for s in affected:
+        u, flag = s >> 1, s & 1
+        best = None
+        for _, vid, et in g.out_edges(ids[u], data="edge_type"):
+            iv = pos.get(vid)
+            if iv is None:
+                continue
+            for gflag in (0, 1):
+                if (1 if (gflag or et in attack) else 0) != flag:
+                    continue
+                t = 2 * iv + gflag
+                if t in affected or t >= n_base:
+                    continue
+                dt = root.dist[t]
+                if dt >= 0 and (best is None or dt + 1 < best[0]):
+                    best = (dt + 1, t, et)
+        if best:
+            heapq.heappush(heap, (best[0], s, best[1], best[2]))
+    while heap:
+        d, s, t, et = heapq.heappop(heap)
+        if over[s][0] >= 0:
+            continue
+        over[s] = (d, t, et)
+        flag = s & 1
+        for u, et2 in fx.rev[s >> 1]:
+            if ids[u] in t0:
+                continue
+            ns = 2 * u + (1 if (flag or et2 in attack) else 0)
+            if ns in affected and over[ns][0] < 0:
+                heapq.heappush(heap, (d + 1, ns, s, et2))
+    # states that stayed unreachable are simply marked -1 in the overlay; now the simple-path verdicts
+    changed = {s >> 1 for s in over if s & 1}
+    special = set(root.removed) | set(root.override) | set(root.unverified)
+    recheck = changed | {pos[x] for x in special if x in pos}
+    fork.removed = {x for x in root.removed if pos.get(x) not in recheck}
+    fork.override = {x: p for x, p in root.override.items() if pos.get(x) not in recheck}
+    fork.unverified = {x for x in root.unverified if pos.get(x) not in recheck}
+    for i in recheck:
+        node = ids[i]
+        if node in t0 or fork._d(2 * i + 1) < 0:
+            continue
+        steps = fork._walk_path(node)
+        if len({st.node_id for st in steps}) == len(steps):
+            continue
+        found, exhausted = _simple_attack_path(graph, node, t0, len(steps) - 1)
         if found:
             fork.override[node] = found
         elif exhausted:

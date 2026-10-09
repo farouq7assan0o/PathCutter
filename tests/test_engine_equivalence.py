@@ -114,3 +114,35 @@ def test_fork_equals_full_recompute(seed):
         assert len(steps) - 1 == fork.hops(n) and steps[-1].node_id in g.tier0_nodes, f"seed {seed}"
         for s, t in zip(steps, steps[1:]):
             assert g.has_edge_type(s.node_id, t.node_id, s.edge_type), (seed, s)
+
+
+# ---------------------------------------------------------------- decremental (removed edges) vs full recomputation
+
+from pathcutter.exposure import fork_with_removed_edges
+
+
+@pytest.mark.parametrize("seed", range(max(2000, SEEDS // 2)))
+def test_removal_fork_equals_full_recompute(seed):
+    rng = _random.Random(seed ^ 0x5bd1e995)
+    g = random_graph(seed, dag=(seed % 3 == 0), p=0.15 + (seed % 5) * 0.05)
+    g.retier()
+    base = exposure.compute_exposure(g)
+    edges = list(g.all_edges())
+    if not edges:
+        pytest.skip("no edges")
+    removed = []
+    for u, v, d in rng.sample(edges, min(len(edges), rng.randint(1, 3))):
+        if g.remove_edge(u, v, d["edge_type"]):
+            removed.append((u, v, d["edge_type"]))
+    g.retier()
+    if frozenset(g.tier0_nodes) != base.tier0:
+        pytest.skip("tier 0 changed: production falls back to a full recompute here")
+    fork = fork_with_removed_edges(base, g, removed)
+    full = exposure.compute_exposure(g)
+    assert fork.exposed() == full.exposed(), f"seed {seed}"
+    assert {n: fork.hops(n) for n in fork.exposed()} == {n: full.hops(n) for n in full.exposed()}, f"seed {seed}"
+    for n in list(fork.exposed())[:15]:
+        steps = fork.path(n)
+        assert len(steps) - 1 == fork.hops(n) and steps[-1].node_id in g.tier0_nodes, f"seed {seed}"
+        for s, t in zip(steps, steps[1:]):
+            assert g.has_edge_type(s.node_id, t.node_id, s.edge_type), (seed, s)

@@ -13,6 +13,8 @@
   condition tested on its own and an independent re-derivation from the raw JSON of a real collection.
 - **Implicit membership** of Everyone and Authenticated Users: ACEs granted to them are now rights everyone holds
   (previously invisible). The domain object itself is Tier 0.
+- **Decremental exposure update** for removed edges (only the states whose route used them are re-attached): a `check` with removals
+  costs no more than one with additions. Fuzzed against full recomputation (300,000 clean).
 - **`pathcutter audit`**: hygiene findings from collected attributes (Kerberoastable and AS-REP roastable accounts,
   passwords in descriptions and attributes, no-password accounts, stale privileged accounts, old krbtgt, unprotected
   Tier 0 accounts, SID history, orphaned adminCount, unconstrained delegation, protocol transition, unsupported OS,
