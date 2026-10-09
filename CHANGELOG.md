@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 (in progress)
+## 0.5.0
 
 ### Added
 - **Scale**: integer-indexed exposure engine (1M objects: 10.3s -> about 4s), copy-on-write `clone()` (17s -> 1s at 1M),
@@ -32,6 +32,9 @@
 - `data/rights.json`: the single declarative source for collector rights, PowerShell GUIDs and dsacls letters; the
   collector script's GUID table is generated from it (`tools/gen_collector_table.py`).
 - CI workflow (Linux and Windows, Python 3.11 and 3.13) and a nightly 1M-seed fuzz job.
+- Path enumeration (`analyze`, chokepoint ranking) now stops at the first Tier 0 target instead of crossing it, so fix
+  recommendations no longer point at edges that leave Tier 0 groups; on the SpecterOps sample the top fix is now
+  `EVERYONE -> T1_FABIAN` (2,781 paths), visible only because Everyone is now connected to every user.
 - `tests/test_registry.py` fails when edge-type knowledge drifts between modules (ingest, PowerShell rules, collector).
 
 ## 0.4.0

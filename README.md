@@ -68,6 +68,15 @@ pathcutter anonymize export.zip -o shareable.zip   # pseudonyms, no free text, i
 controls** (Conditional Access, PIM, vaulting: lower severity, never hide, always labeled unverified), SDProp and
 revocation-lag notes. `pathcutter syntax model` lists what is modeled and what is not.
 
+### Beyond on-premises AD
+
+Microsoft Entra ID and hybrid identity (AzureHound output: roles, PIM eligibility, group and app ownership, Graph application
+permissions, Azure RBAC, VM managed identities, the on-premises to cloud sync link), AD CS escalation (ESC1, 3, 4, 5, 6, 7, 9, 15,
+golden certificate), implicit Everyone / Authenticated Users membership, `pathcutter audit` for hygiene (roastable accounts, passwords
+in attributes, delegation, LAPS, trusts, Conditional Access coverage), and change sources beyond PowerShell: `check --terraform`,
+`--ansible`, `--dsc`. Several collections merge with `--also`. See [docs/extending.md](docs/extending.md) for how to add a right,
+a technique, a rule or an input.
+
 ### Does it actually work?
 
 Validated against a rebuilt GOAD lab with hand-derived hop counts, an independent brute-force oracle on thousands
