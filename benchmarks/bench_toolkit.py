@@ -1,3 +1,4 @@
+"""doctor / audit / anonymize timings on N synthetic objects: python bench_toolkit.py 200000"""
 import tempfile, time, os, sys
 sys.path.insert(0,'..')
 from bench_ingest import write
