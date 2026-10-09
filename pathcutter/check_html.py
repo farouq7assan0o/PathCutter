@@ -120,7 +120,7 @@ def _hops(p: dict) -> str:
     return f"{left} &rarr; {right}"
 
 
-def _finding_html(f: Finding, changes_by_index: dict) -> str:
+def _finding_html(f: Finding, changes_by_index: dict, expanded: bool = False) -> str:
     waived = f.waiver and f.waiver.get("status") == "applied"
     classes = f"finding sev-{f.severity}" + (" waived" if waived else "") + (" superseded" if f.superseded else "") + (" blocking" if f.blocking else "")
     head = [_chip(f.severity.upper(), f"sev sev-{f.severity}"), _chip(KIND_LABEL.get(f.kind, f.kind), "kind")]
@@ -133,6 +133,9 @@ def _finding_html(f: Finding, changes_by_index: dict) -> str:
     refs = " ".join(f'<a class="chg" href="#c{i}">change #{i}</a>' for i in f.changes[:6]) if f.changes else ""
     out = [f'<article class="{classes}" id="{f.id}" data-sev="{f.severity}" data-kind="{f.kind}">',
            f'<header>{"".join(head)}<h3>{e(f.title)}</h3>{refs}</header>', f'<p class="detail">{e(f.detail)}</p>']
+    if f.fix_first:
+        out.append(f'<p class="nextfix"><strong>Fix first:</strong> {e(f.fix_first[0]["description"])}</p>')
+    out.append(f'<details class="body"{" open" if expanded else ""}><summary>Paths, who is affected, fixes</summary>')
     if f.paths:
         out.append('<div class="diagram" aria-label="Attack paths">' + "".join(path_svg(p) for p in f.paths[:3]) + "</div>")
         if len(f.paths) > 3:
@@ -176,7 +179,7 @@ def _finding_html(f: Finding, changes_by_index: dict) -> str:
         who = f' &middot; approved by {e(w["approver"])}' if w.get("approver") else ""
         label = "Accepted risk (waiver applied)" if w["status"] == "applied" else "Waiver expired - no longer applies"
         out.append(f'<div class="waiver {e(w["status"])}"><strong>{label}:</strong> {e(w["id"])}{who}{exp}<br>{e(w["reason"])}</div>')
-    out.append("</article>")
+    out.append("</details></article>")
     return "".join(out)
 
 
@@ -295,8 +298,8 @@ def render_html(report: ImpactReport) -> str:
 </section>
 <section class="tiles" aria-label="Summary">{tiles}</section>
 <section aria-labelledby="h-changes"><h2 id="h-changes">Proposed changes</h2><ol class="changes">{"".join(_change_html(c, by_id) for c in report.changes)}</ol></section>
-<section id="findings" aria-labelledby="h-findings"><div class="fhead"><h2 id="h-findings">Findings</h2><div class="filters" role="group" aria-label="Filter by severity">{filters}</div></div>
-{"".join(_finding_html(f, changes_by_index) for f in visible) or '<p class="empty">No findings. This change set does not alter any route to Tier 0.</p>'}</section>
+<section id="findings" aria-labelledby="h-findings"><div class="fhead"><h2 id="h-findings">Findings</h2><div class="filters" role="group" aria-label="Filter by severity">{filters}<button type="button" id="expall">Expand all</button></div></div>
+{"".join(_finding_html(f, changes_by_index, expanded=(i < 3 and (f.blocking or f.severity in ("critical", "high")))) for i, f in enumerate(visible)) or '<p class="empty">No findings. This change set does not alter any route to Tier 0.</p>'}</section>
 <section aria-labelledby="h-policy"><h2 id="h-policy">Policy and waivers</h2><div class="cols"><div><table class="tbl kv"><tbody>{prow}</tbody></table></div>
 <div>{('<h4>Violations</h4><ul class="vl">' + viol + '</ul>') if viol else ''}{('<h4>Waivers</h4><ul class="vl">' + waiver_html + '</ul>') if waiver_html else '<p class="dim small">No waivers applied.</p>'}</div></div></section>
 {('<section aria-labelledby="h-warn"><h2 id="h-warn">Warnings</h2><ul class="vl warn">' + warns + '</ul></section>') if warns else ''}
@@ -343,7 +346,7 @@ button:hover{border-color:var(--accent)}button:focus-visible,a:focus-visible,sum
 .finding{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--info);border-radius:12px;padding:16px 18px;margin-bottom:14px}
 .finding.sev-critical{border-left-color:var(--crit)}.finding.sev-high{border-left-color:var(--high)}.finding.sev-medium{border-left-color:var(--med)}.finding.sev-low{border-left-color:var(--low)}
 .finding.superseded,.finding.waived{opacity:.82}.finding header{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}.finding h3{flex:1 1 280px}.chg{font-size:.78rem}
-.detail{margin:4px 0 10px}.diagram{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px;overflow-x:auto;display:grid;gap:2px}.pathsvg{display:block;color:var(--text)}
+.detail{margin:4px 0 10px}.nextfix{margin:0 0 6px;font-size:.85rem;color:var(--ok)}.body>summary{margin:2px 0 8px;font-weight:600}.finding{content-visibility:auto;contain-intrinsic-size:auto 180px}.diagram{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px;overflow-x:auto;display:grid;gap:2px}.pathsvg{display:block;color:var(--text)}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;margin-top:12px}ul{margin:4px 0;padding-left:18px}.mitres{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .mitre{font-size:.72rem;border:1px solid var(--line);border-radius:6px;padding:1px 7px;text-decoration:none;background:var(--panel2)}
 .tbl{width:100%;border-collapse:collapse;font-size:.82rem}.tbl th,.tbl td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}.tbl thead th{font-size:.7rem;text-transform:uppercase;color:var(--dim)}.kv th{width:46%;color:var(--dim);font-weight:500}
@@ -370,6 +373,8 @@ document.getElementById('dl').addEventListener('click',function(){
 document.querySelectorAll('.copy').forEach(function(b){b.addEventListener('click',function(){
   var t=b.parentElement.querySelector('.cmd').textContent;
   (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1400);},function(){b.textContent='Select + Ctrl+C';});});});
+var ea=document.getElementById('expall');if(ea){ea.addEventListener('click',function(){var open=ea.textContent==='Expand all';
+  document.querySelectorAll('.finding .body').forEach(function(d){d.open=open;});ea.textContent=open?'Collapse all':'Expand all';});}
 document.querySelectorAll('.fchip').forEach(function(c){c.addEventListener('click',function(){
   var on=c.getAttribute('aria-pressed')!=='true';c.setAttribute('aria-pressed',on);
   document.querySelectorAll('.finding[data-sev="'+c.dataset.f+'"]').forEach(function(f){f.style.display=on?'':'none';});});});
