@@ -16,7 +16,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: python -m pip install -e ".[dev]"
-      - run: python -m pytest -q
+      - run: python -m pytest -q --junitxml=junit.xml
+      - if: failure()
+        run: python tools/ci_annotate.py junit.xml
   scale-smoke:
     runs-on: ubuntu-latest
     steps:
