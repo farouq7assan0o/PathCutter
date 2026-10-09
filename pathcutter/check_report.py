@@ -18,6 +18,7 @@ KIND_LABEL = {
     "PATH_SHORTENED": "Shorter path",
     "RISK_REDUCTION": "Risk reduction",
     "NOOP": "No effect",
+    "NOTE": "Note",
     "UNMODELED": "Not modeled",
 }
 CHANGE_VERDICT_LABEL = {"ok": "OK", "review": "REVIEW", "block": "BLOCK", "waived": "WAIVED"}
@@ -254,6 +255,7 @@ def render_sarif(report: ImpactReport) -> str:
                 "PATH_SHORTENED": "A change shortens existing attack paths to Tier 0.",
                 "RISK_REDUCTION": "A change removes attack paths to Tier 0.",
                 "NOOP": "A change has no effect on the baseline.",
+                "NOTE": "A recognised action with no modeled effect on attack paths, or worth reading.",
                 "UNMODELED": "Part of the change could not be analyzed.",
             }.get(f.kind, f.kind)},
             "helpUri": "https://github.com/farouq7assan0o/PathCutter",

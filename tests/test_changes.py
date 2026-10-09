@@ -113,16 +113,16 @@ def test_ps_net_group():
 
 def test_ps_never_silently_skips_what_it_cannot_model():
     text = r'''
-$g = Get-ADGroup X; Add-ADGroupMember -Identity $g -Members tharris
+$g = Import-Csv groups.csv; Add-ADGroupMember -Identity $g -Members tharris
 foreach ($u in $list) { Add-ADGroupMember -Identity "IT" -Members $u }
 Get-ADUser -Filter * | Add-ADPrincipalGroupMembership -MemberOf "Backup Operators"
-Set-ADAccountControl -Identity SRV02 -TrustedForDelegation $true
+Set-ADObject -Identity "CN=x,DC=corp,DC=local" -Replace @{adminCount=1; weird=2}
 Set-Acl -Path "AD:\CN=x" -AclObject $acl
 '''
     specs, warns = _ps(text)
     assert not specs
-    assert [w.origin for w in warns] == ["s.ps1:2", "s.ps1:3", "s.ps1:4", "s.ps1:5", "s.ps1:6"]
-    assert any("Unconstrained delegation" in w.message for w in warns)
+    assert sorted({w.origin for w in warns}) == ["s.ps1:2", "s.ps1:3", "s.ps1:4", "s.ps1:5", "s.ps1:6"]
+    assert all(w.level == "review" for w in warns if w.origin != "s.ps1:5")
 
 
 def test_ps_finds_changes_after_semicolon_and_inside_blocks():

@@ -23,7 +23,7 @@ from .impact import ACTOR_TYPES, SEVERITIES, ImpactReport, Finding, severity_ran
 
 POLICY_SCHEMA = "pathcutter.policy/1"
 GATED_KINDS = ("TIER0_PROMOTION", "NEW_EXPOSURE", "COMBINED_EFFECT", "PATH_SHORTENED", "UNMODELED")
-ALL_KINDS = GATED_KINDS + ("RISK_REDUCTION", "NOOP")
+ALL_KINDS = GATED_KINDS + ("RISK_REDUCTION", "NOOP", "NOTE")
 _KNOWN_KEYS = {"schema", "block_severity", "block_kinds", "review_severity", "max_new_exposed_actors",
                "max_score_increase", "fail_on_unmodeled", "extra_tier0", "max_baseline_age_days",
                "require_waiver_expiry", "waivers"}
@@ -55,9 +55,16 @@ class Waiver:
         def hit(pattern: str, *values: str) -> bool:
             return any(fnmatch.fnmatchcase(v.lower(), pattern.lower()) for v in values if v)
         s = rc.spec
-        return (hit(self.source, s.source, rc.source_name, rc.source_id)
-                and hit(self.edge, s.edge_type)
-                and hit(self.target, s.target, rc.target_name, rc.target_id))
+        if not hit(self.edge, s.edge_type) and not (s.op in ("create", "delete") and self.edge == "*"):
+            return False
+        # a fan-out change (e.g. @members(HELPDESK)) matches only if EVERY expanded pair matches, or the
+        # waiver names the selector itself: a waiver for one member must not cover the whole group.
+        sel_src = hit(self.source, s.source)
+        sel_tgt = hit(self.target, s.target)
+        infos = rc.pair_info or [(rc.source_name, rc.source_id, rc.target_name, rc.target_id)]
+        src_ok = sel_src or all(hit(self.source, a, b) for a, b, _, _ in infos)
+        tgt_ok = sel_tgt or all(hit(self.target, c, d) for _, _, c, d in infos)
+        return src_ok and tgt_ok
 
     def to_dict(self) -> dict:
         return {"id": self.id, "reason": self.reason, "approver": self.approver,

@@ -39,7 +39,7 @@ def severity_rank(sev: str) -> int:
 @dataclass
 class Finding:
     id: str
-    kind: str            # TIER0_PROMOTION | NEW_EXPOSURE | PATH_SHORTENED | COMBINED_EFFECT | RISK_REDUCTION | NOOP | UNMODELED
+    kind: str            # TIER0_PROMOTION | NEW_EXPOSURE | PATH_SHORTENED | COMBINED_EFFECT | RISK_REDUCTION | NOOP | NOTE | UNMODELED
     severity: str
     title: str
     detail: str
@@ -242,8 +242,7 @@ def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
     exp_a = compute_exposure(after)
     t0_a = frozenset(after.tier0_nodes)
 
-    change_edges_all = {(rc.source_id, rc.target_id, rc.spec.edge_type)
-                        for rc in resolved if rc.spec.op == "add" and not rc.noop}
+    change_edges_all = set().union(*(rc.edge_keys() for rc in resolved)) if resolved else set()
 
     exposed_b, exposed_a = exp_b.exposed(), exp_a.exposed()
     unverified = exp_b.unverified | exp_a.unverified
@@ -344,7 +343,7 @@ def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
             short_i = {n for n in exposed_i & exposed_b
                        if exp_i.hops(n) is not None and exp_b.hops(n) is not None and exp_i.hops(n) < exp_b.hops(n)}
             marginal_exposed |= new_i
-            edge = {(rc.source_id, rc.target_id, rc.spec.edge_type)} if rc.spec.op == "add" else set()
+            edge = probe.edge_keys()
             cr = by_index[rc.spec.index]
             cr.newly_exposed, cr.newly_exposed_actors = len(new_i), actors(new_i)
             cr.promoted, cr.newly_secured, cr.shortened = len(prom_i), len(sec_i), len(short_i)
@@ -415,9 +414,9 @@ def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
     if do_marginal and combined_only:
         plist = _sort_principals([_principal(after, n, exp_b.hops(n), exp_a.hops(n)) for n in combined_only])
         paths = [_path_dicts(after, exp_a, p["id"], change_edges_all) for p in plist[:MAX_PATHS_CAPTURED]]
-        involved = sorted({rc.spec.index for rc in resolved if (rc.source_id, rc.target_id, rc.spec.edge_type) in
-                           {(s["id"], paths[j][k + 1]["id"], s["edge"]) for j, pth in enumerate(paths)
-                            for k, s in enumerate(pth[:-1]) if s.get("new_edge")}})
+        on_paths = {(s["id"], paths[j][k + 1]["id"], s["edge"]) for j, pth in enumerate(paths)
+                    for k, s in enumerate(pth[:-1]) if s.get("new_edge")}
+        involved = sorted({rc.spec.index for rc in resolved if rc.edge_keys() & on_paths})
         sev = SEVERITIES[max(severity_rank(_exposure_severity(plist)), severity_rank("high"))]
         new_finding(
             sources=combined_only, kind="COMBINED_EFFECT", severity=sev,
@@ -447,6 +446,11 @@ def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
         if rc.assumed_new:
             rep.warnings.append(f"#{rc.spec.index}: assumed {', '.join(rc.assumed_new)} to be new object(s) with no existing permissions.")
     for w in unmodeled or []:
+        if getattr(w, "level", "review") == "note":
+            new_finding(kind="NOTE", severity="low", title=w.message[:110],
+                        detail="Recognised in the script; it does not change who can reach Tier 0, or its "
+                               "effect is described here for your review.", origin=w.origin)
+            continue
         new_finding(kind="UNMODELED", severity="medium",
                     title=("Not analyzed: " + w.message)[:110],
                     detail=("This part of the script was NOT analyzed, so its effect on attack paths is unknown. "
@@ -502,7 +506,7 @@ def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
     _attach_fixes(after, pr_a, [f for f in findings if not f.superseded], finding_sources, change_edges_all)
 
     order = {"TIER0_PROMOTION": 0, "NEW_EXPOSURE": 1, "COMBINED_EFFECT": 2, "PATH_SHORTENED": 3,
-             "UNMODELED": 4, "NOOP": 5, "RISK_REDUCTION": 6}
+             "UNMODELED": 4, "NOTE": 5, "NOOP": 5, "RISK_REDUCTION": 6}
     findings.sort(key=lambda f: (-severity_rank(f.severity), order.get(f.kind, 9), f.id))
     rep.findings = findings
     rep.methodology = _methodology(truncated)

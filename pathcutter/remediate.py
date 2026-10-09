@@ -44,6 +44,9 @@ class RemediationPlan:
             lines.append("")
             for fix in fixes:
                 lines.append(f"# Fix #{fix.rank}: {fix.description}")
+                # Machine-readable twin of this fix, so `pathcutter check --powershell` can verify the
+                # script's effect before it is run.
+                lines.append(f'# pc: revoke "{fix.source_name}" {fix.edge_type} "{fix.target_name}"')
                 lines.append(f"# Impact: eliminates {fix.paths_eliminated} paths ({fix.cumulative_pct}% cumulative)")
                 lines.append(f"# MITRE: {fix.mitre or 'N/A'}")
                 lines.append("")

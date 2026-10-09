@@ -19,12 +19,15 @@ from .safety import assess_fixes, summarize_safety
 
 
 def main(argv: list[str] | None = None) -> int:
+    from . import helptext
     parser = argparse.ArgumentParser(
         prog="pathcutter",
-        description="AD Attack Path Risk Engine - find what to fix, in what order",
+        usage="pathcutter <command> [options]      (pathcutter help <command> | pathcutter syntax)",
+        description=helptext.TOP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
-    sub = parser.add_subparsers(dest="command")
+    sub = parser.add_subparsers(dest="command", metavar="<command>")
 
     # analyze
     p_analyze = sub.add_parser("analyze", help="Full analysis of a SharpHound export")
@@ -95,11 +98,46 @@ def main(argv: list[str] | None = None) -> int:
                          help="Also save the demo environment as a baseline for `pathcutter check`")
     p_demo.add_argument("--size", choices=["small", "medium", "large", "huge"], default="medium",
                          help="Environment size: small (~50 nodes), medium (~200), large (~1000), huge (~12000)")
+    p_demo.add_argument("--lab", choices=["goad-sevenkingdoms"],
+                         help="Write a reference lab as SharpHound JSON instead (GOAD sevenkingdoms.local)")
+
+    # reference + help
+    p_syntax = sub.add_parser("syntax", help="Full reference: change language, PowerShell coverage, edge types, policy")
+    p_syntax.add_argument("topic", nargs="?", default="all",
+                          help="changes | powershell | edges | policy | exit-codes | all (default)")
+    p_help = sub.add_parser("help", help="Show help for a command or a syntax topic")
+    p_help.add_argument("topic", nargs="?", help="a command name, or: syntax [topic]")
+    p_help.add_argument("subtopic", nargs="?", help=argparse.SUPPRESS)
+
+    for name, text in helptext.EPILOGS.items():       # examples under every command's options
+        sp = sub.choices[name]
+        sp.epilog = text
+        sp.description = helptext.DESCRIPTIONS.get(name, sp.description)
+        sp.formatter_class = argparse.RawDescriptionHelpFormatter
+    sub._choices_actions.clear()                       # the grouped command list in the description replaces argparse's flat one
 
     args = parser.parse_args(argv)
 
     if args.command is None:
         parser.print_help()
+        return 0
+
+    if args.command == "syntax":
+        from .syntax_help import render
+        print(render(args.topic))
+        return 0
+    if args.command == "help":
+        if not args.topic:
+            parser.print_help()
+            return 0
+        if args.topic == "syntax":
+            from .syntax_help import render
+            print(render(args.subtopic))
+            return 0
+        if args.topic in sub.choices:
+            sub.choices[args.topic].print_help()
+            return 0
+        print(f"[!] no such command or topic: {args.topic}", file=sys.stderr)
         return 1
 
     if args.command == "analyze":
@@ -457,10 +495,34 @@ def _build_json_snapshot(graph, report, posture, node_scores, choke) -> dict:
     }
 
 
+def _cmd_demo_lab(args) -> int:
+    """Write a reference lab as SharpHound JSON, optionally with a baseline snapshot."""
+    from .ingest import load_sharphound
+    from .labs import LABS, write_lab
+    out = Path(args.output) / args.lab
+    write_lab(args.lab, out)
+    print(f"[+] {LABS[args.lab]}")
+    print(f"[+] SharpHound files: {out}")
+    graph = load_sharphound(out)
+    print(f"    {graph.node_count} nodes, {graph.edge_count} edges, {len(graph.tier0_nodes)} Tier 0 objects")
+    if args.snapshot:
+        from .snapshot import save_snapshot
+        meta = save_snapshot(graph, args.snapshot, source=out)
+        print(f"[+] Baseline snapshot: {args.snapshot} ({meta['bytes'] / 1024:.0f} KiB)")
+    print("\nTry:")
+    print(f"  pathcutter analyze {out} --html -o {Path(args.output) / 'report'}")
+    snap = args.snapshot or "goad.pcsnap"
+    print(f"  pathcutter check --baseline {snap} --change 'create user newhire' --change 'add-member newhire DragonStone'")
+    return 0
+
+
 def _cmd_demo(args) -> int:
     """Generate a realistic demo AD environment and run full analysis."""
     import random
     from .graph import AttackGraph, ADNode, ADEdge, NodeType
+
+    if getattr(args, "lab", None):
+        return _cmd_demo_lab(args)
 
     sizes = {"small": (50, 12, 8), "medium": (200, 30, 20), "large": (1000, 80, 50), "huge": (9000, 400, 2600)}
     n_users, n_groups, n_computers = sizes[args.size]

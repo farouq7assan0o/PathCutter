@@ -75,9 +75,11 @@ def test_empty_plan(tiny_graph):
     assert "Pathcutter Remediation Script" in script
 
 
-def test_cli_no_args(capsys):
-    ret = main([])
-    assert ret == 1
+def test_cli_no_args_shows_the_guide(capsys):
+    assert main([]) == 0
+    out = capsys.readouterr().out
+    for needle in ("START HERE", "TYPICAL WORKFLOW", "EXIT CODES", "check", "snapshot", "syntax"):
+        assert needle in out
 
 
 def test_cli_version(capsys):

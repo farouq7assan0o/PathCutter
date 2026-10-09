@@ -25,6 +25,8 @@ from .graph import AttackGraph, ADEdge, ADNode, NodeType
 
 SCHEMA = "pathcutter.changes/1"
 DOMAIN_SENTINEL = "<domain>"
+DCS_SELECTOR = "@dcs"
+_SELECTOR = __import__("re").compile(r"^@members(\*?)\((.+)\)$", __import__("re").I)
 # Change files are untrusted input in a CI gate (the pull request author is the adversary).
 MAX_CHANGE_FILE_BYTES = 2_000_000
 MAX_CHANGES = 5000
@@ -52,12 +54,29 @@ class ChangeSpec:
     raw: str = ""
 
     def describe(self) -> str:
+        src, tgt = pretty_ref(self.source), pretty_ref(self.target)
         if self.op == "create":
             return f"create {self.new_type} {self.source}"
+        if self.op == "move":
+            return f"move {src} into {tgt}"
+        if self.op == "delete":
+            return f"delete {src}"
         verb = "grant" if self.op == "add" else "revoke"
+        if self.edge_type == "*":
+            return f"revoke ALL permissions of {src} on {tgt}"
         if self.edge_type == "MemberOf":
-            return f"{'add' if self.op == 'add' else 'remove'} {self.source} {'to' if self.op == 'add' else 'from'} group {self.target}"
-        return f"{verb} {self.edge_type}: {self.source} -> {self.target}"
+            return f"{'add' if self.op == 'add' else 'remove'} {src} {'to' if self.op == 'add' else 'from'} group {tgt}"
+        return f"{verb} {self.edge_type}: {src} -> {tgt}"
+
+
+def pretty_ref(ref: str) -> str:
+    """Human wording for a reference, including the baseline-aware selectors."""
+    if ref == DCS_SELECTOR:
+        return "every domain controller"
+    m = _SELECTOR.match(ref.strip())
+    if m:
+        return f"all {'(nested) ' if m.group(1) else ''}members of {m.group(2)}"
+    return ref
 
 
 @dataclass
@@ -65,6 +84,7 @@ class ChangeWarning:
     origin: str
     message: str
     line: str = ""
+    level: str = "review"      # review: part of the script was not analyzed | note: recognised, no graph effect
 
 
 # ---------------------------------------------------------------- edge names
@@ -97,10 +117,13 @@ _VERBS: dict[str, tuple[str, str | None, tuple[int, int]]] = {
     "session": ("add", "HasSession", (2, 2)),
     "rdp": ("add", "CanRDP", (2, 2)),
     "psremote": ("add", "CanPSRemote", (2, 2)),
+    "unconstrained": ("add", "AllowedToDelegate", (1, 1)),
+    "remove-unconstrained": ("remove", "AllowedToDelegate", (1, 1)),
     "grant-dcsync": ("add", "DCSync", (1, 2)),
     "revoke-dcsync": ("remove", "DCSync", (1, 2)),
     "grant": ("add", None, (3, 3)),
     "revoke": ("remove", None, (3, 3)),
+    "revoke-all": ("remove", "*", (2, 2)),
     "add": ("add", None, (3, 3)),
     "remove": ("remove", None, (3, 3)),
 }
@@ -112,9 +135,14 @@ delegate <principal> <target>             undelegate <principal> <target>
 rbcd <allowed-principal> <resource>       remove-rbcd <allowed-principal> <resource>
 grant-dcsync <principal> [<domain>]       revoke-dcsync <principal> [<domain>]
 session <user> <computer>                 rdp / psremote <principal> <computer>
+unconstrained <principal>                 move <object> <container-or-OU>
+delete <object>
 grant <principal> <Right> <object>        revoke <principal> <Right> <object>
+revoke-all <principal> <object>           (every ACL right the principal holds on the object)
 add <src> <EdgeType> <dst>                remove <src> <EdgeType> <dst>
 create user|group|computer <name>
+@members(GROUP) / @members*(GROUP)        every (nested) member of a group, from the baseline; use as <principal>
+@dcs                                      every domain controller; use as <object>
 (append "# note" to attach a ticket or reason)"""
 
 
@@ -151,6 +179,17 @@ def parse_line(line: str, index: int, origin: str) -> ChangeSpec | None:
         return ChangeSpec(index, "create", source=args[1], new_type=args[0].lower(),
                           note=note, origin=origin, raw=stripped)
 
+    if verb == "delete":
+        if len(args) != 1:
+            raise ValueError("expected: delete <object>")
+        return ChangeSpec(index, "delete", source=args[0], note=note, origin=origin, raw=stripped)
+
+    if verb == "move":
+        if len(args) != 2:
+            raise ValueError("expected: move <object> <container-or-OU>")
+        return ChangeSpec(index, "move", source=args[0], edge_type="Contains", target=args[1],
+                          note=note, origin=origin, raw=stripped)
+
     if verb not in _VERBS:
         close = difflib.get_close_matches(verb, list(_VERBS) + ["create"], n=2, cutoff=0.6)
         hint = f" (did you mean {' or '.join(close)}?)" if close else ""
@@ -163,7 +202,7 @@ def parse_line(line: str, index: int, origin: str) -> ChangeSpec | None:
     if fixed_edge:
         edge = fixed_edge
         source = args[0]
-        target = args[1] if len(args) > 1 else DOMAIN_SENTINEL
+        target = args[1] if len(args) > 1 else (DCS_SELECTOR if "unconstrained" in verb else DOMAIN_SENTINEL)
     else:
         source, edge_word, target = args
         edge = canonical_edge(edge_word)
@@ -220,8 +259,23 @@ def parse_json(text: str, origin: str = "<changes>", start_index: int = 1) -> li
                     spec = ChangeSpec(idx, "create", source=str(item["name"]), new_type=ntype,
                                       note=note, origin=where, raw=json.dumps(item))
                 else:
+                    if op == "delete":
+                        if not item.get("source"):
+                            raise ValueError("'source' is required")
+                        specs.append(ChangeSpec(idx, "delete", source=str(item["source"]), note=note,
+                                                origin=where, raw=json.dumps(item)))
+                        idx += 1
+                        continue
+                    if op == "move":
+                        if not item.get("source") or not item.get("target"):
+                            raise ValueError("'source' and 'target' are required")
+                        spec = ChangeSpec(idx, "move", source=str(item["source"]), edge_type="Contains",
+                                          target=str(item["target"]), note=note, origin=where, raw=json.dumps(item))
+                        specs.append(spec)
+                        idx += 1
+                        continue
                     if op not in ("add", "remove"):
-                        raise ValueError(f"op must be add, remove or create (got '{op}')")
+                        raise ValueError(f"op must be add, remove, move, delete or create (got '{op}')")
                     edge_word = str(item.get("edge") or item.get("edge_type") or "")
                     edge = canonical_edge(edge_word)
                     if edge is None:
@@ -245,44 +299,12 @@ def parse_json(text: str, origin: str = "<changes>", start_index: int = 1) -> li
 
 # ------------------------------------------------------------ PowerShell input
 
-_PS_SWITCHES = {"passthru", "confirm", "whatif", "force", "verbose", "debug", "erroraction"}
-_PS_TOKEN = re.compile(r'(?:"[^"]*"|\'[^\']*\'|[^\s"\',]+|,)+')
-_PS_VALUE = re.compile(r'"[^"]*"|\'[^\']*\'|[^,]+')
-
-
-def _strip_ps_comment(line: str) -> str:
-    quote = ""
-    for i, ch in enumerate(line):
-        if quote:
-            if ch == quote:
-                quote = ""
-        elif ch in "\"'":
-            quote = ch
-        elif ch == "#":
-            return line[:i]
-    return line
-
-
-def _ps_values(token: str) -> list[str]:
-    out = []
-    for m in _PS_VALUE.findall(token):
-        v = m.strip().strip("\"'").strip()
-        if v:
-            out.append(v)
-    return out
-
-
-_PS_VAR = re.compile(r"\$[\w{(]")
-
-
-def _has_var(values: list[str]) -> bool:
-    """True if any value is a PowerShell variable/expression ($user, ${x}, $($y)); WEB01$ is not."""
-    return any(_PS_VAR.search(v) for v in values)
-
-
 def _normalise_ref(value: str) -> str:
     """CN=Domain Admins,CN=Users,DC=corp,DC=local -> Domain Admins ; CORP\\alice -> alice"""
     v = value.strip()
+    if v.upper().startswith("DC="):                       # DC=corp,DC=local -> corp.local
+        parts = [p.split("=", 1)[1].strip() for p in v.split(",") if p.strip().upper().startswith("DC=")]
+        return ".".join(parts) if parts else v
     if v.upper().startswith(("CN=", "OU=")):
         return v.split(",")[0].split("=", 1)[1].strip()
     if "\\" in v and "@" not in v:
@@ -290,146 +312,11 @@ def _normalise_ref(value: str) -> str:
     return v
 
 
-def _ps_args(rest: str) -> tuple[dict[str, list[str]], list[list[str]]]:
-    """Split a cmdlet argument string into named params and positional values."""
-    tokens = _PS_TOKEN.findall(rest)
-    named: dict[str, list[str]] = {}
-    positional: list[list[str]] = []
-    i = 0
-    while i < len(tokens):
-        tok = tokens[i]
-        if tok.startswith("-") and len(tok) > 1 and not tok[1].isdigit():
-            name, _, inline = tok[1:].partition(":")
-            name = name.lower()
-            if inline:
-                named[name] = _ps_values(inline)
-            elif name in _PS_SWITCHES or i + 1 >= len(tokens) or tokens[i + 1].startswith("-"):
-                named[name] = []
-            else:
-                named[name] = _ps_values(tokens[i + 1])
-                i += 1
-        else:
-            positional.append(_ps_values(tok))
-        i += 1
-    return named, positional
-
-
-_PS_NET_GROUP = re.compile(r'\bnet\s+group\s+("[^"]+"|\S+)\s+("[^"]+"|\S+)\s+/(add|delete)\b', re.I)
-_PS_ACL_HINT = re.compile(r"\b(Set-Acl|dsacls|Add-ADPermission|ActiveDirectoryAccessRule)\b", re.I)
-_PS_AD_CMDLET = re.compile(
-    r"\b(Add-ADGroupMember|Remove-ADGroupMember|Add-ADPrincipalGroupMembership|Remove-ADPrincipalGroupMembership|"
-    r"Set-ADComputer|Set-ADUser|Set-ADObject|Set-ADAccountControl|Add-LocalGroupMember|Set-Acl|Add-ADPermission|dsacls)\b", re.I)
-
-
-def _ps_statement_end(text: str, start: int) -> int:
-    """Index of the first statement terminator (; | } newline) outside quotes."""
-    quote = ""
-    for i in range(start, len(text)):
-        ch = text[i]
-        if quote:
-            if ch == quote:
-                quote = ""
-        elif ch in "\"'":
-            quote = ch
-        elif ch in ";|}":
-            return i
-    return len(text)
-
-
 def from_powershell(text: str, origin: str = "<script>", start_index: int = 1
                     ) -> tuple[list[ChangeSpec], list[ChangeWarning]]:
-    """Extract the AD changes a PowerShell script would make.
-
-    Every statement is scanned, wherever it sits (after ';' or '|', inside if/foreach
-    blocks). It models group membership, RBCD and `net group`, and reports everything
-    else it recognises as AD-changing (ACL edits, unconstrained delegation, anything
-    that uses variables or pipeline input) as an unmodeled warning. It never skips
-    a recognised AD change silently.
-    """
-    specs: list[ChangeSpec] = []
-    warns: list[ChangeWarning] = []
-    idx = start_index
-
-    logical: list[tuple[int, str]] = []
-    pending, first_line = "", 0
-    for lineno, raw in enumerate(text.splitlines(), 1):
-        line = _strip_ps_comment(raw).rstrip()
-        if not pending:
-            first_line = lineno
-        if line.endswith("`"):
-            pending += line[:-1] + " "
-            continue
-        logical.append((first_line, (pending + line).strip()))
-        pending = ""
-    if pending:
-        logical.append((first_line, pending.strip()))
-
-    def emit(op: str, src: str, edge: str, tgt: str, lineno: int, line: str):
-        nonlocal idx
-        specs.append(ChangeSpec(idx, op, source=_normalise_ref(src), edge_type=edge,
-                                target=_normalise_ref(tgt), origin=f"{origin}:{lineno}", raw=line))
-        idx += 1
-
-    def warn(lineno: int, message: str, line: str):
-        warns.append(ChangeWarning(f"{origin}:{lineno}", message, line))
-
-    for lineno, line in logical:
-        if not line:
-            continue
-        handled_net = False
-        for m_net in _PS_NET_GROUP.finditer(line):
-            grp, usr, mode = (g.strip('"') for g in m_net.groups())
-            emit("add" if mode.lower() == "add" else "remove", usr, "MemberOf", grp, lineno, line)
-            handled_net = True
-        for m in _PS_AD_CMDLET.finditer(line):
-            cmd = m.group(1).lower()
-            rest = line[m.end():_ps_statement_end(line, m.end())]
-            named, pos = _ps_args(rest)
-            shown = m.group(1)
-
-            def values(*names: str, position: int | None = None) -> list[str]:
-                for n in names:
-                    if n in named and named[n]:
-                        return named[n]
-                if position is not None and len(pos) > position:
-                    return pos[position]
-                return []
-
-            if cmd in ("add-adgroupmember", "remove-adgroupmember"):
-                group = values("identity", "group", position=0)
-                members = values("members", "member", position=1)
-                op = "add" if cmd.startswith("add") else "remove"
-                if not group or not members or _has_var(group + members):
-                    warn(lineno, f"{shown} uses a variable, pipeline input or is missing -Identity/-Members, so who is affected cannot be determined", line)
-                    continue
-                for member in members:
-                    emit(op, member, "MemberOf", group[0], lineno, line)
-            elif cmd in ("add-adprincipalgroupmembership", "remove-adprincipalgroupmembership"):
-                principal = values("identity", "principal", position=0)
-                groups = values("memberof", position=1)
-                op = "add" if cmd.startswith("add") else "remove"
-                if not principal or not groups or _has_var(principal + groups):
-                    warn(lineno, f"{shown} uses a variable, pipeline input or is missing arguments, so who is affected cannot be determined", line)
-                    continue
-                for grp in groups:
-                    emit(op, principal[0], "MemberOf", grp, lineno, line)
-            elif cmd in ("set-adcomputer", "set-aduser", "set-adobject") and "principalsallowedtodelegatetoaccount" in named:
-                resource = values("identity", position=0)
-                allowed = named.get("principalsallowedtodelegatetoaccount", [])
-                if not resource or not allowed or _has_var(resource + allowed):
-                    warn(lineno, "RBCD change uses a variable, pipeline input or $null, so the principals cannot be determined", line)
-                    continue
-                for principal in allowed:
-                    emit("add", principal, "AllowedToAct", resource[0], lineno, line)
-            elif cmd == "set-adaccountcontrol" and "trustedfordelegation" in named:
-                warn(lineno, "Unconstrained delegation change is not modeled by the attack graph; treat as HIGH risk and review manually", line)
-            elif cmd in ("set-acl", "add-adpermission", "dsacls"):
-                warn(lineno, "ACL change detected but not modeled; add an explicit 'grant'/'revoke' line to analyze it", line)
-            elif cmd == "add-localgroupmember":
-                warn(lineno, "Local group change affects access outside the AD graph and is not modeled", line)
-        if not handled_net and _PS_ACL_HINT.search(line) and not _PS_AD_CMDLET.search(line):
-            warn(lineno, "ACL change detected but not modeled; add an explicit 'grant'/'revoke' line to analyze it", line)
-    return specs, warns
+    """Extract the AD changes a PowerShell script would make (parser in powershell.py)."""
+    from .powershell import extract
+    return extract(text, origin, start_index)
 
 
 # ------------------------------------------------------------- source loading
@@ -552,7 +439,21 @@ class ResolvedChange:
     assumed_new: list[str] = field(default_factory=list)    # names assumed to be new objects
     noop: bool = False
     noop_reason: str = ""
-    removed_edges: list[dict] = field(default_factory=list)  # restored on undo
+    pairs: list[tuple[str, str]] = field(default_factory=list)          # fan-out (selectors); else the single pair
+    pair_info: list[tuple[str, str, str, str]] = field(default_factory=list)  # (src name, src id, tgt name, tgt id)
+    added_pairs: list[tuple[str, str]] = field(default_factory=list)    # edges this change actually added
+    removed_edges: list[tuple[str, str, dict]] = field(default_factory=list)  # restored on undo
+    moved_from: list[str] = field(default_factory=list)
+    expanded: bool = False          # pairs were computed by resolution (possibly empty), not defaulted
+
+    def edge_pairs(self) -> list[tuple[str, str]]:
+        if self.pairs or self.expanded:
+            return self.pairs
+        return [(self.source_id, self.target_id)] if (self.source_id or self.target_id) else []
+
+    def edge_keys(self) -> set[tuple[str, str, str]]:
+        """The edges this change actually added (empty when it was a no-op or only removes)."""
+        return {(s, t, self.spec.edge_type) for s, t in self.added_pairs}
 
 
 class NameIndex:
@@ -625,6 +526,26 @@ def _new_node(name: str, ntype: NodeType, domain: str) -> ADNode:
                   domain=domain.lower(), enabled=True)
 
 
+def _members_of(graph: AttackGraph, group_id: str, recursive: bool) -> list[ADNode]:
+    seen: set[str] = set()
+    out: list[ADNode] = []
+    frontier = [group_id]
+    while frontier:
+        cur = frontier.pop()
+        for u, _, d in graph.in_edges(cur):
+            if d.get("edge_type") != "MemberOf" or u in seen:
+                continue
+            seen.add(u)
+            node = graph.get_node(u)
+            if node is None:
+                continue
+            if recursive and node.node_type == NodeType.GROUP:
+                frontier.append(u)
+            else:
+                out.append(node)
+    return out
+
+
 def resolve_changes(graph: AttackGraph, specs: list[ChangeSpec], on_unresolved: str = "error"
                     ) -> tuple[list[ResolvedChange], list[str]]:
     """Bind each spec to concrete baseline objects.
@@ -632,18 +553,26 @@ def resolve_changes(graph: AttackGraph, specs: list[ChangeSpec], on_unresolved: 
     Returns (resolved, errors). An unknown or ambiguous name is an error by default:
     skipping it would let a change through unexamined. With on_unresolved="assume-new"
     unknown names are treated as brand-new objects with no existing permissions.
+    Selectors (@members(G), @dcs) expand against the baseline into many pairs.
     """
     index = NameIndex(graph)
     domain = _infer_domain(graph)
     domain_nodes = graph.nodes_by_type(NodeType.DOMAIN)
     resolved: list[ResolvedChange] = []
     errors: list[str] = []
+    seen_changes: set[tuple] = set()
 
     for spec in specs:
         rc = ResolvedChange(spec)
         if spec.op == "create":
             ntype = _NODE_TYPE_BY_WORD[spec.new_type]
-            if index.lookup(spec.source, {ntype}):
+            existing = index.lookup(spec.source, {ntype})
+            if existing and spec.edge_type == "if-missing":      # scripts create-if-absent: not an error
+                rc.source_id, rc.source_name = existing[0].object_id, existing[0].display_name
+                rc.noop, rc.noop_reason = True, "already exists in the baseline"
+                resolved.append(rc)
+                continue
+            if existing:
                 errors.append(f"{spec.origin}: cannot create {spec.new_type} '{spec.source}': it already exists in the baseline")
                 continue
             node = _new_node(spec.source, ntype, domain)
@@ -653,47 +582,97 @@ def resolve_changes(graph: AttackGraph, specs: list[ChangeSpec], on_unresolved: 
             resolved.append(rc)
             continue
 
-        src_types, tgt_types = _ENDPOINTS.get(spec.edge_type, (None, None))
+        if spec.op == "delete":
+            found = index.lookup(spec.source)
+            if len(found) != 1:
+                if not found:
+                    hint = index.suggestions(spec.source)
+                    extra = f" Did you mean: {', '.join(hint)}?" if hint else ""
+                    errors.append(f"{spec.origin}: object '{spec.source}' not found in the baseline.{extra}")
+                else:
+                    errors.append(f"{spec.origin}: object '{spec.source}' is ambiguous: "
+                                  + ", ".join(f"{c.name} [{c.node_type.value}]" for c in found[:4]))
+                continue
+            rc.source_id, rc.source_name = found[0].object_id, found[0].display_name
+            resolved.append(rc)
+            continue
+
+        if spec.op == "move":
+            src_types, tgt_types = None, {NodeType.OU, NodeType.CONTAINER, NodeType.DOMAIN}
+        else:
+            src_types, tgt_types = _ENDPOINTS.get(spec.edge_type, (None, None))
         ok = True
+        sides: dict[str, list[ADNode]] = {}
         for side, ref, allowed in (("source", spec.source, src_types), ("target", spec.target, tgt_types)):
+            if ref == DCS_SELECTOR:
+                from .ingest import find_dc_sids
+                nodes = [graph.get_node(i) for i in find_dc_sids(graph) if graph.get_node(i)]
+                if not nodes:
+                    errors.append(f"{spec.origin}: @dcs matched no domain controllers in the baseline")
+                    ok = False
+                    continue
+                sides[side] = nodes
+                continue
+            sel = _SELECTOR.match(ref.strip())
+            if sel:
+                groups = index.lookup(sel.group(2), {NodeType.GROUP})
+                if len(groups) != 1:
+                    msg = "not found" if not groups else "is ambiguous"
+                    errors.append(f"{spec.origin}: group '{sel.group(2)}' in {ref} {msg} in the baseline")
+                    ok = False
+                    continue
+                sides[side] = _members_of(graph, groups[0].object_id, bool(sel.group(1)))
+                continue
             if side == "target" and ref == DOMAIN_SENTINEL:
                 if len(domain_nodes) == 1:
-                    node = domain_nodes[0]
+                    sides[side] = [domain_nodes[0]]
                 else:
                     errors.append(f"{spec.origin}: name the domain explicitly ({len(domain_nodes)} domain objects in the baseline)")
                     ok = False
-                    continue
-            else:
-                found = index.lookup(ref, allowed)
-                if len(found) > 1:
-                    options = ", ".join(f"{c.name} [{c.node_type.value}]" for c in found[:4])
-                    errors.append(f"{spec.origin}: {side} '{ref}' is ambiguous: {options}. Use the full NAME@DOMAIN or the SID.")
-                    ok = False
-                    continue
-                if not found:
-                    if on_unresolved == "assume-new":
-                        ntype = (list(allowed)[0] if allowed and len(allowed) == 1
-                                 else NodeType.USER if side == "source" else NodeType.GROUP)
-                        node = _new_node(ref, ntype, domain)
-                        index.add(node)
-                        rc.new_nodes.append(node)
-                        rc.assumed_new.append(node.name)
-                    else:
-                        hint = index.suggestions(ref, allowed)
-                        extra = f" Did you mean: {', '.join(hint)}?" if hint else ""
-                        errors.append(
-                            f"{spec.origin}: {side} '{ref}' not found in the baseline.{extra} "
-                            f"If it is a new object, declare it with 'create' or pass --on-unresolved assume-new.")
-                        ok = False
-                        continue
+                continue
+            found = index.lookup(ref, allowed)
+            if len(found) > 1:
+                options = ", ".join(f"{c.name} [{c.node_type.value}]" for c in found[:4])
+                errors.append(f"{spec.origin}: {side} '{ref}' is ambiguous: {options}. Use the full NAME@DOMAIN or the SID.")
+                ok = False
+                continue
+            if not found:
+                if on_unresolved == "assume-new":
+                    ntype = (list(allowed)[0] if allowed and len(allowed) == 1
+                             else NodeType.USER if side == "source" else NodeType.GROUP)
+                    node = _new_node(ref, ntype, domain)
+                    index.add(node)
+                    rc.new_nodes.append(node)
+                    rc.assumed_new.append(node.name)
+                    sides[side] = [node]
                 else:
-                    node = found[0]
-            if side == "source":
-                rc.source_id, rc.source_name = node.object_id, node.display_name
-            else:
-                rc.target_id, rc.target_name = node.object_id, node.display_name
-        if ok:
-            resolved.append(rc)
+                    hint = index.suggestions(ref, allowed)
+                    extra = f" Did you mean: {', '.join(hint)}?" if hint else ""
+                    errors.append(
+                        f"{spec.origin}: {side} '{ref}' not found in the baseline.{extra} "
+                        f"If it is a new object, declare it with 'create' or pass --on-unresolved assume-new.")
+                    ok = False
+                continue
+            sides[side] = [found[0]]
+        if not ok:
+            continue
+        srcs, tgts = sides["source"], sides["target"]
+        rc.expanded = True
+        rc.pairs = [(s.object_id, t.object_id) for s in srcs for t in tgts if s.object_id != t.object_id]
+        rc.pair_info = [(s.display_name, s.object_id, t.display_name, t.object_id) for s in srcs for t in tgts
+                        if s.object_id != t.object_id]
+        first_s, first_t = srcs[0] if srcs else None, tgts[0] if tgts else None
+        rc.source_id = first_s.object_id if first_s else ""
+        rc.target_id = first_t.object_id if first_t else ""
+        rc.source_name = first_s.display_name if len(srcs) == 1 and first_s else pretty_ref(spec.source)
+        rc.target_name = first_t.display_name if len(tgts) == 1 and first_t else pretty_ref(spec.target)
+        if not rc.pairs:
+            rc.noop, rc.noop_reason = True, f"{pretty_ref(spec.source)} matched no objects in the baseline"
+        key = (spec.op, spec.edge_type, tuple(rc.pairs) or (rc.source_id, rc.target_id))
+        if key in seen_changes:            # the same change written twice (e.g. a script plus its annotation)
+            continue
+        seen_changes.add(key)
+        resolved.append(rc)
     return resolved, errors
 
 
@@ -701,36 +680,90 @@ def resolve_changes(graph: AttackGraph, specs: list[ChangeSpec], on_unresolved: 
 
 def apply_change(graph: AttackGraph, rc: ResolvedChange) -> bool:
     """Apply one resolved change in place. Returns True if the graph actually changed."""
+    rc.added_pairs, rc.removed_edges, rc.moved_from = [], [], []
     for node in rc.new_nodes:
         if graph.get_node(node.object_id) is None:
             graph.add_node(replace_node(node))
     spec = rc.spec
     if spec.op == "create":
         return True
+    if spec.op == "delete":
+        obj = rc.source_id
+        edges = [(u, v, dict(d)) for u, v, d in list(graph.in_edges(obj)) + list(graph.out_edges(obj))]
+        if not edges:
+            rc.noop, rc.noop_reason = True, "has no relationships in the baseline"
+            return False
+        for u, v, d in edges:
+            graph.remove_edge(u, v, d.get("edge_type", ""))
+        rc.removed_edges = edges
+        rc.noop, rc.noop_reason = False, ""
+        return True
+
+    pairs = rc.edge_pairs()
+    if not pairs:
+        rc.noop = True
+        rc.noop_reason = rc.noop_reason or "matched no objects in the baseline"
+        return False
+    rc.noop = False
+    rc.noop_reason = ""
+
     if spec.op == "add":
-        if graph.has_edge_type(rc.source_id, rc.target_id, spec.edge_type):
+        for s, t in pairs:
+            if not graph.has_edge_type(s, t, spec.edge_type):
+                graph.add_edge(ADEdge(s, t, spec.edge_type))
+                rc.added_pairs.append((s, t))
+        if not rc.added_pairs:
             rc.noop, rc.noop_reason = True, "already present in the baseline"
             return False
-        graph.add_edge(ADEdge(rc.source_id, rc.target_id, spec.edge_type))
         return True
-    saved = [dict(d) for d in graph.get_edge_data(rc.source_id, rc.target_id)
-             if d.get("edge_type") == spec.edge_type]
-    if not graph.remove_edge(rc.source_id, rc.target_id, spec.edge_type):
-        rc.noop, rc.noop_reason = True, "not present in the baseline (stale baseline or wrong name?)"
+
+    if spec.op == "remove":
+        for s, t in pairs:
+            if spec.edge_type == "*":              # every ACL right, but never group membership or containment
+                kinds = {d.get("edge_type") for d in graph.get_edge_data(s, t)} - {"MemberOf", "Contains"}
+            else:
+                kinds = {spec.edge_type}
+            for kind in sorted(k for k in kinds if k):
+                saved = [dict(d) for d in graph.get_edge_data(s, t) if d.get("edge_type") == kind]
+                if graph.remove_edge(s, t, kind):
+                    rc.removed_edges.extend((s, t, d) for d in saved)
+        if not rc.removed_edges:
+            rc.noop, rc.noop_reason = True, "not present in the baseline (stale baseline or wrong name?)"
+            return False
+        return True
+
+    # move: re-parent an object under another container/OU
+    container, obj = rc.target_id, rc.source_id
+    old = [u for u, _, d in graph.in_edges(obj) if d.get("edge_type") == "Contains"]
+    if old and all(u == container for u in old):
+        rc.noop, rc.noop_reason = True, "already in that container"
         return False
-    rc.removed_edges = saved
+    for u in old:
+        graph.remove_edge(u, obj, "Contains")
+    graph.add_edge(ADEdge(container, obj, "Contains"))
+    rc.moved_from = old
+    rc.added_pairs = [(container, obj)]
     return True
 
 
 def undo_change(graph: AttackGraph, rc: ResolvedChange) -> None:
     """Reverse apply_change for edge operations (creates are left in place; they are inert)."""
     spec = rc.spec
-    if spec.op == "add" and not rc.noop:
-        graph.remove_edge(rc.source_id, rc.target_id, spec.edge_type)
-    elif spec.op == "remove" and rc.removed_edges:
-        for d in rc.removed_edges:
+    if spec.op == "move":
+        for s, t in rc.added_pairs:
+            graph.remove_edge(s, t, "Contains")
+        for u in rc.moved_from:
+            graph.add_edge(ADEdge(u, rc.source_id, "Contains"))
+        rc.added_pairs, rc.moved_from = [], []
+        return
+    if spec.op == "add":
+        for s, t in rc.added_pairs:
+            graph.remove_edge(s, t, spec.edge_type)
+        rc.added_pairs = []
+    elif spec.op in ("remove", "delete"):
+        for s, t, d in rc.removed_edges:
             props = {k: v for k, v in d.items() if k not in ("edge_type", "inherited", "weight")}
-            graph.add_edge(ADEdge(rc.source_id, rc.target_id, spec.edge_type, d.get("inherited", False), props))
+            graph.add_edge(ADEdge(s, t, d.get("edge_type") or spec.edge_type, d.get("inherited", False), props))
         rc.removed_edges = []
 
 
