@@ -17,6 +17,8 @@
   `allowedResourceActions` (custom roles, Partner Tier1 Support ...); `doctor` no longer asks an Entra-only export for domain controllers;
   structural links (`AZRunsAs`, `AZContains`) are never offered as fixes; the anonymizer keeps built-in role ids, Graph permission ids and
   "Microsoft Graph"; Entra ingest 3x faster.
+- Key vault access policies are read (AZGetSecrets / AZGetKeys / AZGetCertificates), listed by `audit` and never walked; ESC14 is documented as
+  subsumed by the GenericWrite edges already followed; the anonymizer test shares one copy per fixture.
 - Engine: 20,000 differential fuzz seeds clean after these changes; ingest at 200k objects unchanged (4.9 s).
 
 ## 0.5.0

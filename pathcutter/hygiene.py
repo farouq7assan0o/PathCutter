@@ -88,6 +88,23 @@ def _enabled(n) -> bool:
 # ---------------------------------------------------------------------------------------------- accounts
 
 @rule
+def keyvault_secret_readers(ctx):
+    g = ctx.graph
+    readers: dict[str, set[str]] = {}
+    for u, v, d in g.all_edges():
+        if d.get("edge_type") == "AZGetSecrets":
+            readers.setdefault(v, set()).add(u)
+    if not readers:
+        return []
+    n = sum(len(s) for s in readers.values())
+    names = sorted(g.get_node_name(v) for v in readers)
+    return [HygieneFinding("keyvault-secret-readers", f"{n} principal(s) can read secrets in {len(readers)} key vault(s) through access policies", "info",
+                           "A secret in a key vault is often the credential of another account or service. Whoever can read it holds that identity; "
+                           "access policies are separate from Azure RBAC, so role reviews do not show them.",
+                           "Review each policy entry; prefer Azure RBAC data roles scoped to the single secret or vault.", "T1555", names[:25], len(readers))]
+
+
+@rule
 def azure_roles_unevaluated(ctx):
     ids = ctx.graph.meta.get("azure_unevaluated_roles") or []
     if not ids:

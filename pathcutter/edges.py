@@ -567,6 +567,42 @@ GPOUserRight = EdgeType(
     description="Derived from SYSVOL security templates (tools/Export-AdGpoRights.ps1) and the objects the GPO is linked to",
 )
 
+AZGetSecrets = EdgeType(
+    name="AZGetSecrets",
+    category=EdgeCategory.SPECIAL,
+    abuse="Reads the secrets stored in this key vault (may hold credentials of other principals)",
+    mitre="T1555",
+    exploitability=4,
+    fix_template="# Remove the access policy entry, or switch the vault to Azure RBAC and grant the narrowest data role",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Key vault access policy entry (data plane)",
+)
+
+AZGetKeys = EdgeType(
+    name="AZGetKeys",
+    category=EdgeCategory.SPECIAL,
+    abuse="Uses or exports the keys stored in this key vault",
+    mitre="T1555",
+    exploitability=4,
+    fix_template="# Remove the access policy entry, or switch the vault to Azure RBAC and grant the narrowest data role",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Key vault access policy entry (data plane)",
+)
+
+AZGetCertificates = EdgeType(
+    name="AZGetCertificates",
+    category=EdgeCategory.SPECIAL,
+    abuse="Reads the certificates, with private keys, stored in this key vault",
+    mitre="T1555",
+    exploitability=4,
+    fix_template="# Remove the access policy entry, or switch the vault to Azure RBAC and grant the narrowest data role",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Key vault access policy entry (data plane)",
+)
+
 AZOwns = EdgeType(
     name="AZOwns",
     category=EdgeCategory.SPECIAL,
@@ -880,7 +916,8 @@ def exploitability_weight(edge_name: str) -> float:
 # Rights that are INPUTS to derived edges (ADCSESC*) rather than steps an attacker can walk: holding Enroll on a
 # template is not control of it. They stay in the graph for the derivations and for reports, but no path crosses them.
 NON_TRAVERSABLE = frozenset({"Enroll", "AutoEnroll", "ManageCA", "ManageCertificates", "WritePKIEnrollmentFlag",
-                             "WritePKINameFlag", "OIDGroupLink", "GetChanges", "GetChangesAll", "GetChangesInFilteredSet"})
+                             "WritePKINameFlag", "OIDGroupLink", "GetChanges", "GetChangesAll", "GetChangesInFilteredSet",
+                             "AZGetSecrets", "AZGetKeys", "AZGetCertificates"})     # the last three are reported, never walked
 
 TIER0_GROUPS = frozenset({
     "DOMAIN ADMINS",

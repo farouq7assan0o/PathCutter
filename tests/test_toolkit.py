@@ -16,6 +16,18 @@ ZIPS = sorted(DATA.glob("*.zip"))
 pytestmark = pytest.mark.skipif(not ZIPS, reason="real datasets not present")
 
 
+_ANON: dict = {}
+
+
+def anonymized(src, tmp_path_factory) -> Path:
+    """One anonymized copy per fixture, shared by the tests below (the largest fixture takes about 15 s to anonymize)."""
+    if src not in _ANON:
+        out = tmp_path_factory.mktemp("anon") / "anon.zip"
+        assert main(["anonymize", str(src), "-o", str(out), "--salt", "t"]) == 0
+        _ANON[src] = out
+    return _ANON[src]
+
+
 def fingerprint(g):
     e = compute_exposure(g)
     return {
@@ -30,16 +42,14 @@ def fingerprint(g):
 
 
 @pytest.mark.parametrize("src", ZIPS, ids=lambda p: p.name[:12])
-def test_anonymized_copy_has_identical_attack_paths(src, tmp_path):
-    out = tmp_path / "anon.zip"
-    assert main(["anonymize", str(src), "-o", str(out), "--salt", "t"]) == 0
+def test_anonymized_copy_has_identical_attack_paths(src, tmp_path_factory):
+    out = anonymized(src, tmp_path_factory)
     assert fingerprint(load_sharphound(src)) == fingerprint(load_sharphound(out))
 
 
 @pytest.mark.parametrize("src", ZIPS, ids=lambda p: p.name[:12])
-def test_anonymized_copy_leaks_no_names_or_free_text(src, tmp_path):
-    out = tmp_path / "anon.zip"
-    main(["anonymize", str(src), "-o", str(out), "--salt", "t"])
+def test_anonymized_copy_leaks_no_names_or_free_text(src, tmp_path_factory):
+    out = anonymized(src, tmp_path_factory)
     blob = "".join(json.dumps(d) for _, d in iter_raw(out)).upper()
     g = load_sharphound(src)
     import re

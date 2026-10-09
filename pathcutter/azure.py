@@ -206,6 +206,15 @@ def _relationships(kind: str, d, graph: AttackGraph) -> None:
             perms = node.properties.setdefault("_graph_perms", [])
             if role in GRANT_ROLE_PERMS or role in ADD_SECRET_PERMS or role in ADD_MEMBER_PERMS or role in RESET_PW_PERMS:
                 perms.append(role)
+    elif kind == "AZKeyVaultAccessPolicy" and isinstance(d, dict):
+        who, vault = _id(d.get("objectId")), _id(d.get("keyVaultId"))
+        perms = d.get("permissions") or {}
+        if who and vault:
+            for field, edge in (("secrets", "AZGetSecrets"), ("keys", "AZGetKeys"), ("certificates", "AZGetCertificates")):
+                if any(str(p).lower() in ("get", "all") for p in perms.get(field) or []):
+                    _ensure(graph, vault, NodeType.AZ_KEYVAULT)
+                    _ensure(graph, who, NodeType.UNKNOWN)
+                    _edge(graph, who, vault, edge)
     elif kind in ("AZSubscription", "AZResourceGroup", "AZVM", "AZKeyVault") + _RESOURCE_KINDS and isinstance(d, dict):
         _resource(kind, d, graph)
     elif kind.endswith("RoleAssignment") and kind[:-len("RoleAssignment")] in _RESOURCE_KINDS and isinstance(d, dict):

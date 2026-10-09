@@ -15,12 +15,13 @@ NAMES = sorted({e.name for e in EDGE_REGISTRY.values()})
 # Edges that are not attack steps by themselves (plumbing)
 STRUCTURAL = {"MemberOf", "Contains", "AZContains"}
 # Known gap: AD CS rights are ingested and typed but only become attack steps once the ESC conditions are modeled.
+REPORTED_ONLY = {"AZGetSecrets", "AZGetKeys", "AZGetCertificates"}      # key vault data plane: listed by `audit`, never a step
 PENDING_ADCS = {"Enroll", "AutoEnroll", "ManageCA", "ManageCertificates", "WritePKIEnrollmentFlag", "WritePKINameFlag", "OIDGroupLink",
                 "GetChanges", "GetChangesAll", "GetChangesInFilteredSet"}
 
 
 def test_every_edge_is_an_attack_step_or_explicitly_not():
-    missing = [n for n in NAMES if n not in _ATTACK_EDGES and n not in STRUCTURAL and n not in PENDING_ADCS]
+    missing = [n for n in NAMES if n not in _ATTACK_EDGES and n not in STRUCTURAL and n not in PENDING_ADCS and n not in REPORTED_ONLY]
     assert not missing, f"edge types that are neither attack steps nor declared structural/pending: {missing}"
     assert not (PENDING_ADCS & _ATTACK_EDGES), "an allow-list entry became an attack edge: remove it from PENDING_ADCS"
 

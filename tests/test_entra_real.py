@@ -74,3 +74,15 @@ def test_audit_reports_unevaluated_roles(g):
 def test_synced_users_link_the_two_directories():
     h = load_sharphound([AD, ENTRA])
     assert Counter(d["edge_type"] for _, _, d in h.all_edges())["SyncedTo"] >= 5
+
+
+def test_key_vault_access_policies_become_data_plane_edges(g):
+    c = Counter(d["edge_type"] for _, _, d in g.all_edges())
+    assert c["AZGetSecrets"] == 2 and c["AZGetKeys"] == 2 and c["AZGetCertificates"] == 2
+    assert any(f.rule == "keyvault-secret-readers" for f in audit(g))
+
+
+def test_key_vault_edges_do_not_create_exposure(g):
+    """Reading a vault is reported, not walked: nothing leaves a vault, so it can never be a step on a path."""
+    for v in (n for n in g.nodes_by_type(NodeType.AZ_KEYVAULT)):
+        assert not [1 for _, _, d in g.out_edges(v.object_id) if d["edge_type"].startswith("AZGet")]

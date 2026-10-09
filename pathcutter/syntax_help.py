@@ -176,6 +176,10 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
   but every trust is treated as traversable (conservative: it can over-report, not under-report).
 
 NOT MODELED (stated so nobody assumes otherwise)
+  ESC14 (weak altSecurityIdentities mapping): the attacker needs a write right on the victim, and GenericWrite / GenericAll over a user
+  or computer is already a followed edge that gives the same takeover, so a separate edge would add no path.
+  Key vault data plane: access-policy entries are shown as AZGetSecrets / AZGetKeys / AZGetCertificates and listed by `audit`, but a
+  vault's contents are unknown, so they are never followed as a step to another identity.
   AD CS ESC14 (and ESC8/ESC11/ESC16 unless the relay sidecar was collected); AD CS paths are only as
   good as the template, CA and NTAuth data collected. Graph application
   permissions other than the role, secret, group-member and user-password ones, custom Azure roles, deny assignments and key vault data-plane access policies.
