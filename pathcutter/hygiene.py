@@ -312,6 +312,102 @@ def broad_principals_with_rights(ctx):
     return out
 
 
+# ---------------------------------------------------------------------------------------------- privileged structure
+
+def _members(ctx, group_names) -> list:
+    out = []
+    for n in ctx.graph.nodes_by_type(NodeType.GROUP):
+        if n.display_name.upper() in group_names:
+            out += [ctx.graph.get_node(m) for m in ctx.graph._recursive_members(n.object_id) if ctx.graph.get_node(m)]
+    return out
+
+
+@rule
+def schema_enterprise_admins(ctx):
+    bad = [m for m in _members(ctx, {"SCHEMA ADMINS", "ENTERPRISE ADMINS"}) if m.display_name.upper() != "ADMINISTRATOR"]
+    return _f("ea-sa-populated", "Schema Admins / Enterprise Admins have members other than the built-in Administrator", "high",
+              "These forest-wide groups should be empty except while a forest operation is under way.",
+              "Remove the members; add them temporarily when needed.", "T1078.002", bad)
+
+
+@rule
+def many_domain_admins(ctx):
+    das = [m for m in _members(ctx, {"DOMAIN ADMINS"}) if m.node_type == NodeType.USER and m.display_name.upper() not in ("ADMINISTRATOR",)]
+    return _f("many-domain-admins", f"{len(das)} accounts in Domain Admins", "medium",
+              "Every Domain Admin is a credential that, once stolen, owns the domain. More than a handful is almost always excess.",
+              "Remove day-to-day accounts; use just-in-time elevation.", "T1078.002", das) if len(das) > 5 else []
+
+
+@rule
+def guest_enabled(ctx):
+    return _f("guest-enabled", "The Guest account is enabled", "medium", "Anonymous-style access with whatever rights Guest has been given.",
+              "Disable the Guest account.", "T1078.002",
+              [n for n in ctx.users if n.display_name.upper() == "GUEST" and _enabled(n)])
+
+
+@rule
+def service_accounts_privileged(ctx):
+    bad = [m for m in _members(ctx, {"DOMAIN ADMINS", "ENTERPRISE ADMINS", "ADMINISTRATORS", "BACKUP OPERATORS", "ACCOUNT OPERATORS", "SERVER OPERATORS"})
+           if m.node_type == NodeType.USER and ctx.has(m, "hasspn") and _enabled(m)]
+    return _f("svc-privileged", "Service accounts (with an SPN) in privileged groups", "high",
+              "Their passwords are roastable and often reused across the machines they run on.",
+              "Use a gMSA with only the rights the service needs.", "T1558.003", bad)
+
+
+@rule
+def non_t0_with_dcsync_or_domain_control(ctx):
+    g = ctx.graph
+    dcsync, domctl, sdholder = {}, {}, {}
+    for u, v, d in g.all_edges():
+        et = d.get("edge_type")
+        src, dst = g.get_node(u), g.get_node(v)
+        if src is None or dst is None or u in ctx.t0:
+            continue
+        if et == "DCSync":
+            dcsync[u] = src
+        elif dst.node_type == NodeType.DOMAIN and et in ("GenericAll", "WriteDacl", "WriteOwner", "Owns", "GenericWrite"):
+            domctl[u] = src
+        elif dst.display_name.upper() == "ADMINSDHOLDER" and et in ("GenericAll", "WriteDacl", "WriteOwner", "Owns", "GenericWrite"):
+            sdholder[u] = src
+    return (_f("dcsync-nonpriv", "Non-privileged principals can replicate the directory (DCSync)", "critical",
+               "They can read every password hash in the domain.", "Remove the replication rights from the domain root ACL.", "T1003.006", dcsync.values())
+            + _f("domain-control-nonpriv", "Non-privileged principals hold write access on the domain object", "critical",
+                 "WriteDacl or GenericAll on the domain grants DCSync to themselves.", "Remove the ACE from the domain root.", "T1098", domctl.values())
+            + _f("adminsdholder-nonpriv", "Non-privileged principals can modify AdminSDHolder", "critical",
+                 "SDProp copies its ACL onto every protected account within an hour: a persistent backdoor over all admins.",
+                 "Remove the ACE from CN=AdminSDHolder.", "T1098", sdholder.values()))
+
+
+# ---------------------------------------------------------------------------------------------- NTLM relay surface (when collected)
+
+@rule
+def smb_signing(ctx):
+    dcs = {n.object_id for n in ctx.computers if n.properties.get("isdc")}
+    off = [n for n in ctx.computers if _enabled(n) and n.properties.get("smbsigning") is False]
+    return (_f("smb-signing-dc", "Domain controllers that do not require SMB signing", "critical",
+               "Coerced authentication can be relayed to them.", "Require SMB signing (Microsoft network server: Digitally sign communications (always)).",
+               "T1557.001", [n for n in off if n.object_id in dcs])
+            + _f("smb-signing", "Servers and workstations that do not require SMB signing", "medium",
+                 "NTLM relay to SMB is possible when the host's own account is not required to sign.", "Require SMB signing by GPO.", "T1557.001",
+                 [n for n in off if n.object_id not in dcs]))
+
+
+@rule
+def ldap_signing(ctx):
+    return _f("ldap-signing", "Domain controllers that do not require LDAP signing or channel binding", "high",
+              "NTLM relay to LDAP writes RBCD or shadow credentials on any computer account.",
+              "Set LDAP server signing to Require signing and LDAP channel binding to Always.", "T1557",
+              [n for n in ctx.computers if n.properties.get("isdc") and n.properties.get("ldapsigning") is False])
+
+
+@rule
+def webclient(ctx):
+    return _f("webclient", "Hosts running the WebClient service", "medium",
+              "It allows coercion over HTTP, which relays to LDAP even where SMB signing is enforced.",
+              "Disable the WebClient service where WebDAV is not needed.", "T1557",
+              [n for n in ctx.computers if _enabled(n) and n.properties.get("webclientrunning") is True])
+
+
 # ---------------------------------------------------------------------------------------------- Entra conditional access
 
 @rule

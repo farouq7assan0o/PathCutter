@@ -113,3 +113,31 @@ def test_real_collection_and_cli(capsys):
     assert "Kerberoastable" in capsys.readouterr().out
     assert main(["audit", str(REAL), "--fail-on", "critical"]) == 2
     assert main(["audit", str(REAL), "--json", "--min-severity", "critical"]) == 0
+
+
+def test_privileged_structure_rules():
+    g = AttackGraph()
+    for i, n, t in [("da", "DOMAIN ADMINS@X.LOCAL", NodeType.GROUP), ("ea", "ENTERPRISE ADMINS@X.LOCAL", NodeType.GROUP),
+                    ("dom", "X.LOCAL", NodeType.DOMAIN), ("sdh", "ADMINSDHOLDER@X.LOCAL", NodeType.CONTAINER),
+                    ("mallory", "MALLORY@X.LOCAL", NodeType.USER), ("eve", "EVE@X.LOCAL", NodeType.USER), ("svc", "SVC@X.LOCAL", NodeType.USER), ("guest", "GUEST@X.LOCAL", NodeType.USER),
+                    ("adm", "ADMINISTRATOR@X.LOCAL", NodeType.USER)]:
+        g.add_node(ADNode(i, n, t, "X.LOCAL", properties={"hasspn": True} if i == "svc" else {}))
+    for a, b, e in [("svc", "da", "MemberOf"), ("eve", "ea", "MemberOf"), ("adm", "ea", "MemberOf"), ("mallory", "dom", "DCSync"),
+                    ("mallory", "dom", "WriteDacl"), ("mallory", "sdh", "GenericAll")]:
+        g.add_edge(ADEdge(a, b, e))
+    g.classify_tiers()
+    r = rules(g)
+    assert r["ea-sa-populated"].objects == ["EVE"]
+    assert r["svc-privileged"].objects == ["SVC"] and r["guest-enabled"].objects == ["GUEST"]
+    assert r["dcsync-nonpriv"].objects == ["MALLORY"] and r["domain-control-nonpriv"].objects == ["MALLORY"]
+    assert r["adminsdholder-nonpriv"].objects == ["MALLORY"]
+    assert "many-domain-admins" not in r
+
+
+def test_relay_surface_rules_use_collected_properties_only():
+    g = g_with(comp("dc", "DC1", isdc=True, smbsigning=False, ldapsigning=False), comp("s", "SRV", smbsigning=False, webclientrunning=True),
+               comp("ok", "OK", smbsigning=True), comp("none", "UNKNOWN"))
+    r = rules(g)
+    assert r["smb-signing-dc"].objects == ["DC1.X.LOCAL"] and r["smb-signing"].objects == ["SRV.X.LOCAL"]
+    assert r["ldap-signing"].objects == ["DC1.X.LOCAL"] and r["webclient"].objects == ["SRV.X.LOCAL"]
+    assert not [k for k in rules(g_with(comp("a", "A"))) if "signing" in k]
