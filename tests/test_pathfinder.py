@@ -98,7 +98,7 @@ def test_reachable_from(tiny_graph):
     reachable = reachable_from(tiny_graph, "S-1-5-21-1234-1001")
     assert "S-1-5-21-1234-1100" in reachable  # HelpDesk
     assert "S-1-5-21-1234-1003" in reachable  # svc_backup (via HelpDesk->GenericAll)
-    assert "S-1-5-21-1234-2001" in reachable  # WS01 (HasSession)
+    assert "S-1-5-21-1234-2001" not in reachable  # WS01 holds jsmith's session; jsmith cannot reach WS01 that way
 
 
 def test_reachable_tier0(tiny_graph):

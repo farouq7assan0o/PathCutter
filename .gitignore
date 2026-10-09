@@ -18,3 +18,5 @@ test_output/
 # PathCutter baselines contain full AD topology: never commit them
 *.pcsnap
 _view/
+
+tests/data/real-cache/

@@ -1,0 +1,3951 @@
+{
+  "data": [
+    {
+      "Properties": {
+        "name": "WS01.MEGACORP.LOCAL",
+        "displayname": "WS01",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2000",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS01,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720418121
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2000",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3010",
+          "PrincipalType": "Group",
+          "RightName": "ReadLAPSPassword",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1103",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2000"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS02.MEGACORP.LOCAL",
+        "displayname": "WS02",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2001",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS02,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720538146
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2001",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3010",
+          "PrincipalType": "Group",
+          "RightName": "ReadLAPSPassword",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1105",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2001"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS03.MEGACORP.LOCAL",
+        "displayname": "WS03",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2002",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS03,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720411405
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2002",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3010",
+          "PrincipalType": "Group",
+          "RightName": "ReadLAPSPassword",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1106",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2002"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS04.MEGACORP.LOCAL",
+        "displayname": "WS04",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2003",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS04,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720418418
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2003",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3010",
+          "PrincipalType": "Group",
+          "RightName": "ReadLAPSPassword",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1111",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2003"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS05.MEGACORP.LOCAL",
+        "displayname": "WS05",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2004",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS05,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720015563
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2004",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3010",
+          "PrincipalType": "Group",
+          "RightName": "ReadLAPSPassword",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1109",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2004"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS06.MEGACORP.LOCAL",
+        "displayname": "WS06",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2005",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS06,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720219380
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2005",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1107",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2005"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS07.MEGACORP.LOCAL",
+        "displayname": "WS07",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2006",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS07,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720499300
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2006",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1110",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2006"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS08.MEGACORP.LOCAL",
+        "displayname": "WS08",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2007",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS08,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720184983
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2007",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1103",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2007"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS09.MEGACORP.LOCAL",
+        "displayname": "WS09",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2008",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS09,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720330592
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2008",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1118",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2008"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS10.MEGACORP.LOCAL",
+        "displayname": "WS10",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2009",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS10,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720521226
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2009",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1100",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2009"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS11.MEGACORP.LOCAL",
+        "displayname": "WS11",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2010",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS11,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720461493
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2010",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1121",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2010"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS12.MEGACORP.LOCAL",
+        "displayname": "WS12",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2011",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS12,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720581563
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2011",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1110",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2011"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS13.MEGACORP.LOCAL",
+        "displayname": "WS13",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2012",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS13,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720144225
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2012",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1119",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2012"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS14.MEGACORP.LOCAL",
+        "displayname": "WS14",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2013",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS14,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720476338
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2013",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1107",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2013"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS15.MEGACORP.LOCAL",
+        "displayname": "WS15",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2014",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS15,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720182500
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2014",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1121",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2014"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS16.MEGACORP.LOCAL",
+        "displayname": "WS16",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2015",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS16,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720523430
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2015",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1105",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2015"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS17.MEGACORP.LOCAL",
+        "displayname": "WS17",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2016",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS17,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720125219
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2016",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1103",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2016"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS18.MEGACORP.LOCAL",
+        "displayname": "WS18",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2017",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS18,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720103041
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2017",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1123",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2017"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS19.MEGACORP.LOCAL",
+        "displayname": "WS19",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2018",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS19,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720361013
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2018",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1120",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2018"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS20.MEGACORP.LOCAL",
+        "displayname": "WS20",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2019",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS20,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720460130
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2019",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1101",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2019"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS21.MEGACORP.LOCAL",
+        "displayname": "WS21",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2020",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS21,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720547054
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2020",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1121",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2020"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS22.MEGACORP.LOCAL",
+        "displayname": "WS22",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2021",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS22,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720470277
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2021",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1111",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2021"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS23.MEGACORP.LOCAL",
+        "displayname": "WS23",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2022",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS23,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720151123
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2022",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1100",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2022"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS24.MEGACORP.LOCAL",
+        "displayname": "WS24",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2023",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS24,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720237839
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2023",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1110",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2023"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS25.MEGACORP.LOCAL",
+        "displayname": "WS25",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2024",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS25,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720313179
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2024",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1109",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2024"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS26.MEGACORP.LOCAL",
+        "displayname": "WS26",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2025",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS26,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720335663
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2025",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1103",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2025"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS27.MEGACORP.LOCAL",
+        "displayname": "WS27",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2026",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS27,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720007770
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2026",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1120",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2026"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS28.MEGACORP.LOCAL",
+        "displayname": "WS28",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2027",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS28,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720004156
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2027",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1118",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2027"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS29.MEGACORP.LOCAL",
+        "displayname": "WS29",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2028",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS29,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720476365
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2028",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1115",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2028"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS30.MEGACORP.LOCAL",
+        "displayname": "WS30",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2029",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS30,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720245812
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2029",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1103",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2029"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS31.MEGACORP.LOCAL",
+        "displayname": "WS31",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2030",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS31,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720227859
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2030",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1102",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2030"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS32.MEGACORP.LOCAL",
+        "displayname": "WS32",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2031",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS32,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720401017
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2031",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1120",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2031"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS33.MEGACORP.LOCAL",
+        "displayname": "WS33",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2032",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS33,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720132942
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2032",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1119",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2032"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS34.MEGACORP.LOCAL",
+        "displayname": "WS34",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2033",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS34,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720603507
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2033",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1118",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2033"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS35.MEGACORP.LOCAL",
+        "displayname": "WS35",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2034",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS35,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720295013
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2034",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1112",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2034"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS36.MEGACORP.LOCAL",
+        "displayname": "WS36",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2035",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS36,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720519700
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2035",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1122",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2035"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS37.MEGACORP.LOCAL",
+        "displayname": "WS37",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2036",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS37,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720510545
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2036",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1107",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2036"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS38.MEGACORP.LOCAL",
+        "displayname": "WS38",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2037",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS38,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720192029
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2037",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1119",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2037"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS39.MEGACORP.LOCAL",
+        "displayname": "WS39",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2038",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS39,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720465077
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2038",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1109",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2038"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS40.MEGACORP.LOCAL",
+        "displayname": "WS40",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2039",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS40,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720373315
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2039",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1109",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2039"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS41.MEGACORP.LOCAL",
+        "displayname": "WS41",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2040",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS41,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720057061
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2040",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1121",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2040"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS42.MEGACORP.LOCAL",
+        "displayname": "WS42",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2041",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS42,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720403291
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2041",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1125",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2041"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS43.MEGACORP.LOCAL",
+        "displayname": "WS43",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2042",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS43,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720432232
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2042",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1123",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2042"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS44.MEGACORP.LOCAL",
+        "displayname": "WS44",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2043",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS44,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720054917
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2043",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1108",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2043"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS45.MEGACORP.LOCAL",
+        "displayname": "WS45",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2044",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS45,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720032734
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2044",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1111",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2044"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS46.MEGACORP.LOCAL",
+        "displayname": "WS46",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2045",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS46,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720010402
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2045",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1120",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2045"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS47.MEGACORP.LOCAL",
+        "displayname": "WS47",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2046",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS47,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720496791
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2046",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1119",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2046"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS48.MEGACORP.LOCAL",
+        "displayname": "WS48",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2047",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS48,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720404133
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2047",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1111",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2047"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS49.MEGACORP.LOCAL",
+        "displayname": "WS49",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2048",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS49,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720382664
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2048",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1119",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2048"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WS50.MEGACORP.LOCAL",
+        "displayname": "WS50",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2049",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WS50,OU=Workstations,DC=megacorp,DC=local",
+        "operatingsystem": "Windows 10 Enterprise",
+        "unconstraineddelegation": false,
+        "haslaps": true,
+        "lastlogontimestamp": 1720390350
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2049",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3001",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1113",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2049"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV01.MEGACORP.LOCAL",
+        "displayname": "SRV01",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2050",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV01,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": true,
+        "haslaps": false,
+        "lastlogontimestamp": 1720107619
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2050",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV02.MEGACORP.LOCAL",
+        "displayname": "SRV02",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2051",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV02,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720598864
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2051",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV03.MEGACORP.LOCAL",
+        "displayname": "SRV03",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2052",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV03,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720310423
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2052",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV04.MEGACORP.LOCAL",
+        "displayname": "SRV04",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2053",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV04,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720547319
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2053",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV05.MEGACORP.LOCAL",
+        "displayname": "SRV05",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2054",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV05,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720173762
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2054",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV06.MEGACORP.LOCAL",
+        "displayname": "SRV06",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2055",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV06,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720388346
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2055",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV07.MEGACORP.LOCAL",
+        "displayname": "SRV07",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2056",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV07,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720315879
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2056",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV08.MEGACORP.LOCAL",
+        "displayname": "SRV08",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2057",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV08,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720047728
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2057",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV09.MEGACORP.LOCAL",
+        "displayname": "SRV09",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2058",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV09,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720165939
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2058",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV10.MEGACORP.LOCAL",
+        "displayname": "SRV10",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2059",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV10,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720425600
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2059",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV11.MEGACORP.LOCAL",
+        "displayname": "SRV11",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2060",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV11,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720550126
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2060",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV12.MEGACORP.LOCAL",
+        "displayname": "SRV12",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2061",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV12,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720206492
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2061",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV13.MEGACORP.LOCAL",
+        "displayname": "SRV13",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2062",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV13,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720327359
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2062",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV14.MEGACORP.LOCAL",
+        "displayname": "SRV14",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2063",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV14,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720254593
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2063",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV15.MEGACORP.LOCAL",
+        "displayname": "SRV15",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2064",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV15,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720535261
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2064",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV16.MEGACORP.LOCAL",
+        "displayname": "SRV16",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2065",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV16,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720563121
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2065",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV17.MEGACORP.LOCAL",
+        "displayname": "SRV17",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2066",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV17,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720008679
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2066",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV18.MEGACORP.LOCAL",
+        "displayname": "SRV18",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2067",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV18,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720207361
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2067",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV19.MEGACORP.LOCAL",
+        "displayname": "SRV19",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2068",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV19,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720243112
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2068",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SRV20.MEGACORP.LOCAL",
+        "displayname": "SRV20",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2069",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SRV20,OU=Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720287188
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2069",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "DC01.MEGACORP.LOCAL",
+        "displayname": "DC01",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2070",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=DC01,OU=Domain Controllers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": true,
+        "haslaps": false,
+        "lastlogontimestamp": 1720544577
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2070",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": []
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1140",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2070"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "DC02.MEGACORP.LOCAL",
+        "displayname": "DC02",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2071",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=DC02,OU=Domain Controllers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": true,
+        "haslaps": false,
+        "lastlogontimestamp": 1720533408
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2071",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": []
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": [
+          {
+            "UserSID": "S-1-5-21-3623811015-3361044348-30300820-1140",
+            "ComputerSID": "S-1-5-21-3623811015-3361044348-30300820-2071"
+          }
+        ]
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "FILE01.MEGACORP.LOCAL",
+        "displayname": "FILE01",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2072",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=FILE01,OU=File Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720090397
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2072",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "FILE02.MEGACORP.LOCAL",
+        "displayname": "FILE02",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2073",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=FILE02,OU=File Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720261856
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2073",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "FILE03.MEGACORP.LOCAL",
+        "displayname": "FILE03",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2074",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=FILE03,OU=File Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720052707
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2074",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SQL01.MEGACORP.LOCAL",
+        "displayname": "SQL01",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2075",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SQL01,OU=SQL Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720569227
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2075",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1127",
+          "ObjectType": "User"
+        }
+      ],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "SQL02.MEGACORP.LOCAL",
+        "displayname": "SQL02",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2076",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=SQL02,OU=SQL Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720298924
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2076",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WEB01.MEGACORP.LOCAL",
+        "displayname": "WEB01",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2077",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WEB01,OU=Web Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720397165
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2077",
+      "Aces": [],
+      "AllowedToDelegate": [
+        "HTTP/SRV01.MEGACORP.LOCAL"
+      ],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "WEB02.MEGACORP.LOCAL",
+        "displayname": "WEB02",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2078",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=WEB02,OU=Web Servers,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720555770
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2078",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "RemoteDesktopUsers": {
+        "Results": [
+          {
+            "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-3002",
+            "ObjectType": "Group"
+          }
+        ]
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    },
+    {
+      "Properties": {
+        "name": "EXCH01.MEGACORP.LOCAL",
+        "displayname": "EXCH01",
+        "enabled": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-2079",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=EXCH01,OU=Exchanges,DC=megacorp,DC=local",
+        "operatingsystem": "Windows Server 2019",
+        "unconstraineddelegation": false,
+        "haslaps": false,
+        "lastlogontimestamp": 1720027669
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2079",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "AllowedToAct": [],
+      "LocalAdmins": {
+        "Results": []
+      },
+      "RemoteDesktopUsers": {
+        "Results": []
+      },
+      "PSRemoteUsers": {
+        "Results": []
+      },
+      "DcomUsers": {
+        "Results": []
+      },
+      "Sessions": {
+        "Results": []
+      },
+      "PrivilegedSessions": {
+        "Results": []
+      },
+      "RegistrySessions": {
+        "Results": []
+      }
+    }
+  ],
+  "meta": {
+    "type": "computers",
+    "count": 80,
+    "version": 5
+  }
+}

@@ -171,11 +171,11 @@ def test_session_edges(tmp_path):
     data_dir = _write_sharphound_files(tmp_path)
     graph = load_sharphound(data_dir)
 
-    # admin has session on DC01
-    edges = graph.out_edges("S-1-5-21-TEST-1001")
-    has_session = any(d["edge_type"] == "HasSession" and v == "S-1-5-21-TEST-2001"
-                      for _, v, d in edges)
+    # admin has a session on DC01: the edge runs computer -> user (whoever controls DC01 can harvest it)
+    edges = graph.out_edges("S-1-5-21-TEST-2001")
+    has_session = any(d["edge_type"] == "HasSession" and v == "S-1-5-21-TEST-1001" for _, v, d in edges)
     assert has_session
+    assert not any(d["edge_type"] == "HasSession" for _, _, d in graph.out_edges("S-1-5-21-TEST-1001"))
 
 
 def test_tier0_classified(tmp_path):

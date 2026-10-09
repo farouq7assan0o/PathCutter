@@ -672,9 +672,9 @@ def _cmd_demo(args) -> int:
 
     # Sessions
     for u in random.sample(users, min(len(users), n_users // 4)):
-        g.add_edge(ADEdge(u, random.choice(workstations + servers), "HasSession"))
+        g.add_edge(ADEdge(random.choice(workstations + servers), u, "HasSession"))
     for adm in admin_accounts:
-        g.add_edge(ADEdge(adm, random.choice(servers), "HasSession"))
+        g.add_edge(ADEdge(random.choice(servers), adm, "HasSession"))
         g.add_edge(ADEdge(adm, random.choice(servers), "AdminTo"))
 
     # RDP/PSRemote

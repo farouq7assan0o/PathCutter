@@ -200,7 +200,7 @@ AdminTo = EdgeType(
 HasSession = EdgeType(
     name="HasSession",
     category=EdgeCategory.SESSION,
-    abuse="User has an active session on this machine - credentials can be harvested from memory",
+    abuse="Computer holds an active session of this user - whoever controls the machine can harvest the user's credentials from memory (edge runs computer -> user)",
     mitre="T1003",
     exploitability=6,
     fix_template='# Implement Administrative Tier Model:\n# Tier 0 accounts only log on to Tier 0 systems (DCs)\n# Tier 1 accounts only log on to Tier 1 systems (servers)\n# Tier 2 accounts only log on to Tier 2 systems (workstations)\n# GPO: Computer Config > Policies > User Rights Assignment > Deny log on locally/through RDP',
@@ -388,6 +388,39 @@ TrustedBy = EdgeType(
     detection_difficulty="medium",
     reversible=False,
     description="Modifying trust relationships is high-risk and requires change management",
+)
+
+HasSIDHistory = EdgeType(
+    name="HasSIDHistory",
+    category=EdgeCategory.SPECIAL,
+    abuse="Principal carries another principal's SID in its SID history, so access checks treat it as that principal (including Tier 0 ones)",
+    mitre="T1134.005",
+    exploitability=9,
+    fix_template='# Remove the foreign SID from sIDHistory (needs elevated tooling; verify migration is complete first)\nSet-ADUser "{source_name}" -Remove @{{SIDHistory=@("<foreign SID>")}}',
+    detection_difficulty="medium",
+    reversible=False,
+)
+
+WriteGPLink = EdgeType(
+    name="WriteGPLink",
+    category=EdgeCategory.ACL,
+    abuse="Link an attacker-controlled GPO to the OU or domain, applying its settings (scripts, local admins, scheduled tasks) to everything beneath it",
+    mitre="T1484.001",
+    exploitability=7,
+    fix_template='# Remove WriteProperty on gPLink\n$acl = Get-Acl "AD:\\{target_dn}"\n$acl.Access | Where-Object {{$_.IdentityReference -match "{source_name}" -and $_.ObjectType -eq "f30e3bbe-9ff0-11d1-b603-0000f80367c1"}} | ForEach-Object {{$acl.RemoveAccessRule($_)}}\nSet-Acl "AD:\\{target_dn}" $acl',
+    detection_difficulty="medium",
+    reversible=True,
+)
+
+ADCSAbuse = EdgeType(
+    name="ADCSAbuse",
+    category=EdgeCategory.SPECIAL,
+    abuse="Certificate Services misconfiguration (ESC1-ESC13 class) lets the principal obtain a certificate that authenticates as a privileged identity",
+    mitre="T1649",
+    exploitability=9,
+    fix_template="# Review the certificate template / CA configuration for the ESC technique that produced this edge\n# (e.g. disable ENROLLEE_SUPPLIES_SUBJECT, require manager approval, restrict enrollment rights)",
+    detection_difficulty="medium",
+    reversible=True,
 )
 
 # -------------------------------------------------------------------

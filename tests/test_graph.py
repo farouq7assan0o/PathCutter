@@ -30,10 +30,10 @@ def test_regular_user_is_tier2(tiny_graph):
 
 
 def test_successors(tiny_graph):
-    # jsmith should have successors: HelpDesk (MemberOf), WS01 (HasSession)
+    # jsmith has a successor HelpDesk (MemberOf); WS01 holds jsmith's session so WS01 -> jsmith
     succs = tiny_graph.successors("S-1-5-21-1234-1001")
     assert "S-1-5-21-1234-1100" in succs  # HelpDesk
-    assert "S-1-5-21-1234-2001" in succs  # WS01
+    assert "S-1-5-21-1234-1001" in tiny_graph.successors("S-1-5-21-1234-2001")
 
 
 def test_predecessors(tiny_graph):

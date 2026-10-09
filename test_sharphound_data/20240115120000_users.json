@@ -1,0 +1,958 @@
+{
+  "data": [
+    {
+      "Properties": {
+        "name": "JSMITH@MEGACORP.LOCAL",
+        "displayname": "Jsmith",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1100",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=jsmith,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721779249,
+        "pwdlastset": 1719485371,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1100",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-1100",
+          "PrincipalType": "User",
+          "RightName": "GenericAll",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "AGARCIA@MEGACORP.LOCAL",
+        "displayname": "Agarcia",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1101",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=agarcia,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722483822,
+        "pwdlastset": 1720031275,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1101",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "BWILSON@MEGACORP.LOCAL",
+        "displayname": "Bwilson",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1102",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=bwilson,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721583101,
+        "pwdlastset": 1721167187,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1102",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "CLEE@MEGACORP.LOCAL",
+        "displayname": "Clee",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1103",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=clee,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720259793,
+        "pwdlastset": 1721584647,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1103",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "DJONES@MEGACORP.LOCAL",
+        "displayname": "Djones",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1104",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=djones,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720161423,
+        "pwdlastset": 1720679995,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1104",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "EKIM@MEGACORP.LOCAL",
+        "displayname": "Ekim",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1105",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=ekim,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721893601,
+        "pwdlastset": 1720612584,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1105",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "FMARTIN@MEGACORP.LOCAL",
+        "displayname": "Fmartin",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1106",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=fmartin,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720953173,
+        "pwdlastset": 1719621495,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1106",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "GHERNANDEZ@MEGACORP.LOCAL",
+        "displayname": "Ghernandez",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1107",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=ghernandez,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721944921,
+        "pwdlastset": 1719799557,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1107",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "HPATEL@MEGACORP.LOCAL",
+        "displayname": "Hpatel",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1108",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=hpatel,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721384927,
+        "pwdlastset": 1720159849,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1108",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "IRODRIGUEZ@MEGACORP.LOCAL",
+        "displayname": "Irodriguez",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1109",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=irodriguez,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721996363,
+        "pwdlastset": 1720976924,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1109",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "JANDERSON@MEGACORP.LOCAL",
+        "displayname": "Janderson",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1110",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=janderson,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721677149,
+        "pwdlastset": 1719308571,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1110",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "KTHOMAS@MEGACORP.LOCAL",
+        "displayname": "Kthomas",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1111",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=kthomas,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721059153,
+        "pwdlastset": 1719424522,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1111",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "LJACKSON@MEGACORP.LOCAL",
+        "displayname": "Ljackson",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1112",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=ljackson,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721243068,
+        "pwdlastset": 1721216931,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1112",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "MWHITE@MEGACORP.LOCAL",
+        "displayname": "Mwhite",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1113",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=mwhite,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721919560,
+        "pwdlastset": 1719074321,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1113",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "NHARRIS@MEGACORP.LOCAL",
+        "displayname": "Nharris",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1114",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=nharris,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720570905,
+        "pwdlastset": 1719562946,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1114",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "OMARTIN@MEGACORP.LOCAL",
+        "displayname": "Omartin",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1115",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=omartin,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722286468,
+        "pwdlastset": 1720241704,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1115",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "PTHOMPSON@MEGACORP.LOCAL",
+        "displayname": "Pthompson",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1116",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=pthompson,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722267452,
+        "pwdlastset": 1721244322,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1116",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "QMOORE@MEGACORP.LOCAL",
+        "displayname": "Qmoore",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1117",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=qmoore,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720447045,
+        "pwdlastset": 1720635974,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1117",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "RTAYLOR@MEGACORP.LOCAL",
+        "displayname": "Rtaylor",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1118",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=rtaylor,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722095741,
+        "pwdlastset": 1720995119,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1118",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SDAVIS@MEGACORP.LOCAL",
+        "displayname": "Sdavis",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1119",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=sdavis,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721781525,
+        "pwdlastset": 1719011754,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1119",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "TBROWN@MEGACORP.LOCAL",
+        "displayname": "Tbrown",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1120",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=tbrown,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720621324,
+        "pwdlastset": 1720637373,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1120",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "UMILLER@MEGACORP.LOCAL",
+        "displayname": "Umiller",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1121",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=umiller,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721448352,
+        "pwdlastset": 1720143990,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1121",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "VCLARK@MEGACORP.LOCAL",
+        "displayname": "Vclark",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1122",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=vclark,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721128959,
+        "pwdlastset": 1720673220,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1122",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "WLEWIS@MEGACORP.LOCAL",
+        "displayname": "Wlewis",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1123",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=wlewis,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721571739,
+        "pwdlastset": 1719982294,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1123",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "XWALKER@MEGACORP.LOCAL",
+        "displayname": "Xwalker",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1124",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=xwalker,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721395552,
+        "pwdlastset": 1719409288,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1124",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "YHALL@MEGACORP.LOCAL",
+        "displayname": "Yhall",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1125",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=yhall,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720203611,
+        "pwdlastset": 1720173381,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1125",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "ZADAMS@MEGACORP.LOCAL",
+        "displayname": "Zadams",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1126",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=zadams,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720975777,
+        "pwdlastset": 1720857167,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1126",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_SQL@MEGACORP.LOCAL",
+        "displayname": "Svc Sql",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1127",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_sql,CN=Users,DC=megacorp,DC=local",
+        "hasspn": true,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721172756,
+        "pwdlastset": 1720885697,
+        "serviceprincipalnames": [
+          "MSSQLSvc/SQL01.megacorp.local:1433"
+        ]
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1127",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_BACKUP@MEGACORP.LOCAL",
+        "displayname": "Svc Backup",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1128",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_backup,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722323318,
+        "pwdlastset": 1719999008,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1128",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3001",
+          "PrincipalType": "Group",
+          "RightName": "GenericAll",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_WEB@MEGACORP.LOCAL",
+        "displayname": "Svc Web",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1129",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_web,CN=Users,DC=megacorp,DC=local",
+        "hasspn": true,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722057330,
+        "pwdlastset": 1719648436,
+        "serviceprincipalnames": [
+          "HTTP/WEB01.megacorp.local"
+        ]
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1129",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3008",
+          "PrincipalType": "Group",
+          "RightName": "WriteSPN",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_EXCHANGE@MEGACORP.LOCAL",
+        "displayname": "Svc Exchange",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1130",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_exchange,CN=Users,DC=megacorp,DC=local",
+        "hasspn": true,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721966393,
+        "pwdlastset": 1719367399,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1130",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_SCCM@MEGACORP.LOCAL",
+        "displayname": "Svc Sccm",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1131",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_sccm,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721913449,
+        "pwdlastset": 1720458674,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1131",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_ADCONNECT@MEGACORP.LOCAL",
+        "displayname": "Svc Adconnect",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1132",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_adconnect,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721008103,
+        "pwdlastset": 1720768988,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1132",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-1138",
+          "PrincipalType": "User",
+          "RightName": "Owns",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_IIS@MEGACORP.LOCAL",
+        "displayname": "Svc Iis",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1133",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_iis,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720041910,
+        "pwdlastset": 1720348345,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1133",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_PRINT@MEGACORP.LOCAL",
+        "displayname": "Svc Print",
+        "enabled": false,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1134",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_print,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720851064,
+        "pwdlastset": 1720153327,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1134",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_SHARE@MEGACORP.LOCAL",
+        "displayname": "Svc Share",
+        "enabled": false,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1135",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_share,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721514617,
+        "pwdlastset": 1719423891,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1135",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SVC_ANTIVIRUS@MEGACORP.LOCAL",
+        "displayname": "Svc Antivirus",
+        "enabled": true,
+        "admincount": false,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1136",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=svc_antivirus,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722061662,
+        "pwdlastset": 1720920120,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1136",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "ADMIN.JSMITH@MEGACORP.LOCAL",
+        "displayname": "Admin Jsmith",
+        "enabled": true,
+        "admincount": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1137",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=admin.jsmith,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720320649,
+        "pwdlastset": 1720935850,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1137",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3002",
+          "PrincipalType": "Group",
+          "RightName": "ForceChangePassword",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "ADMIN.AGARCIA@MEGACORP.LOCAL",
+        "displayname": "Admin Agarcia",
+        "enabled": true,
+        "admincount": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1138",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=admin.agarcia,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1721179401,
+        "pwdlastset": 1719053703,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1138",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "ADMIN.BWILSON@MEGACORP.LOCAL",
+        "displayname": "Admin Bwilson",
+        "enabled": true,
+        "admincount": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1139",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=admin.bwilson,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722259787,
+        "pwdlastset": 1720198009,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1139",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SA_TIER0@MEGACORP.LOCAL",
+        "displayname": "Sa Tier0",
+        "enabled": true,
+        "admincount": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1140",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=sa_tier0,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722035657,
+        "pwdlastset": 1721263580,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1140",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-1128",
+          "PrincipalType": "User",
+          "RightName": "WriteKeyCredentialLink",
+          "IsInherited": false
+        }
+      ],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SA_TIER1_SERVER@MEGACORP.LOCAL",
+        "displayname": "Sa Tier1 Server",
+        "enabled": true,
+        "admincount": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1141",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=sa_tier1_server,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1720612750,
+        "pwdlastset": 1719566641,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1141",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    },
+    {
+      "Properties": {
+        "name": "SA_WORKSTATION@MEGACORP.LOCAL",
+        "displayname": "Sa Workstation",
+        "enabled": true,
+        "admincount": true,
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-1142",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN=sa_workstation,CN=Users,DC=megacorp,DC=local",
+        "hasspn": false,
+        "unconstraineddelegation": false,
+        "lastlogontimestamp": 1722471964,
+        "pwdlastset": 1720811794,
+        "serviceprincipalnames": []
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1142",
+      "Aces": [],
+      "AllowedToDelegate": [],
+      "SPNTargets": [],
+      "HasSIDHistory": []
+    }
+  ],
+  "meta": {
+    "type": "users",
+    "count": 43,
+    "version": 5
+  }
+}

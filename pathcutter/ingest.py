@@ -17,6 +17,11 @@ _TYPE_MAP = {
     "gpos": NodeType.GPO,
     "ous": NodeType.OU,
     "containers": NodeType.CONTAINER,
+    "certtemplates": NodeType.CERT_TEMPLATE,
+    "enterprisecas": NodeType.ENTERPRISE_CA,
+    "rootcas": NodeType.ROOT_CA,
+    "aiacas": NodeType.AIACA,
+    "ntauthstores": NodeType.NTAUTH_STORE,
 }
 
 # BloodHound CE kind string -> NodeType
@@ -50,6 +55,10 @@ _ACE_MAP = {
     "Member": "AddMember",
     "WriteKeyCredentialLink": "WriteKeyCredentialLink",
     "AddSelf": "AddMember",
+    "AddKeyCredentialLink": "WriteKeyCredentialLink",
+    "WriteGPLink": "WriteGPLink",
+    "SyncLAPSPassword": "ReadLAPSPassword",
+    "DumpSMSAPassword": "ReadGMSAPassword",
     "GetChanges": "DCSync",
     "GetChangesAll": "DCSync",
     "GetChangesInFilteredSet": "DCSync",
@@ -210,7 +219,7 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
             if not principal_sid or not right:
                 continue
 
-            edge_name = _ACE_MAP.get(right)
+            edge_name = _ACE_MAP.get(right) or _CE_EDGE_MAP.get(right)
             if edge_name:
                 graph.add_edge(ADEdge(
                     source_id=principal_sid,
@@ -229,6 +238,8 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
                     target_id=oid,
                     edge_type="MemberOf",
                 ))
+
+        _modern_relationships(obj, oid, graph)
 
         # Local admins (computers)
         for la in _unwrap_results(obj.get("LocalAdmins", [])):
@@ -254,12 +265,6 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
             if dcom_sid:
                 graph.add_edge(ADEdge(source_id=dcom_sid, target_id=oid, edge_type="ExecuteDCOM"))
 
-        # Sessions (computers)
-        for sess in _unwrap_results(obj.get("Sessions", [])):
-            user_sid = sess.get("UserId", sess.get("UserSID", ""))
-            if user_sid:
-                graph.add_edge(ADEdge(source_id=user_sid, target_id=oid, edge_type="HasSession"))
-
         # Delegation (unconstrained delegation is resolved after every file is loaded; see load_sharphound)
         for target in _unwrap_results(obj.get("AllowedToDelegate", [])):
             target_sid = target.get("ObjectIdentifier", target) if isinstance(target, dict) else target
@@ -273,9 +278,9 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
 
         # GPO effects
         for link in _unwrap_results(obj.get("Links", [])):
-            target_guid = link.get("GUID", link.get("ObjectIdentifier", ""))
-            if target_guid:
-                graph.add_edge(ADEdge(source_id=oid, target_id=target_guid, edge_type="GPOControlsObject"))
+            gpo_guid = link.get("GUID", link.get("ObjectIdentifier", ""))
+            if gpo_guid:
+                graph.add_edge(ADEdge(source_id=gpo_guid, target_id=oid, edge_type="GPOControlsObject"))
 
         # OU/Container containment
         for child in _unwrap_results(obj.get("ChildObjects", [])):
@@ -368,10 +373,7 @@ def _parse_v5_file(data: dict, graph: AttackGraph) -> int:
             if sid:
                 graph.add_edge(ADEdge(source_id=sid, target_id=oid, edge_type="AdminTo"))
 
-        for sess in _unwrap_results(obj.get("Sessions", [])):
-            user_sid = sess.get("UserId", sess.get("UserSID", ""))
-            if user_sid:
-                graph.add_edge(ADEdge(source_id=user_sid, target_id=oid, edge_type="HasSession"))
+        _modern_relationships(obj, oid, graph)
 
         for target in _unwrap_results(obj.get("AllowedToDelegate", [])):
             target_sid = target.get("ObjectIdentifier", target) if isinstance(target, dict) else target
@@ -410,6 +412,99 @@ def _parse_v5_edges_file(data: dict, graph: AttackGraph) -> int:
     return count
 
 
+_LOCAL_GROUP_EDGE = {"544": "AdminTo", "555": "CanRDP", "562": "ExecuteDCOM", "580": "CanPSRemote"}
+_GPO_CHANGE_EDGE = {"LocalAdmins": "AdminTo", "RemoteDesktopUsers": "CanRDP", "DcomUsers": "ExecuteDCOM",
+                    "PSRemoteUsers": "CanPSRemote"}
+
+
+def _principal_id(value) -> str:
+    if isinstance(value, dict):
+        return value.get("ObjectIdentifier") or value.get("MemberId") or value.get("UserSID") or value.get("UserId") or ""
+    return value if isinstance(value, str) else ""
+
+
+def _modern_relationships(obj: dict, oid: str, graph: AttackGraph) -> None:
+    """Relationships that current collectors (SharpHound 2.x, BloodHound.py CE) put on the object itself."""
+    node = graph.get_node(oid)
+    if obj.get("IsDC") and node is not None:
+        node.properties["isdc"] = True
+
+    primary = obj.get("PrimaryGroupSID")
+    if primary:                                   # membership by primary group is not listed in Group.Members
+        graph.add_edge(ADEdge(source_id=oid, target_id=primary, edge_type="MemberOf"))
+
+    for entry in obj.get("LocalGroups") or []:    # local groups of a computer, keyed by well-known RID
+        edge = _LOCAL_GROUP_EDGE.get(str(entry.get("ObjectIdentifier", "")).rsplit("-", 1)[-1])
+        if not edge:
+            continue
+        for member in _unwrap_results(entry):
+            mid = _principal_id(member)
+            if mid:
+                graph.add_edge(ADEdge(source_id=mid, target_id=oid, edge_type=edge))
+
+    for key in ("Sessions", "PrivilegedSessions", "RegistrySessions"):
+        for sess in _unwrap_results(obj.get(key)):
+            user = _principal_id(sess) if not isinstance(sess, dict) else (sess.get("UserSID") or sess.get("UserId") or "")
+            if user:
+                graph.add_edge(ADEdge(source_id=oid, target_id=user, edge_type="HasSession"))
+
+    for hist in obj.get("HasSIDHistory") or []:
+        hid = _principal_id(hist)
+        if hid:
+            graph.add_edge(ADEdge(source_id=oid, target_id=hid, edge_type="HasSIDHistory"))
+
+    for smsa in obj.get("DumpSMSAPassword") or []:
+        sid = _principal_id(smsa)
+        if sid:
+            graph.add_edge(ADEdge(source_id=oid, target_id=sid, edge_type="ReadGMSAPassword"))
+
+    changes = obj.get("GPOChanges") or {}          # local-group rights pushed to computers by linked GPOs
+    affected = [_principal_id(a) for a in changes.get("AffectedComputers") or []]
+    for key, edge in _GPO_CHANGE_EDGE.items():
+        for member in changes.get(key) or []:
+            mid = _principal_id(member)
+            for comp in affected:
+                if mid and comp:
+                    graph.add_edge(ADEdge(source_id=mid, target_id=comp, edge_type=edge))
+
+
+_WELL_KNOWN_RID = {
+    "498": "ENTERPRISE READ-ONLY DOMAIN CONTROLLERS", "500": "ADMINISTRATOR", "501": "GUEST", "502": "KRBTGT",
+    "512": "DOMAIN ADMINS", "513": "DOMAIN USERS", "514": "DOMAIN GUESTS", "515": "DOMAIN COMPUTERS",
+    "516": "DOMAIN CONTROLLERS", "517": "CERT PUBLISHERS", "518": "SCHEMA ADMINS", "519": "ENTERPRISE ADMINS",
+    "520": "GROUP POLICY CREATOR OWNERS", "521": "READ-ONLY DOMAIN CONTROLLERS", "525": "PROTECTED USERS",
+    "526": "KEY ADMINS", "527": "ENTERPRISE KEY ADMINS",
+}
+_WELL_KNOWN_SUFFIX = {
+    "S-1-1-0": "EVERYONE", "S-1-3-0": "CREATOR OWNER", "S-1-5-9": "ENTERPRISE DOMAIN CONTROLLERS",
+    "S-1-5-10": "SELF", "S-1-5-11": "AUTHENTICATED USERS", "S-1-5-18": "LOCAL SYSTEM", "S-1-5-7": "ANONYMOUS LOGON",
+    "S-1-5-32-544": "ADMINISTRATORS", "S-1-5-32-545": "USERS", "S-1-5-32-548": "ACCOUNT OPERATORS",
+    "S-1-5-32-549": "SERVER OPERATORS", "S-1-5-32-550": "PRINT OPERATORS", "S-1-5-32-551": "BACKUP OPERATORS",
+    "S-1-5-32-554": "PRE-WINDOWS 2000 COMPATIBLE ACCESS", "S-1-5-32-555": "REMOTE DESKTOP USERS",
+    "S-1-5-32-560": "WINDOWS AUTHORIZATION ACCESS GROUP", "S-1-5-32-562": "DISTRIBUTED COM USERS",
+    "S-1-5-32-580": "REMOTE MANAGEMENT USERS",
+}
+
+
+def _name_uncollected_principals(graph: AttackGraph) -> None:
+    """ACEs reference principals (SYSTEM, Everyone, builtin groups, domains we did not collect) that have no
+    object of their own. Give them a real name and type so reports read sensibly instead of 'Unknown'."""
+    known = {n.object_id for n in graph.all_nodes()}
+    for oid in list(graph.graph.nodes):
+        if oid in known or not isinstance(oid, str):
+            continue
+        domain, _, sid = oid.rpartition("-S-1-")
+        sid = "S-1-" + sid if domain else oid
+        domain = domain.upper() if domain else ""
+        name = _WELL_KNOWN_SUFFIX.get(sid)
+        if name is None and sid.startswith("S-1-5-21-"):
+            name = _WELL_KNOWN_RID.get(sid.rsplit("-", 1)[-1])
+        if name is None:
+            continue
+        graph.add_node(ADNode(object_id=oid, name=f"{name}@{domain}" if domain else name, node_type=NodeType.GROUP,
+                              domain=domain))
+
+
 def find_dc_sids(graph: AttackGraph) -> list[str]:
     """Domain controller computers: computers that are members of a Domain Controllers group.
 
@@ -419,7 +514,7 @@ def find_dc_sids(graph: AttackGraph) -> list[str]:
                  if n.object_id.endswith("-516") or n.name.upper().split("@")[0] == "DOMAIN CONTROLLERS"}
     dcs = []
     for node in graph.nodes_by_type(NodeType.COMPUTER):
-        if any(t in dc_groups for _, t, d in graph.out_edges(node.object_id) if d.get("edge_type") == "MemberOf"):
+        if node.properties.get("isdc") or any(t in dc_groups for _, t, d in graph.out_edges(node.object_id) if d.get("edge_type") == "MemberOf"):
             dcs.append(node.object_id)
     return dcs
 
@@ -469,6 +564,7 @@ def load_sharphound(path: str | Path) -> AttackGraph:
                 node_type=NodeType.GROUP,
             ))
 
+    _name_uncollected_principals(graph)
     _link_unconstrained_delegation(graph)
     graph.classify_tiers()
     return graph

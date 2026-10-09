@@ -56,7 +56,7 @@ def tiny_graph():
     g.add_edge(ADEdge("S-1-5-21-1234-1101", "S-1-5-21-1234-2003", "GenericWrite"))      # IT Admins -> GenericWrite -> DC01
 
     # Sessions
-    g.add_edge(ADEdge("S-1-5-21-1234-1001", "S-1-5-21-1234-2001", "HasSession"))  # jsmith has session on WS01
+    g.add_edge(ADEdge("S-1-5-21-1234-2001", "S-1-5-21-1234-1001", "HasSession"))  # WS01 holds a jsmith session
     g.add_edge(ADEdge("S-1-5-21-1234-1003", "S-1-5-21-1234-2002", "AdminTo"))     # svc_backup is admin on SERVER01
 
     g.classify_tiers()

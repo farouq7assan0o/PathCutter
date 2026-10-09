@@ -134,7 +134,7 @@ local-admin <principal> <computer>        remove-local-admin <principal> <comput
 delegate <principal> <target>             undelegate <principal> <target>
 rbcd <allowed-principal> <resource>       remove-rbcd <allowed-principal> <resource>
 grant-dcsync <principal> [<domain>]       revoke-dcsync <principal> [<domain>]
-session <user> <computer>                 rdp / psremote <principal> <computer>
+session <user> <computer>                 rdp / psremote <principal> <computer>   (a user session on a computer)
 unconstrained <principal>                 move <object> <container-or-OU>
 delete <object>
 grant <principal> <Right> <object>        revoke <principal> <Right> <object>
@@ -661,6 +661,9 @@ def resolve_changes(graph: AttackGraph, specs: list[ChangeSpec], on_unresolved: 
         rc.pairs = [(s.object_id, t.object_id) for s in srcs for t in tgts if s.object_id != t.object_id]
         rc.pair_info = [(s.display_name, s.object_id, t.display_name, t.object_id) for s in srcs for t in tgts
                         if s.object_id != t.object_id]
+        if spec.edge_type == "HasSession":
+            # authors write `session <user> <computer>`; the graph edge runs computer -> user
+            rc.pairs = [(t, s) for s, t in rc.pairs]
         first_s, first_t = srcs[0] if srcs else None, tgts[0] if tgts else None
         rc.source_id = first_s.object_id if first_s else ""
         rc.target_id = first_t.object_id if first_t else ""

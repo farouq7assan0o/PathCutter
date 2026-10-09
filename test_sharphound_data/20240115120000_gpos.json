@@ -1,0 +1,43 @@
+{
+  "data": [
+    {
+      "Properties": {
+        "name": "DEFAULT DOMAIN POLICY@MEGACORP.LOCAL",
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-5001",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN={31B2F340-016D-11D2-945F-00C04FB984F9},CN=Policies,CN=System,DC=megacorp,DC=local"
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-5001",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3013",
+          "PrincipalType": "Group",
+          "RightName": "GenericWrite",
+          "IsInherited": false
+        }
+      ]
+    },
+    {
+      "Properties": {
+        "name": "SERVER HARDENING@MEGACORP.LOCAL",
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-5002",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "CN={6AC1786C-016F-11D2-945F-00C04fB984F9},CN=Policies,CN=System,DC=megacorp,DC=local"
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-5002",
+      "Aces": [
+        {
+          "PrincipalSID": "S-1-5-21-3623811015-3361044348-30300820-3013",
+          "PrincipalType": "Group",
+          "RightName": "GenericAll",
+          "IsInherited": false
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "type": "gpos",
+    "count": 2,
+    "version": 5
+  }
+}

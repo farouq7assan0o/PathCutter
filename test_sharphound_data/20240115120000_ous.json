@@ -1,0 +1,426 @@
+{
+  "data": [
+    {
+      "Properties": {
+        "name": "Workstations@MEGACORP.LOCAL",
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-4001",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "OU=Workstations,DC=megacorp,DC=local"
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-4001",
+      "Aces": [],
+      "Links": [],
+      "ChildObjects": [
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2000",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2001",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2002",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2003",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2004",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2005",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2006",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2007",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2008",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2009",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2010",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2011",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2012",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2013",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2014",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2015",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2016",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2017",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2018",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2019",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2020",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2021",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2022",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2023",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2024",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2025",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2026",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2027",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2028",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2029",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2030",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2031",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2032",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2033",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2034",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2035",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2036",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2037",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2038",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2039",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2040",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2041",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2042",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2043",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2044",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2045",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2046",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2047",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2048",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2049",
+          "ObjectType": "Computer"
+        }
+      ]
+    },
+    {
+      "Properties": {
+        "name": "Servers@MEGACORP.LOCAL",
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-4002",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "OU=Servers,DC=megacorp,DC=local"
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-4002",
+      "Aces": [],
+      "Links": [],
+      "ChildObjects": [
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2050",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2051",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2052",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2053",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2054",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2055",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2056",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2057",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2058",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2059",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2060",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2061",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2062",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2063",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2064",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2065",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2066",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2067",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2068",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2069",
+          "ObjectType": "Computer"
+        }
+      ]
+    },
+    {
+      "Properties": {
+        "name": "Domain Controllers@MEGACORP.LOCAL",
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-4003",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "OU=Domain Controllers,DC=megacorp,DC=local"
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-4003",
+      "Aces": [],
+      "Links": [],
+      "ChildObjects": [
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2050",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-2051",
+          "ObjectType": "Computer"
+        }
+      ]
+    },
+    {
+      "Properties": {
+        "name": "Service Accounts@MEGACORP.LOCAL",
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-4004",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "OU=Service Accounts,DC=megacorp,DC=local"
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-4004",
+      "Aces": [],
+      "Links": [],
+      "ChildObjects": [
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1127",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1128",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1129",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1130",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1131",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1132",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1133",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1134",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1135",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1136",
+          "ObjectType": "Computer"
+        }
+      ]
+    },
+    {
+      "Properties": {
+        "name": "Admin Accounts@MEGACORP.LOCAL",
+        "objectid": "S-1-5-21-3623811015-3361044348-30300820-4005",
+        "domain": "MEGACORP.LOCAL",
+        "distinguishedname": "OU=Admin Accounts,DC=megacorp,DC=local"
+      },
+      "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-4005",
+      "Aces": [],
+      "Links": [],
+      "ChildObjects": [
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1137",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1138",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1139",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1140",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1141",
+          "ObjectType": "Computer"
+        },
+        {
+          "ObjectIdentifier": "S-1-5-21-3623811015-3361044348-30300820-1142",
+          "ObjectType": "Computer"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "type": "ous",
+    "count": 5,
+    "version": 5
+  }
+}
