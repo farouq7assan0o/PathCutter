@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install -e . pytest
+      - run: python -m pip install -e ".[dev]"
       - run: python -m pytest -q
   scale-smoke:
     runs-on: ubuntu-latest
@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: python -m pip install -e . pytest
+      - run: python -m pip install -e ".[dev]"
       - name: 100k-object check must stay fast
         working-directory: benchmarks
         run: python bench_check.py 100000 10

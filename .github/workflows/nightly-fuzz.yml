@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: python -m pip install -e . pytest
+      - run: python -m pip install -e ".[dev]"
       - name: differential fuzzing (engine, oracle, incremental, deny, probe)
         run: python tests/fuzz.py --seeds ${{ github.event.inputs.seeds || '1000000' }} --start ${{ github.run_number }}000000
       - name: scale benchmarks

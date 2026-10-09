@@ -25,6 +25,8 @@ DSC = "Configuration C {\n Node 'DC' {\n  ADGroup 'k' {\n   GroupName = 'KingsGu
 
 @pytest.mark.parametrize("flag,name,content", [("--terraform", "main.tf", TF), ("--ansible", "play.yml", YML), ("--dsc", "c.dsc.ps1", DSC)])
 def test_each_source_finds_the_same_new_path_to_tier_0(tmp_path, flag, name, content):
+    if flag == "--ansible":
+        pytest.importorskip("yaml")
     code, rep = check(tmp_path, flag, name, content)
     kinds = {f["kind"] for f in rep["findings"]}
     assert "NEW_EXPOSURE" in kinds, kinds

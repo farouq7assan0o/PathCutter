@@ -21,5 +21,8 @@ pathcutter = "pathcutter.cli:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.setuptools]
+packages = ["pathcutter", "pathcutter.extractors"]
+
 [tool.setuptools.package-data]
 pathcutter = ["graph_view.js", "data/*.json"]
