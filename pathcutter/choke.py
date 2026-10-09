@@ -29,7 +29,16 @@ class Fix:
 
     @property
     def description(self) -> str:
-        return f"Remove {self.edge_type} from {self.source_name} to {self.target_name}"
+        et = self.edge_type
+        if et.startswith("ADCSESC"):                         # derived from template / CA settings: nothing to "remove"
+            return f"Close AD CS {et[4:]} for {self.source_name} (fix the template or CA setting, or restrict who can enroll)"
+        if et == "GoldenCert":
+            return f"Treat {self.source_name} (it holds a CA key) as Tier 0: remove non-admin local administrators"
+        if et == "SyncedTo":
+            return f"Stop synchronizing {self.target_name} from on-premises (keep privileged cloud accounts cloud-only)"
+        if et in ("AZMGGrantRole", "AZMGAddSecret", "AZMGAddMember", "AZMGResetPassword"):
+            return f"Remove the dangerous Microsoft Graph permission from {self.source_name}"
+        return f"Remove {et} from {self.source_name} to {self.target_name}"
 
 
 @dataclass

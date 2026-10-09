@@ -33,7 +33,7 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
                          posture: PostureScore, node_scores: list[NodeRisk],
                          choke: ChokeReport,
                          chains=None, safety=None,
-                         max_graph_nodes: int = GRAPH_MAX_NODES) -> str:
+                         max_graph_nodes: int = GRAPH_MAX_NODES, quality: dict | None = None) -> str:
     """Generate a self-contained HTML dashboard with interactive path explorer."""
     protected = set()
     for f in choke.fixes:
@@ -50,6 +50,7 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
 
     summary = graph.summary()
     defend_data = _build_defend_json(graph)
+    start_data = _build_start_json(graph, fixes_data, quality)
 
     return _HTML_TEMPLATE.format(
         generated=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
@@ -75,6 +76,7 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
         paths_json=_safe_json(paths_data),
         summary_json=_safe_json(summary),
         defend_json=_safe_json(defend_data),
+        start_json=_safe_json(start_data),
         grade_color=_grade_color(posture.grade),
         graph_js=_GRAPH_JS_PATH.read_text(encoding="utf-8"),
     )
@@ -214,6 +216,26 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
         "max_nodes": max_nodes,
     }
     return {"nodes": nodes, "links": out_links, "edgeTypes": edge_types, "meta": meta}, edge_index
+
+
+def _build_start_json(graph: AttackGraph, fixes: list[dict], quality: dict | None) -> dict:
+    """What the reader should look at first: the best fixes, the worst findings, and whether the data can be trusted."""
+    from .hygiene import audit
+    try:
+        findings = audit(graph)
+    except Exception:                                        # the overview must never fail because an audit rule did
+        findings = []
+    counts = {}
+    for f in findings:
+        counts[f.severity] = counts.get(f.severity, 0) + 1
+    top = [f for f in findings if f.severity in ("critical", "high")][:5]
+    return {
+        "fixes": [{"rank": f["rank"], "description": f["description"], "cut": f["paths_eliminated"], "safety": f.get("safety", ""),
+                   "pct": f["cumulative_pct"]} for f in fixes[:3]],
+        "findings": [{"title": _e(f.title), "severity": f.severity, "total": f.total} for f in top],
+        "counts": counts,
+        "quality": quality,
+    }
 
 
 def _build_fixes_json(choke: ChokeReport, safety=None) -> list[dict]:
@@ -788,6 +810,7 @@ tr {{ cursor: pointer; }}
 
   <!-- OVERVIEW -->
   <div id="overview" class="tab-content active">
+    <div id="start-here" class="card" style="margin-bottom:16px"></div>
     <div class="grid grid-2" style="margin-bottom:16px">
       <div class="card" style="text-align:center">
         <h3>Risk Score</h3>
@@ -840,7 +863,7 @@ tr {{ cursor: pointer; }}
         <div class="chart-container" id="chart-nodes"></div>
       </div>
       <div class="card">
-        <h3>Top Edge Types (Attack Surface)</h3>
+        <h3>Attack-step edge types (structure hidden)</h3>
         <div class="chart-container" id="chart-edges"></div>
       </div>
     </div>
@@ -1274,7 +1297,7 @@ function drawOverviewCharts() {{
     const ct = document.getElementById('chart-nodes');
     const w = ct.clientWidth, h = ct.clientHeight;
     const svgN = d3.select('#chart-nodes').append('svg').attr('width', w).attr('height', h);
-    const margin = {{top: 8, right: 12, bottom: 24, left: 50}};
+    const margin = {{top: 8, right: 44, bottom: 24, left: 56}};
     const iw = w - margin.left - margin.right, ih = h - margin.top - margin.bottom;
     const g = svgN.append('g').attr('transform', `translate(${{margin.left}},${{margin.top}})`);
     const x = d3.scaleLinear().domain([0, d3.max(nd, d => d[1])]).range([0, iw]);
@@ -1292,12 +1315,13 @@ function drawOverviewCharts() {{
   }}
 
   // Edge type distribution (top 10)
-  const ed = Object.entries(edgeTypes).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const plumbing = new Set(['MemberOf', 'Contains', 'AZContains', 'TrustedBy', 'Enroll', 'AutoEnroll', 'ManageCA', 'ManageCertificates', 'GetChanges', 'GetChangesAll']);
+  const ed = Object.entries(edgeTypes).filter(d => !plumbing.has(d[0])).sort((a, b) => b[1] - a[1]).slice(0, 10);
   if (ed.length) {{
     const ct = document.getElementById('chart-edges');
     const w = ct.clientWidth, h = ct.clientHeight;
     const svgE = d3.select('#chart-edges').append('svg').attr('width', w).attr('height', h);
-    const margin = {{top: 8, right: 12, bottom: 24, left: 80}};
+    const margin = {{top: 8, right: 48, bottom: 24, left: 116}};
     const iw = w - margin.left - margin.right, ih = h - margin.top - margin.bottom;
     const g = svgE.append('g').attr('transform', `translate(${{margin.left}},${{margin.top}})`);
     const x = d3.scaleLinear().domain([0, d3.max(ed, d => d[1])]).range([0, iw]);
@@ -1315,6 +1339,61 @@ function drawOverviewCharts() {{
   }}
 }}
 drawOverviewCharts();
+
+// ---- START HERE ----
+const startData = {start_json};
+function renderStart() {{
+  const root = document.getElementById('start-here');
+  if (!root) return;
+  const sevColor = {{critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#94a3b8'}};
+  const el = (tag, css, text) => {{ const n = document.createElement(tag); if (css) n.style.cssText = css; if (text != null) n.textContent = text; return n; }};
+  const col = (title) => {{ const c = el('div', 'min-width:0'); c.appendChild(el('h3', 'margin:0 0 8px', title)); return c; }};
+  const link = (label, tab) => {{ const a = el('a', 'color:var(--accent);cursor:pointer;font-size:0.8rem;display:inline-block;margin-top:8px', label);
+    a.onclick = () => document.querySelector('[data-tab="' + tab + '"]').click(); return a; }};
+  root.innerHTML = '';
+  const grid = el('div', 'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px');
+
+  const fixes = col('Fix these first');
+  if (startData.fixes.length) {{
+    startData.fixes.forEach(f => {{
+      const row = el('div', 'display:flex;gap:10px;align-items:flex-start;margin:8px 0');
+      row.appendChild(el('div', 'background:var(--accent-dim);color:#fff;border-radius:50%;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700', f.rank));
+      const t = el('div', 'min-width:0');
+      t.appendChild(el('div', 'font-size:0.85rem;line-height:1.3', f.description));
+      t.appendChild(el('div', 'font-size:0.75rem;color:var(--text-dim);margin-top:2px', 'cuts ' + f.cut + ' paths' + (f.safety ? ' · ' + f.safety : '')));
+      row.appendChild(t); fixes.appendChild(row);
+    }});
+    fixes.appendChild(link('All fixes, with commands →', 'fixes'));
+  }} else fixes.appendChild(el('div', 'color:var(--text-dim)', 'No attack path reaches Tier 0.'));
+  grid.appendChild(fixes);
+
+  const worst = col('Worst findings');
+  const counts = startData.counts || {{}};
+  const strip = el('div', 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px');
+  ['critical', 'high', 'medium', 'low'].forEach(s => {{ if (counts[s]) strip.appendChild(el('span', 'font-size:0.72rem;font-weight:700;padding:1px 8px;border-radius:10px;background:' + sevColor[s] + '22;color:' + sevColor[s], counts[s] + ' ' + s)); }});
+  worst.appendChild(strip);
+  startData.findings.forEach(f => {{
+    const row = el('div', 'margin:6px 0;font-size:0.82rem;line-height:1.3;display:flex;gap:8px');
+    row.appendChild(el('span', 'color:' + sevColor[f.severity] + ';font-weight:700;min-width:54px;font-size:0.72rem;text-transform:uppercase', f.severity));
+    row.appendChild(el('span', '', f.title + (f.total ? ' (' + f.total + ')' : '')));
+    worst.appendChild(row);
+  }});
+  if (!startData.findings.length) worst.appendChild(el('div', 'color:var(--text-dim)', 'No critical or high hygiene findings.'));
+  worst.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Run `pathcutter audit` for all of them, with fixes.'));
+  grid.appendChild(worst);
+
+  const q = startData.quality;
+  const trust = col('Can you trust this data?');
+  if (q) {{
+    const color = q.verdict === 'COMPLETE' ? 'var(--success)' : (q.verdict === 'NOT TRUSTWORTHY' ? 'var(--danger)' : 'var(--warning)');
+    trust.appendChild(el('div', 'font-weight:700;color:' + color, q.verdict));
+    (q.notes || []).slice(0, 3).forEach(n => trust.appendChild(el('div', 'font-size:0.8rem;margin-top:6px;line-height:1.3;color:var(--text-dim)', n)));
+    trust.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Exposure is a floor for anything the collection missed. `pathcutter doctor` lists every gap.'));
+  }} else trust.appendChild(el('div', 'font-size:0.8rem;color:var(--text-dim)', 'Run `pathcutter doctor` on the export to see what the collection is missing.'));
+  grid.appendChild(trust);
+  root.appendChild(grid);
+}}
+renderStart();
 
 // ---- DEFEND TAB ----
 function renderDefend(filter) {{
