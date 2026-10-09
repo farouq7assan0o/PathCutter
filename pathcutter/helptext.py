@@ -23,6 +23,7 @@ COMMANDS
   Gate changes BEFORE they ship
     snapshot   save a reusable baseline (.pcsnap) from a SharpHound collection
     check      will these proposed AD changes open a path to Tier 0?   exit 2 = blocked
+    detect     detections (Sigma/SPL/KQL) for the attack paths you have NOT fixed
     syntax     full reference: change language, PowerShell coverage, edge types, policy
 
   Try and learn
@@ -35,6 +36,7 @@ TYPICAL WORKFLOW
      --> pathcutter check --baseline baseline.pcsnap --changes ad-changes/ --policy policy.json
      --> PASS (exit 0)   REVIEW (exit 3 with --fail-on review)   BLOCK (exit 2)
   fix what the report says to fix first, re-run, ship.
+  for the paths you cannot fix:  pathcutter detect baseline.pcsnap --assume-fixed 5 -o detections/
 
 EXIT CODES   0 ok | 1 could not run (bad input) | 2 blocked / gate failed | 3 needs review
 
@@ -117,6 +119,17 @@ EXIT CODES   0 pass | 1 could not run | 2 blocked by policy | 3 needs review (on
 FULL REFERENCE   pathcutter syntax            (changes, PowerShell coverage, edge names, policy)
 """
 
+DETECT = """Examples:
+  pathcutter detect baseline.pcsnap -o detections/                        # monitor every residual choke point
+  pathcutter detect baseline.pcsnap --assume-fixed 5 --top 15 -o detections/    # I will fix the top 5; watch what remains
+  pathcutter detect baseline.pcsnap --formats sigma,sentinel -o detections/
+  pathcutter check --baseline baseline.pcsnap --changes ad-changes/ --policy policy.json --detections detections/
+      (accepted or waived risk ships with the detections that watch it)
+
+Output: sigma/*.yml  splunk/*.spl  sentinel/*.kql  elastic/*.kql  coverage.md  coverage.json  prerequisites.md
+Read prerequisites.md first: a rule only fires if the matching Advanced Audit Policy is enabled.
+"""
+
 DESCRIPTIONS = {
     "analyze": "Full analysis of a SharpHound export: risk score, attack paths, prioritised fixes with commands, HTML report.",
     "score": "Quick risk score for a SharpHound export.",
@@ -127,6 +140,7 @@ DESCRIPTIONS = {
     "snapshot": "Save a reusable baseline (.pcsnap) from a SharpHound export so `check` runs in seconds.",
     "check": "Check proposed Active Directory changes for new attack paths to Tier 0 BEFORE they are applied.",
     "demo": "Generate a realistic lab environment, with a ready-made baseline, to try PathCutter without real data.",
+    "detect": "Generate detections scoped to the exact objects on the attack paths you have not fixed.",
 }
 EPILOGS = {"analyze": ANALYZE, "score": SCORE, "fix": FIX, "graph": GRAPH, "diff": DIFF, "export": EXPORT,
-           "snapshot": SNAPSHOT, "demo": DEMO, "check": CHECK}
+           "snapshot": SNAPSHOT, "demo": DEMO, "check": CHECK, "detect": DETECT}

@@ -90,6 +90,8 @@ def main(argv: list[str] | None = None) -> int:
     # change impact gate
     from .check_cli import add_parsers as _add_check_parsers
     _add_check_parsers(sub)
+    from .detect_cli import add_parser as _add_detect_parser
+    _add_detect_parser(sub)
 
     # demo
     p_demo = sub.add_parser("demo", help="Generate a realistic demo AD environment and run full analysis")
@@ -158,6 +160,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "check":
         from .check_cli import cmd_check
         return cmd_check(args)
+    elif args.command == "detect":
+        from .detect_cli import cmd_detect
+        return cmd_detect(args)
     elif args.command == "demo":
         return _cmd_demo(args)
 

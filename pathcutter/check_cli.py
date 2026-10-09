@@ -48,6 +48,8 @@ def add_parsers(sub) -> None:
     c.add_argument("--json", dest="json_out", metavar="FILE", help="Write machine-readable JSON")
     c.add_argument("--markdown", metavar="FILE", help="Write a Markdown summary (for PR comments)")
     c.add_argument("--sarif", metavar="FILE", help="Write SARIF 2.1.0 (GitHub code scanning annotations)")
+    c.add_argument("--detections", metavar="DIR",
+                   help="Also write detections (Sigma/SPL/KQL) that watch the risk this change set creates or keeps open")
     c.add_argument("-q", "--quiet", action="store_true", help="Do not print the text report")
     c.add_argument("--max-depth", type=int, default=20)
     c.add_argument("--max-paths", type=int, default=10000)
@@ -78,6 +80,37 @@ def _write(path: str, text: str) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
     print(f"[+] Wrote {out}", file=sys.stderr)
+
+
+_RISK_KINDS = ("TIER0_PROMOTION", "NEW_EXPOSURE", "COMBINED_EFFECT", "PATH_SHORTENED")
+
+
+def _write_detections(graph, resolved, report, out_dir: str, extra_ids) -> None:
+    """Compensating detections: watch every attack edge on the paths this change set creates or leaves open."""
+    from .changes import apply_change
+    from .detect_pack import build_pack, write_pack
+    after = graph.clone()
+    after.retier(extra_ids or None)
+    for rc in resolved:
+        apply_change(after, rc)
+    after.retier(extra_ids or None)
+    ids = {n.object_id for n in after.all_nodes()}
+    counts: dict[tuple, int] = {}
+    for f in report.findings:
+        if f.kind not in _RISK_KINDS or f.superseded:
+            continue
+        for path in f.paths:
+            for a, b in zip(path, path[1:]):
+                edge = a.get("edge")
+                if edge and edge not in ("MemberOf", "Contains") and a["id"] in ids and b["id"] in ids:
+                    counts[(a["id"], b["id"], edge)] = counts.get((a["id"], b["id"], edge), 0) + 1
+    points = [{"source_id": s, "target_id": t, "edge_type": e, "paths": n} for (s, t, e), n in
+              sorted(counts.items(), key=lambda kv: -kv[1])]
+    pack = build_pack(after, points, {"paths_total": "n/a", "paths_residual": "n/a", "assumed_fixed": [],
+                                      "monitor_points": len(points), "coverage_pct": "the paths in this report"})
+    files = write_pack(pack, out_dir)
+    print(f"[+] {len(pack.rules)} compensating detection rule(s) in {out_dir} ({len(files)} files); "
+          f"read {out_dir}/prerequisites.md first", file=sys.stderr)
 
 
 def cmd_check(args) -> int:
@@ -121,6 +154,9 @@ def cmd_check(args) -> int:
         _write(args.sarif, render_sarif(report))
     if args.html:
         _write(args.html, render_html(report))
+
+    if args.detections:
+        _write_detections(graph, resolved, report, args.detections, extra_ids)
 
     if args.fail_on == "never":
         return EXIT_OK

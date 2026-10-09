@@ -84,11 +84,20 @@ revoke bob WriteDacl "SERVER ADMINS"
 local-admin DEVOPS SRV01
 delegate WEBAPP DC01
 rbcd WEB01$ SRV01
+unconstrained SRV02                       # trusted for unconstrained delegation
 grant-dcsync mallory
 session carol WS042
+revoke-all stannis kingslanding           # every ACL right the principal holds on the object
+move alice "Admins"                       # re-parent under an OU
+delete olduser
 create user newhire                       # an object that is not in the baseline yet
 add-member newhire HELPDESK
+add-member "@members(HELPDESK)" "DB ADMINS"    # every current member of HELPDESK, from the baseline
 ```
+
+Selectors expand against the baseline: `@members(G)` (direct members), `@members*(G)` (nested, users and
+computers only) and `@dcs` (every domain controller). A waiver for a fan-out change must cover **every**
+expanded member (or name the selector itself): a waiver for one member never covers the whole group.
 
 Objects are matched by SID, `NAME@DOMAIN`, short name, `DOMAIN\name`, or (for computers) short host name,
 `HOST$` or FQDN, case-insensitively. Names are checked against the type each end of the edge allows, so
@@ -109,15 +118,46 @@ JSON form:
 
 ### PowerShell
 
-`--powershell script.ps1` (or any `.ps1` given to `--changes`) extracts what the script would change.
-Modeled: `Add/Remove-ADGroupMember`, `Add/Remove-ADPrincipalGroupMembership`, `Set-ADComputer
--PrincipalsAllowedToDelegateToAccount` (RBCD) and `net group ... /add`. Every statement is scanned, including
-those after `;`, after `|`, and inside `if`/`foreach` blocks.
+`--powershell script.ps1` (or any `.ps1` given to `--changes`) works out what the script would change. It is a
+static analysis, not an interpreter: **nothing is ever run.** It follows real automation, not only one-liners:
 
-Anything recognised as an AD change that cannot be modeled becomes an `UNMODELED` finding with the file and
-line: uses of variables or pipeline input (who is affected cannot be known), ACL edits (`Set-Acl`, `dsacls`),
-unconstrained delegation, local group changes. Express those as explicit `grant`/`revoke` lines to have them
-analyzed. Set `"fail_on_unmodeled": true` in the policy to make them block.
+| Capability | Example |
+|---|---|
+| variables | `$g = "HelpDesk"; $users = 'a','b'; "$prefix-admins"; $x = Get-ADGroup "X"` |
+| loops and pipelines | `foreach ($u in 'a','b') { ... }`, `'a','b' \| ForEach-Object { ... $_ }`, `Get-ADUser bob \| Add-ADPrincipalGroupMembership -MemberOf G` |
+| baseline lookups | `Get-ADGroupMember HelpDesk \| ...` becomes `@members(HelpDesk)`, resolved against **your baseline** |
+| structure | `if`/`else`, `try`/`catch`, functions, `Invoke-Command -ComputerName HOST { ... }`, splatting (`@params`) |
+| parameters | any unambiguous prefix (`-Ident`), aliases (`-Member`), positional and `-Name:value` forms |
+| directives | `# pc: add-member alice "Domain Admins"` states the effect of a line the parser cannot read |
+
+Modeled: group membership (`Add/Remove-ADGroupMember`, `Add/Remove-ADPrincipalGroupMembership`,
+`Set-ADGroup/-ADObject -Add/-Remove @{member=...}`, PowerView, `net group`, `dsmod`), object creation, deletion
+and moves, ACL grants (`dsacls`, `ActiveDirectoryAccessRule` + `Set-Acl`, `Add-DomainObjectAcl`,
+`Add-ADPermission`), delegation (RBCD, unconstrained, constrained, the UAC bit), gMSA readers, GPO rights and
+links (`Set-GPPermission`, `New-GPLink`), and local groups on a host named by `Invoke-Command`. Run
+`pathcutter syntax powershell` for the complete, always-current list (it is generated from the code).
+
+**Nothing recognised is silently skipped.** Any other cmdlet named `Set/New/Add/Remove/Move/Rename/Enable/
+Disable/Grant/Revoke/Install/Reset...` on AD, `Domain*`, `GP*` or local groups becomes an `UNMODELED` finding
+with the file and line. So does anything that depends on a value that cannot be known (`Import-Csv`,
+parameters, `-Filter` queries): the finding names the variable. Harmless-to-the-graph cmdlets
+(`Enable-ADAccount`, `Set-ADAccountPassword`, `setspn`...) are low-severity `NOTE`s. To resolve a finding,
+state the effect with a `# pc:` directive or a `.changes` line, or set `"fail_on_unmodeled": true` to make
+unmodeled lines block.
+
+#### Verify a remediation script before you run it
+
+`pathcutter fix` writes a PowerShell script. Feed it back:
+
+```bash
+pathcutter fix export.zip --top 6 -o remediation.ps1
+pathcutter check --baseline baseline.pcsnap --powershell remediation.ps1 --html review.html
+```
+
+The generated script carries `# pc: revoke ...` twins of every fix, and the gate also understands the
+`RemoveAccessRule` templates themselves, so it predicts the script's **actual** effect. This surfaces a real
+subtlety: the generic fix template removes *every* access entry a principal holds on the object, not just the
+one edge it describes. The gate models that broader effect and tells you.
 
 ## Baselines
 

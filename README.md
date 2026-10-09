@@ -40,8 +40,28 @@ existing edge to remove so the change becomes safe (`+` marks the edge the chang
 - **Never skips silently**: a name it cannot resolve, or PowerShell it cannot model, is an error or a flagged finding, not a pass
 - **Governance built in**: policy file, crown-jewel assets, and waivers with reason, approver and expiry
 - **Fits your pipeline**: exit codes, SARIF annotations on the change file, PR-comment Markdown, offline HTML review page
+- **Reads your real automation**: a PowerShell static analysis that follows variables, loops, pipelines, ACL grants, delegation, GPO rights and baseline group expansion, and reports (never skips) anything it cannot model. It can even verify PathCutter's own `fix` script before you run it
 
 Full guide: [docs/ad-change-gate.md](docs/ad-change-gate.md). CI examples: [examples/github-actions](examples/github-actions).
+
+### For the paths you cannot fix: detections
+
+Some paths stay (the business needs that group). `pathcutter detect` turns each *residual* choke point into a
+detection scoped to the exact objects involved, in Sigma, Splunk SPL, Sentinel KQL and Elastic KQL, with the audit
+prerequisites, the principals who can abuse each edge, and a lab test command:
+
+```bash
+pathcutter detect baseline.pcsnap --assume-fixed 5 -o detections/     # I will fix the top 5; watch what remains
+```
+
+See [docs/detections.md](docs/detections.md).
+
+### Does it actually work?
+
+Validated against a rebuilt GOAD lab with hand-derived hop counts, an independent brute-force oracle on thousands
+of random graphs, and metamorphic properties of the gate. See [docs/validation.md](docs/validation.md) for what is
+proven, what bugs that found, and what is *not* validated. `pathcutter -h` and `pathcutter syntax` explain how to
+build every command.
 
 ## What it does
 
@@ -176,7 +196,7 @@ The export command outputs structured JSON with posture scores, top fixes, attac
 python -m pytest tests/ -v
 ```
 
-296 tests covering ingestion, graph construction, pathfinding, scoring, chokepoint analysis, chain detection, remediation, diffing, the report generators, and the whole AD change gate (parsing, resolution, exposure, impact, policy and waivers, snapshots, every output format, CLI exit codes).
+3,500+ tests (a large share randomized, against an independent oracle) covering ingestion, graph construction, pathfinding, scoring, chokepoint analysis, chain detection, remediation, diffing, the report generators, and the whole AD change gate (parsing, resolution, exposure, impact, policy and waivers, snapshots, every output format, CLI exit codes).
 
 ## Architecture
 
