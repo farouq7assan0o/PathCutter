@@ -20,7 +20,8 @@ ESSOS = "ESSOS.LOCAL"
 _SK = "S-1-5-21-1101001-2202002-3303003"      # sevenkingdoms.local
 _ES = "S-1-5-21-5505005-6606006-7707007"      # essos.local
 
-LABS = {"goad-sevenkingdoms": "GOAD sevenkingdoms.local: nested groups and the documented ACL chain to the DC"}
+LABS = {"goad-sevenkingdoms": "GOAD sevenkingdoms.local: nested groups and the documented ACL chain to the DC",
+        "hybrid-sevenkingdoms": "the GOAD lab plus an Entra tenant: synced users, a cloud role chain to Global Administrator, scoped roles, a function app"}
 
 _USERS = {   # name -> groups (membership as in the published lab definition)
     "tywin.lannister": ["Lannister"], "jaime.lannister": ["Lannister"],
@@ -124,6 +125,56 @@ def goad_sevenkingdoms() -> dict[str, dict]:
     }
 
 
+_TENANT = "7e5e0000-0000-4000-8000-000000000001"
+_HYBRID_GA = "62e90394-69f5-4237-9190-012177145e10"
+_HYBRID_APPADMIN = "9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3"
+_HYBRID_HELPDESK = "729827e3-9c14-49f7-bb1b-9608f156bbb8"
+_HYBRID_GRANT_PERM = "9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8"        # RoleManagement.ReadWrite.Directory
+
+
+def hybrid_sevenkingdoms() -> dict[str, dict]:
+    """The GOAD lab plus an Entra tenant, with the chains known in advance (see tests/test_labs.py):
+
+    * jaime.lannister (AD) is synced to a cloud account that is Application Administrator -> adds a secret to the Deploy app's
+      service principal -> that principal holds RoleManagement.ReadWrite.Directory -> Global Administrator.
+    * a Helpdesk Administrator scoped to the Sales administrative unit reaches only its members (sales.rep, who owns the Deploy
+      app), not other.rep, who owns it too: helpdesk.sales -> sales.rep -> Deploy app -> its service principal -> Global Administrator.
+    * a function app's managed identity is a service principal; whoever owns the resource group reaches it.
+    """
+    ids, files = _ids(), goad_sevenkingdoms()
+    u = lambda i, upn, **kw: {"kind": "AZUser", "data": {"id": i, "userPrincipalName": upn, "displayName": upn.split("@")[0],    # noqa: E731
+                                                       "tenantId": _TENANT, "accountEnabled": True, **kw}}
+    items = [
+        u("c0000001-0000-4000-8000-000000000001", "jaime.lannister@sevenkingdoms.cloud",
+          onPremisesSecurityIdentifier=ids["jaime.lannister"], onPremisesSyncEnabled=True),
+        u("c0000001-0000-4000-8000-000000000002", "tyron.lannister@sevenkingdoms.cloud",
+          onPremisesSecurityIdentifier=ids["tyron.lannister"], onPremisesSyncEnabled=True),
+        u("c0000001-0000-4000-8000-000000000003", "cloud.admin@sevenkingdoms.cloud"),
+        u("c0000001-0000-4000-8000-000000000004", "helpdesk.sales@sevenkingdoms.cloud"),
+        u("c0000001-0000-4000-8000-000000000005", "sales.rep@sevenkingdoms.cloud"),
+        u("c0000001-0000-4000-8000-000000000006", "other.rep@sevenkingdoms.cloud"),
+        {"kind": "AZAppOwner", "data": {"appId": "a0000001-0000-4000-8000-000000000001", "owners": [
+            {"owner": {"id": "c0000001-0000-4000-8000-000000000005"}}, {"owner": {"id": "c0000001-0000-4000-8000-000000000006"}}]}},
+        {"kind": "AZApp", "data": {"id": "a0000001-0000-4000-8000-000000000001", "appId": "d0000001-0000-4000-8000-00000000000a",
+                                   "displayName": "Deploy", "tenantId": _TENANT}},
+        {"kind": "AZServicePrincipal", "data": {"id": "5b000001-0000-4000-8000-000000000001", "appId": "d0000001-0000-4000-8000-00000000000a",
+                                                "displayName": "Deploy", "tenantId": _TENANT}},
+        {"kind": "AZAppRoleAssignment", "data": {"principalId": "5b000001-0000-4000-8000-000000000001", "appRoleId": _HYBRID_GRANT_PERM,
+                                                 "resourceDisplayName": "Microsoft Graph"}},
+        {"kind": "AZRoleAssignment", "data": {"roleDefinitionId": _HYBRID_GA, "roleAssignments": [
+            {"principalId": "c0000001-0000-4000-8000-000000000003", "roleDefinitionId": _HYBRID_GA, "directoryScopeId": "/"}]}},
+        {"kind": "AZRoleAssignment", "data": {"roleDefinitionId": _HYBRID_APPADMIN, "roleAssignments": [
+            {"principalId": "c0000001-0000-4000-8000-000000000001", "roleDefinitionId": _HYBRID_APPADMIN, "directoryScopeId": "/"}]}},
+        {"kind": "AZRoleAssignment", "data": {"roleDefinitionId": _HYBRID_HELPDESK, "roleAssignments": [
+            {"principalId": "c0000001-0000-4000-8000-000000000004", "roleDefinitionId": _HYBRID_HELPDESK,
+             "directoryScopeId": "/administrativeUnits/ad000001-0000-4000-8000-000000000001"}]}},
+        {"kind": "AZAdministrativeUnit", "data": {"id": "ad000001-0000-4000-8000-000000000001", "displayName": "Sales",
+                                                  "members": [{"id": "c0000001-0000-4000-8000-000000000005"}]}},
+    ]
+    files["20240601000000_azure.json"] = {"meta": {"type": "azure", "version": 5, "count": len(items)}, "data": items}
+    return files
+
+
 def lab_ids(name: str = "goad-sevenkingdoms") -> dict[str, str]:
     """Name -> object id for the lab (for tests and documentation)."""
     if name not in LABS:
@@ -132,10 +183,10 @@ def lab_ids(name: str = "goad-sevenkingdoms") -> dict[str, str]:
 
 
 def write_lab(name: str, out_dir: str | Path) -> Path:
-    if name != "goad-sevenkingdoms":
+    if name not in LABS:
         raise KeyError(f"unknown lab '{name}' (available: {', '.join(LABS)})")
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    for fname, doc in goad_sevenkingdoms().items():
+    for fname, doc in (hybrid_sevenkingdoms() if name == "hybrid-sevenkingdoms" else goad_sevenkingdoms()).items():
         (out / fname).write_text(json.dumps(doc, indent=1), encoding="utf-8")
     return out

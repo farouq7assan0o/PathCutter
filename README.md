@@ -21,6 +21,7 @@ Active Directory, AD CS, Microsoft Entra ID and Azure RBAC in one graph. Offline
 ```bash
 pip install -e .                                   # Python 3.10+, NetworkX; add [yaml] for Ansible input
 pathcutter demo --size medium -o demo --snapshot demo.pcsnap      # try everything with no real data
+pathcutter demo --lab hybrid-sevenkingdoms -o hybrid               # a known AD + Entra lab: synced users, a cloud chain to Global Administrator
 pathcutter -h                                      # every command, how to build it, examples
 ```
 

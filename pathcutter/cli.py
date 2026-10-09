@@ -119,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
                          help="Also save the demo environment as a baseline for `pathcutter check`")
     p_demo.add_argument("--size", choices=["small", "medium", "large", "huge"], default="medium",
                          help="Environment size: small (~50 nodes), medium (~200), large (~1000), huge (~12000)")
-    p_demo.add_argument("--lab", choices=["goad-sevenkingdoms"],
+    p_demo.add_argument("--lab", choices=["goad-sevenkingdoms", "hybrid-sevenkingdoms"],
                          help="Write a reference lab as SharpHound JSON instead (GOAD sevenkingdoms.local)")
 
     # reference + help

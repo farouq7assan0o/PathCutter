@@ -98,6 +98,7 @@ DEMO = """\
 Examples:
   pathcutter demo --size medium -o ./demo --snapshot demo.pcsnap     # synthetic MEGACORP environment
   pathcutter demo --lab goad-sevenkingdoms -o ./goad --snapshot goad.pcsnap
+  pathcutter demo --lab hybrid-sevenkingdoms -o ./hybrid     # the same lab plus an Entra tenant
       the GOAD sevenkingdoms.local lab rebuilt as SharpHound JSON, with its documented ACL attack chain
 """
 
