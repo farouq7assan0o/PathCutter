@@ -172,6 +172,9 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
             f.append(("WARN", f"local groups collected on only {c['localgroups']}/{c['total']} computers", "unreachable hosts hide their admins; exposure is a floor, not a ceiling"))
     if not r["files"].get("gpos"):
         f.append(("WARN", "no GPO file: policy-driven local admin and GPO control paths are not modeled", "collect with `-c GPOLocalGroup,Container`"))
+    if g["adcs"]:
+        f.append(("INFO", "AD CS ESC8 and ESC11 (NTLM relay to the CA's enrollment endpoints) cannot be assessed from this data",
+                  "check Web Enrollment / CES / RPC encryption on every CA by hand (certipy find, Certify)"))
     if not g["adcs"]:
         f.append(("WARN", "no AD CS objects: ESC1-ESC8 style certificate paths cannot be seen", "use a SharpHound/BloodHound CE collector that gathers certificate templates"))
     unfiltered = [t for t in r.get("trusts", []) if t["sid_filtering"] is False and t["type"] in ("External", "Forest")]

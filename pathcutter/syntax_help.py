@@ -167,7 +167,7 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
 NOT MODELED (stated so nobody assumes otherwise)
   AD CS ESC2 (feeds ESC3), ESC8 and ESC11 (relay to enrollment endpoints), ESC10/16, ESC13/14; AD CS paths are only as
   good as the template, CA and NTAuth data collected. Entra administrative units, application API permissions
-  (Graph app roles), custom Azure roles, deny assignments and key vault data-plane access policies.
+  (other than RoleManagement.ReadWrite.Directory, AppRoleAssignment.ReadWrite.All and Application.ReadWrite.All), custom Azure roles, deny assignments and key vault data-plane access policies.
   Whether MFA / PIM approval is really enforced at sign-in (Conditional Access is evaluated and reported, not turned
   into graph edges), Protected Users and authentication silos as graph restrictions (reported by `audit`), smart-card
   required flags, fine-grained password policy, network reachability and firewalls, SMB/LDAP signing and NTLM relay,

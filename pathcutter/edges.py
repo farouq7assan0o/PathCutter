@@ -675,6 +675,30 @@ AZManagedIdentity = EdgeType(
     description="Azure resource RBAC edge",
 )
 
+AZMGGrantRole = EdgeType(
+    name="AZMGGrantRole",
+    category=EdgeCategory.SPECIAL,
+    abuse="Holds a Microsoft Graph application permission (RoleManagement.ReadWrite.Directory or AppRoleAssignment.ReadWrite.All) that lets it assign itself any directory role, including Global Administrator",
+    mitre="T1098.003",
+    exploitability=10,
+    fix_template="# Remove the permission from the service principal; use a narrower Graph permission",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Graph application permission edge",
+)
+
+AZMGAddSecret = EdgeType(
+    name="AZMGAddSecret",
+    category=EdgeCategory.SPECIAL,
+    abuse="Holds Application.ReadWrite.All: add a secret to any application or service principal and act as it",
+    mitre="T1098.001",
+    exploitability=9,
+    fix_template="# Remove the permission; scope app management with application ownership instead",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Graph application permission edge",
+)
+
 # -------------------------------------------------------------------
 # Registry: name -> EdgeType lookup
 # -------------------------------------------------------------------

@@ -100,6 +100,7 @@ _ATTACK_EDGES = frozenset({
     "CanPSRemote", "ExecuteDCOM", "SQLAdmin", "DCSync", "GPOControlsObject",
     "ReadLAPSPassword", "ReadGMSAPassword", "TrustedBy", "HasSIDHistory", "WriteGPLink", "ADCSAbuse", "ADCSESC1", "ADCSESC4", "ADCSESC6", "ADCSESC7", "ADCSESC3", "ADCSESC5", "GoldenCert", "ADCSESC9", "ADCSESC15",
     "AZOwner", "AZContributor", "AZUserAccessAdmin", "AZVMAdminLogin", "AZManagedIdentity",
+    "AZMGGrantRole", "AZMGAddSecret",
     "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo",
 })
 

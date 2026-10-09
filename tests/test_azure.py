@@ -211,3 +211,35 @@ def test_subscriptions_become_targets_through_policy_extra_tier0(tmp_path):
     sub = next(n for n in g.nodes_by_type(NodeType.AZ_SUBSCRIPTION))
     g.retier({sub.object_id})
     assert "C3" in compute_exposure(g).exposed()
+
+
+# ---------------------------------------------------------------- Microsoft Graph application permissions
+
+def perm(principal, role_id, resource="Microsoft Graph"):
+    return {"kind": "AZAppRoleAssignment", "data": {"principalId": principal.lower(), "appRoleId": role_id.lower(), "resourceDisplayName": resource, "appId": "x"}}
+
+
+def test_service_principal_with_role_management_permission_is_one_step_from_global_admin(tmp_path):
+    g = build(tmp_path, [{"kind": "AZServicePrincipal", "data": {"id": "sp9", "appId": "9999", "displayName": "Automation"}},
+                         user("A1", "ada@x.com"), assignment(GA, "A1"),
+                         perm("SP9", "9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8")])
+    e = compute_exposure(g)
+    assert [s.edge_type for s in e.path("SP9")] == ["AZMGGrantRole", None]
+
+
+def test_application_readwrite_lets_a_service_principal_take_over_a_privileged_one(tmp_path):
+    g = build(tmp_path, [{"kind": "AZServicePrincipal", "data": {"id": "sp9", "appId": "9999", "displayName": "Automation"}},
+                         {"kind": "AZServicePrincipal", "data": {"id": "sp1", "appId": "1111", "displayName": "Privileged"}},
+                         {"kind": "AZServicePrincipal", "data": {"id": "sp2", "appId": "2222", "displayName": "Harmless"}},
+                         assignment(GA, "SP1"), perm("SP9", "1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9")])
+    e = compute_exposure(g)
+    assert [s.edge_type for s in e.path("SP9")] == ["AZMGAddSecret", None]
+    assert not g.has_edge_type("SP9", "SP2", "AZMGAddSecret"), "edges only to targets that lead somewhere"
+
+
+def test_harmless_and_non_graph_permissions_do_nothing(tmp_path):
+    g = build(tmp_path, [{"kind": "AZServicePrincipal", "data": {"id": "sp9", "appId": "9999", "displayName": "Automation"}},
+                         user("A1", "ada@x.com"), assignment(GA, "A1"),
+                         perm("SP9", "df021288-bdef-4463-88db-98f22de89214"),                       # User.Read.All
+                         perm("SP9", "9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8", resource="Contoso API")])   # same GUID on someone else's API
+    assert "SP9" not in compute_exposure(g).exposed()

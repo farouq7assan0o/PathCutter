@@ -18,8 +18,12 @@ Azure resource RBAC: subscriptions, resource groups, VMs and key vaults with Own
 Administrator / VM administrator login assignments, the scope hierarchy, and VM managed identities (a VM controller can
 act as the identity). Subscriptions are not Tier 0 by default; name them in the policy's `extra_tier0` to make them targets.
 
-Not modeled (said so by `pathcutter syntax model`): administrative units, app API permissions (Graph application roles),
-custom roles, deny assignments, key vault data-plane access policies.
+Dangerous Microsoft Graph application permissions held by service principals: RoleManagement.ReadWrite.Directory and
+AppRoleAssignment.ReadWrite.All (the holder can make itself Global Administrator) and Application.ReadWrite.All (the holder can
+add a secret to any application).
+
+Not modeled (said so by `pathcutter syntax model`): administrative units, other Graph application permissions, custom roles,
+deny assignments, key vault data-plane access policies.
 The schema is taken from the AzureHound source models; it has been exercised on synthetic data shaped from them, not on
 a real tenant export.
 """
@@ -51,7 +55,10 @@ _KIND_TYPE = {"AZSubscription": NodeType.AZ_SUBSCRIPTION, "AZResourceGroup": Nod
               "AZKeyVault": NodeType.AZ_KEYVAULT, "AZManagementGroup": NodeType.AZ_MGMTGROUP,
               "AZUser": NodeType.AZ_USER, "AZGroup": NodeType.AZ_GROUP, "AZApp": NodeType.AZ_APP,
               "AZServicePrincipal": NodeType.AZ_SP, "AZTenant": NodeType.AZ_TENANT, "AZRole": NodeType.AZ_ROLE}
-_ATTACK_KINDS = {"AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo"}
+GRANT_ROLE_PERMS = {"9E3F62CF-CA93-4989-B6CE-BF83C28F9FE8": "RoleManagement.ReadWrite.Directory",
+                    "06B708A9-E830-4DB3-A914-8E69DA51D44F": "AppRoleAssignment.ReadWrite.All"}
+ADD_SECRET_PERMS = {"1BFEFB4E-E0B5-418B-A88F-73C46D2CC8E9": "Application.ReadWrite.All"}
+_ATTACK_KINDS = {"AZMGGrantRole", "AZMGAddSecret", "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo"}
 
 
 def _id(x) -> str:
@@ -133,6 +140,16 @@ def _relationships(kind: str, d, graph: AttackGraph) -> None:
         _edge(graph, _id(d.get("principalId")), rid, "AZEligibleRole")
     elif kind == "AZApp" and isinstance(d, dict):
         pass    # the app -> service principal link comes from the service principal's appId (finalize)
+    elif kind == "AZAppRoleAssignment" and isinstance(d, dict):
+        who, role = _id(d.get("principalId")), _id(d.get("appRoleId"))
+        if who and "GRAPH" in str(d.get("resourceDisplayName", "")).upper() or who and not d.get("resourceDisplayName"):
+            node = graph.get_node(who)
+            if node is None:
+                _ensure(graph, who, NodeType.AZ_SP)
+                node = graph.get_node(who)
+            perms = node.properties.setdefault("_graph_perms", [])
+            if role in GRANT_ROLE_PERMS or role in ADD_SECRET_PERMS:
+                perms.append(role)
     elif kind in ("AZSubscription", "AZResourceGroup", "AZVM", "AZKeyVault") and isinstance(d, dict):
         _resource(kind, d, graph)
     else:
@@ -221,7 +238,22 @@ def finalize_azure(graph: AttackGraph) -> None:
         sid = u.properties.get("onPremisesSecurityIdentifier")
         if sid and graph.get_node(str(sid)) is not None and u.properties.get("onPremisesSyncEnabled") is not False:
             _edge(graph, str(sid), u.object_id, "SyncedTo")
+    _graph_permissions(graph)
     _fan_out(graph)
+
+
+def _graph_permissions(graph: AttackGraph) -> None:
+    ga = "62E90394-69F5-4237-9190-012177145E10"
+    for n in graph.nodes_by_type(NodeType.AZ_SP):
+        perms = set(n.properties.get("_graph_perms") or [])
+        if perms & set(GRANT_ROLE_PERMS):
+            _ensure(graph, ga, NodeType.AZ_ROLE, TIER0_ROLES[ga])
+            _edge(graph, n.object_id, ga, "AZMGGrantRole")
+    for n in graph.nodes_by_type(NodeType.AZ_SP):
+        if set(n.properties.get("_graph_perms") or []) & set(ADD_SECRET_PERMS):
+            for t in graph.nodes_by_type(NodeType.AZ_APP) + graph.nodes_by_type(NodeType.AZ_SP):
+                if t.object_id != n.object_id and _has_onward(graph, t.object_id):
+                    _edge(graph, n.object_id, t.object_id, "AZMGAddSecret")
 
 
 def _has_onward(graph: AttackGraph, node_id: str) -> bool:
