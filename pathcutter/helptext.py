@@ -150,6 +150,9 @@ Rules: Kerberoastable / AS-REP roastable accounts (privileged ones are critical)
 attributes, no-password accounts, stale privileged accounts, old krbtgt, unprotected Tier 0 accounts, SID history,
 orphaned adminCount, unconstrained delegation, protocol transition, unsupported OS, no LAPS, stale computers, old
 functional level, trusts without SID filtering, and Everyone-like groups holding dangerous rights (including AD CS).
+With Entra data and an exported Conditional Access policy list (Get-MgIdentityConditionalAccessPolicy -All | ConvertTo-Json
+-Depth 10, placed next to the AzureHound file): administrators not covered by an enforced MFA policy for all cloud apps,
+admins excluded from MFA, report-only policies, legacy authentication not blocked. `--also PATH` merges more collections.
 Time-based rules use the newest activity in the collection as "now", so an old export is judged as of its date.
 """
 

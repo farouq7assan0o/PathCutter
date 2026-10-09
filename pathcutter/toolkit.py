@@ -17,7 +17,11 @@ from .ingest import _ACE_MAP, _CE_EDGE_MAP, _TYPE_MAP, load_sharphound
 # ------------------------------------------------------------------------------------------------ raw access
 
 def iter_raw(path):
-    """Yield (entry_name, parsed_json) for every JSON file in a SharpHound zip or directory."""
+    """Yield (entry_name, parsed_json) for every JSON file in a SharpHound zip or directory (or a list of them)."""
+    if isinstance(path, (list, tuple)):
+        for p in path:
+            yield from iter_raw(p)
+        return
     path = Path(path)
     if path.is_file() and path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as zf:
@@ -111,6 +115,9 @@ def diagnose(path) -> dict:
               "computers": comp, "users": users, "latest_activity": latest, "trusts": trusts}
     graph = load_sharphound(path)
     t0 = graph.tier0_nodes
+    result["collections"] = graph.meta.get("collections", 1)
+    seen = [d.get("seen", 1) for _, _, d in graph.all_edges() if d.get("edge_type") == "HasSession"]
+    result["sessions"] = {"edges": len(seen), "seen_once": sum(1 for s in seen if s == 1)}
     edge_types = Counter(d.get("edge_type") for _, _, d in graph.all_edges())
     result["graph"] = {
         "nodes": graph.node_count, "edges": graph.edge_count, "edge_types": dict(edge_types.most_common()),
@@ -151,6 +158,9 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
         f.append(("ERROR", "no domain controller identified (IsDC / Domain Controllers membership)", "Tier 0 would be incomplete; collect computers with LDAP"))
     if not g["has_krbtgt"]:
         f.append(("WARN", "krbtgt account not present", "Tier 0 anchor missing; collect the Users container"))
+    if r.get("collections", 1) == 1 and r.get("sessions", {}).get("edges"):
+        f.append(("WARN", f"all {r['sessions']['edges']} session edges come from a single collection (a snapshot of one moment)",
+                  "collect sessions several times over days and pass each with --also; sessions seen in more than one collection are more likely to recur"))
     if c["total"]:
         if c["sessions"] == 0:
             f.append(("WARN", "no session data: HasSession paths (credential theft) are not modeled", "re-collect with `-c Session` (and run it more than once, sessions are transient)"))
@@ -177,6 +187,9 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
 def render_doctor(r: dict) -> str:
     g, c = r["graph"], r["computers"]
     out = ["", "  pathcutter doctor", "  " + "-" * 60]
+    if r.get("collections", 1) > 1:
+        s = r["sessions"]
+        out.append(f"  merged:   {r['collections']} collections; {s['edges']} session edges, {s['seen_once']} seen only once")
     out.append(f"  files:    " + ", ".join(f"{k} x{v}" for k, v in sorted(r["files"].items())) + f"   ({', '.join(r['formats'])})")
     out.append(f"  graph:    {g['nodes']} nodes, {g['edges']} edges, {g['tier0']} Tier 0, {g['dcs']} DC(s), domains: {', '.join(g['domains']) or '-'}")
     if c["total"]:
@@ -384,10 +397,12 @@ def anonymize(src, dst, salt: str | None = None):
 def add_parsers(sub) -> None:
     p = sub.add_parser("doctor", help="Check whether a SharpHound export is complete enough to trust")
     p.add_argument("input", help="SharpHound ZIP or directory")
+    p.add_argument("--also", action="append", default=[], metavar="PATH", help="Another collection of the same environment (repeatable)")
     p.add_argument("--json", action="store_true", help="Machine-readable output")
     p.add_argument("--strict", action="store_true", help="Exit 1 on warnings too (default: only on errors)")
     au = sub.add_parser("audit", help="AD hygiene findings from collected attributes (roastable accounts, passwords in attributes, LAPS, ...)")
     au.add_argument("input", help="SharpHound ZIP or directory")
+    au.add_argument("--also", action="append", default=[], metavar="PATH", help="Another collection of the same environment (repeatable)")
     au.add_argument("--min-severity", choices=["info", "low", "medium", "high", "critical"], default="low")
     au.add_argument("--json", action="store_true")
     au.add_argument("--fail-on", choices=["low", "medium", "high", "critical"], help="exit 2 if a finding at or above this severity exists")
@@ -400,7 +415,7 @@ def add_parsers(sub) -> None:
 
 def cmd_doctor(args) -> int:
     try:
-        r = diagnose(args.input)
+        r = diagnose([args.input, *args.also] if args.also else args.input)
     except (ValueError, OSError, zipfile.BadZipFile) as exc:
         print(f"[!] {exc}", file=__import__("sys").stderr)
         return 1
@@ -416,7 +431,7 @@ def cmd_audit(args) -> int:
     import sys
     from .hygiene import SEVERITIES, audit, render
     try:
-        graph = load_sharphound(args.input)
+        graph = load_sharphound([args.input, *args.also] if args.also else args.input)
     except (ValueError, OSError, zipfile.BadZipFile) as exc:
         print(f"[!] {exc}", file=sys.stderr)
         return 1

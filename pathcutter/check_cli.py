@@ -27,6 +27,8 @@ def add_parsers(sub) -> None:
     p.add_argument("input", help="SharpHound ZIP or directory")
     p.add_argument("-o", "--output", default="baseline.pcsnap", help="Snapshot file to write")
     p.add_argument("--collected", metavar="YYYY-MM-DD", help="Collection date, if different from the file dates")
+    p.add_argument("--also", action="append", default=[], metavar="PATH",
+                   help="Another collection of the same environment (repeatable): objects are unioned and sessions record how often they were seen")
 
     c = sub.add_parser(
         "check", help="Check proposed AD changes for new attack paths to Tier 0 BEFORE they are applied",
@@ -68,7 +70,7 @@ def cmd_snapshot(args) -> int:
     print(f"[*] Loading SharpHound data from {args.input}...", file=sys.stderr)
     try:
         from .ingest import load_sharphound
-        graph = load_sharphound(args.input)
+        graph = load_sharphound([args.input, *args.also] if args.also else args.input)
         collected = dt.date.fromisoformat(args.collected) if args.collected else None
         meta = save_snapshot(graph, args.output, source=args.input, collected=collected)
     except (ValueError, OSError) as exc:

@@ -312,6 +312,53 @@ def broad_principals_with_rights(ctx):
     return out
 
 
+# ---------------------------------------------------------------------------------------------- Entra conditional access
+
+@rule
+def conditional_access(ctx):
+    g = ctx.graph
+    from . import conditional_access as ca
+    entra = bool(g.nodes_by_type(NodeType.AZ_USER))
+    raw = g.meta.get("conditional_access")
+    if not entra:
+        return []
+    if not raw:
+        return [HygieneFinding("ca-not-collected", "Entra data was collected without Conditional Access policies", "info",
+                               "Whether administrators are forced to use MFA cannot be assessed.",
+                               "Export them: Get-MgIdentityConditionalAccessPolicy -All | ConvertTo-Json -Depth 10 > ca.json, and add the file to the collection.",
+                               "T1078.004", [], 0)]
+    pol = ca.load(raw)
+    res = ca.evaluate(g, pol)
+    name = lambda i: (g.get_node(i).display_name if g.get_node(i) else i)           # noqa: E731
+    out: list[HygieneFinding] = []
+    if res["privileged"] and len(res["uncovered"]) == len(res["privileged"]):
+        out.append(HygieneFinding("ca-no-admin-mfa", "No enforced Conditional Access policy requires MFA for Entra administrators", "critical",
+                                  "A phished or sprayed administrator password is enough to take the tenant.",
+                                  "Create a policy: users = directory roles (all privileged roles), apps = All, grant = require authentication strength / MFA.",
+                                  "T1078.004", sorted(name(u) for u in res["privileged"])[:25], len(res["privileged"])))
+    elif res["uncovered"]:
+        out.append(HygieneFinding("ca-admin-uncovered", "Entra administrators not covered by an enforced MFA policy for all cloud apps", "high",
+                                  "These administrators can sign in with a password alone (or the covering policy is report-only / narrowed by conditions).",
+                                  "Include their roles or groups in the MFA policy and remove them from its exclusions.",
+                                  "T1078.004", sorted(name(u) for u in res["uncovered"])[:25], len(res["uncovered"])))
+    for pname, users in sorted(res["excluded"].items()):
+        out.append(HygieneFinding("ca-admin-excluded", f"Administrators are excluded from the MFA policy '{pname}'", "high",
+                                  "Exclusions of privileged accounts (often break-glass accounts that became permanent) are the usual gap.",
+                                  "Keep exactly two monitored break-glass accounts excluded; cover every other administrator.",
+                                  "T1078.004", sorted(name(u) for u in users)[:25], len(users)))
+    if res["report_only_only"]:
+        out.append(HygieneFinding("ca-report-only", "MFA for administrators exists only in report-only mode", "medium",
+                                  "A report-only policy logs what would happen and enforces nothing.",
+                                  "Switch the policy to On after reviewing the sign-in impact.", "T1078.004",
+                                  sorted(name(u) for u in res["report_only_only"])[:25], len(res["report_only_only"])))
+    if not res["legacy_blocked"]:
+        out.append(HygieneFinding("ca-legacy-auth", "Legacy authentication is not blocked by Conditional Access", "high",
+                                  "Basic-auth protocols (IMAP, POP, SMTP, EWS) ignore MFA, so password spraying bypasses it.",
+                                  "Create a policy: all users, client apps = Exchange ActiveSync + other clients, grant = block.",
+                                  "T1110.003", [], 0))
+    return out
+
+
 # ---------------------------------------------------------------------------------------------- entry
 
 def audit(graph: AttackGraph) -> list[HygieneFinding]:

@@ -151,6 +151,10 @@ MODELED (exposure is computed exactly for these)
   not), or state them with `deny` / `undeny`, `dsacls /D` and Deny access rules in scripts.
 
 MODELED AS REPORTING, NOT AS A GRAPH CHANGE
+  Conditional Access: policies are evaluated against the collected Entra identities (users, groups, roles, nested; MFA,
+  authentication strength, block; enabled / report-only / disabled) and reported by `pathcutter audit`. Locations,
+  platforms, risk levels, device filters and session controls are not evaluated, so coverage is never over-stated.
+  Several collections: `--also` merges them; sessions record how many collections saw them.
   Time-bound grants (`ttl=`, -MemberTimeToLive): flagged "temporary"; the exposure window is still a finding.
   Declared compensating controls (Conditional Access, PIM approval, vaulting, tiering): lower severity only.
   SDProp: ACL edits on adminCount=1 objects are noted as likely to be reverted (or to return) within ~60 min.
@@ -159,13 +163,14 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
   but every trust is treated as traversable (conservative: it can over-report, not under-report).
 
 NOT MODELED (stated so nobody assumes otherwise)
-  AD CS ESC2 (feeds ESC3), ESC8 and ESC11 (relay to enrollment endpoints), ESC10/16, ESC13-15; AD CS paths are only
-  as good as the template, CA and NTAuth data collected. Azure resource RBAC (subscriptions, VMs, key vaults),
-  administrative units, application API permissions, and Entra Conditional Access evaluation.
-  Conditional Access / MFA / PIM actually being enforced, Protected Users and authentication silos, smart-card
-  required flags, fine-grained password policy, network reachability and firewalls, EDR, Entra ID / hybrid
-  paths, GPO content other than local-group membership, Kerberos ticket and token contents, the time dimension of
-  sessions (they are snapshots: collect them several times).
+  AD CS ESC2 (feeds ESC3), ESC8 and ESC11 (relay to enrollment endpoints), ESC10/16, ESC13/14; AD CS paths are only as
+  good as the template, CA and NTAuth data collected. Azure resource RBAC (subscriptions, VMs, key vaults),
+  administrative units, application API permissions.
+  Whether MFA / PIM approval is really enforced at sign-in (Conditional Access is evaluated and reported, not turned
+  into graph edges), Protected Users and authentication silos as graph restrictions (reported by `audit`), smart-card
+  required flags, fine-grained password policy, network reachability and firewalls, SMB/LDAP signing and NTLM relay,
+  EDR, GPO content other than local-group membership, Kerberos ticket and token contents.
+  Sessions are snapshots of one moment: merge several collections with --also.
   Exposure is a floor for anything the collection missed: run `pathcutter doctor` on the export first.
 """
 

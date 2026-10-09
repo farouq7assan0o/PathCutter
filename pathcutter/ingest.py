@@ -498,9 +498,62 @@ def _guess_file_type(filename: str) -> str:
     return "unknown"
 
 
-def load_sharphound(path: str | Path) -> AttackGraph:
-    """Load a SharpHound export (ZIP file or directory of JSON files) into an AttackGraph."""
-    path = Path(path)
+_TRANSIENT_EDGES = ("HasSession",)          # seen at one moment: how often they were seen is information
+
+
+def _merge_into(into: AttackGraph, other: AttackGraph) -> None:
+    """Union of two raw collections of the same environment. Sessions count how many collections saw them."""
+    for n in other.all_nodes():
+        cur = into.get_node(n.object_id)
+        if cur is None:
+            into.add_node(n)
+        else:
+            if cur.node_type == NodeType.UNKNOWN and n.node_type != NodeType.UNKNOWN:
+                cur.node_type, cur.name = n.node_type, n.name
+            for k, v in n.properties.items():
+                if v not in (None, "", [], {}):
+                    cur.properties[k] = v
+    for u, v, d in other.all_edges():
+        et = d.get("edge_type", "")
+        existing = into.graph.get_edge_data(u, v) or {}
+        key = next((k for k, dd in existing.items() if dd.get("edge_type") == et), None)
+        if key is None:
+            props = {k: val for k, val in d.items() if k not in ("edge_type", "inherited", "weight")}
+            if et in _TRANSIENT_EDGES:
+                props["seen"] = 1
+            into.add_edge(ADEdge(u, v, et, d.get("inherited", False), props))
+        elif et in _TRANSIENT_EDGES:
+            existing[key]["seen"] = existing[key].get("seen", 1) + 1
+    into.denies |= other.denies
+    for k, v in other.meta.items():
+        if isinstance(v, list):
+            into.meta.setdefault(k, [])
+            into.meta[k] += [x for x in v if x not in into.meta[k]]
+
+
+def load_sharphound(path) -> AttackGraph:
+    """Load a SharpHound export (ZIP file or directory of JSON files) into an AttackGraph.
+
+    Pass a list of paths to combine several collections of the same environment (for example sessions collected on
+    different days): objects and edges are unioned and every session edge records in how many collections it was seen.
+    """
+    if isinstance(path, (list, tuple)):
+        if not path:
+            raise ValueError("no input given")
+        if len(path) > 1:
+            merged = _load_raw(Path(path[0]))
+            merged.meta["collections"] = len(path)
+            for _, _, d in merged.all_edges():
+                if d.get("edge_type") in _TRANSIENT_EDGES:
+                    d["seen"] = 1
+            for p in path[1:]:
+                _merge_into(merged, _load_raw(Path(p)))
+            return _finish(merged)
+        path = path[0]
+    return _finish(_load_raw(Path(path)))
+
+
+def _load_raw(path: Path) -> AttackGraph:
     graph = AttackGraph()
     total_nodes = 0
 
@@ -510,7 +563,10 @@ def load_sharphound(path: str | Path) -> AttackGraph:
         total_nodes = _load_from_directory(path, graph)
     else:
         raise ValueError(f"Expected a .zip file or directory, got: {path}")
+    return graph
 
+
+def _finish(graph: AttackGraph) -> AttackGraph:
     # Ensure well-known SIDs have nodes
     for sid, name in _WELL_KNOWN_SIDS.items():
         if sid not in {n.object_id for n in graph.all_nodes()} and graph.graph.has_node(sid):
@@ -543,7 +599,7 @@ def _load_from_zip(zip_path: Path, graph: AttackGraph) -> int:
                     data = json.load(f)
                 except (json.JSONDecodeError, UnicodeDecodeError):
                     continue
-                if isinstance(data, dict) and "data" in data:
+                if isinstance(data, dict) and ("data" in data or "value" in data):
                     total += _parse_one_file(data, graph, file_type)
     return total
 
@@ -556,7 +612,7 @@ def _load_from_directory(dir_path: Path, graph: AttackGraph) -> int:
             data = json.loads(json_file.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             continue
-        if isinstance(data, dict) and "data" in data:
+        if isinstance(data, dict) and ("data" in data or "value" in data):
             total += _parse_one_file(data, graph, file_type)
     return total
 
@@ -620,7 +676,10 @@ def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
     if str((data.get("meta") or {}).get("type", "")).lower() == "denies" or file_type == "denies":
         _parse_denies(data, graph)
         return 0
-    from . import azure
+    from . import azure, conditional_access
+    if conditional_access.is_ca_file(data):
+        graph.meta.setdefault("conditional_access", []).extend(conditional_access.policies_of(data))
+        return 0
     if azure.is_azure_file(data):
         return azure.parse_azure_file(data, graph)
     n = _parse_known_file(data, graph, file_type)

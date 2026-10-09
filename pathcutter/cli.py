@@ -32,6 +32,8 @@ def main(argv: list[str] | None = None) -> int:
     # analyze
     p_analyze = sub.add_parser("analyze", help="Full analysis of a SharpHound export")
     p_analyze.add_argument("input", help="SharpHound ZIP or directory")
+    p_analyze.add_argument("--also", action="append", default=[], metavar="PATH",
+                     help="Another collection of the same environment (repeatable): objects are unioned and sessions record how often they were seen")
     p_analyze.add_argument("--top", type=int, default=10, help="Top N fixes to show")
     p_analyze.add_argument("--max-depth", type=int, default=20, help="Max path depth")
     p_analyze.add_argument("--max-paths", type=int, default=10000, help="Max paths to enumerate")
@@ -45,6 +47,8 @@ def main(argv: list[str] | None = None) -> int:
     # score
     p_score = sub.add_parser("score", help="Quick risk score")
     p_score.add_argument("input", help="SharpHound ZIP or directory")
+    p_score.add_argument("--also", action="append", default=[], metavar="PATH",
+                     help="Another collection of the same environment (repeatable): objects are unioned and sessions record how often they were seen")
     p_score.add_argument("--max-depth", type=int, default=20)
     p_score.add_argument("--max-paths", type=int, default=10000)
 
@@ -183,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
 def _load_and_analyze(args):
     t0 = time.time()
     print(f"[*] Loading SharpHound data from {args.input}...")
-    graph = load_sharphound(args.input)
+    graph = load_sharphound([args.input, *args.also] if getattr(args, "also", None) else args.input)
     print(f"    {graph.node_count} nodes, {graph.edge_count} edges")
 
     summary = graph.summary()
@@ -324,7 +328,7 @@ def _cmd_graph(args) -> int:
 
     t0 = time.time()
     print(f"[*] Loading SharpHound data from {args.input}...")
-    graph = load_sharphound(args.input)
+    graph = load_sharphound([args.input, *args.also] if getattr(args, "also", None) else args.input)
     print(f"    {graph.node_count} nodes, {graph.edge_count} edges")
 
     # Find the target node by name (case-insensitive partial match)

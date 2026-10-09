@@ -109,6 +109,7 @@ class AttackGraph:
         self._fx = None                                   # FastIndex cache, see fastindex.py
         self._shared = False                              # self.graph is shared with a clone: copy before writing
         self._journal: list | None = None                 # set inside probe(): every write is undoable
+        self.meta: dict = {}                              # provenance, e.g. {"collections": 3}
         self._seed_t0: set[str] = set()                   # Tier 0 by name/SID alone (what retier starts from)
         self._tiered: set[str] = set()                    # ids whose tier is below 2 (what retier must reset)
 
@@ -298,6 +299,7 @@ class AttackGraph:
         new._tiered = set(self._tiered)
         new._group_members = {k: set(v) for k, v in self._group_members.items()}
         new.denies = set(self.denies)
+        new.meta = dict(self.meta)
         if self._fx is not None:
             new._fx = self._fx.copy()
         return new
