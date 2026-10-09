@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from .changes import ResolvedChange, apply_change, undo_change, replace_node
 from .choke import find_chokepoints
 from .edges import get_edge_type
-from .exposure import Exposure, compute_exposure
+from .exposure import Exposure, compute_exposure, fork_with_added_edges, shortened_nodes
 from .graph import AttackGraph, NodeType
 from .pathfinder import AttackPath, PathReport, find_all_paths
 from .safety import assess_fixes
@@ -404,15 +404,19 @@ def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
             if not apply_change(scratch, probe):
                 continue
             scratch.retier(extra_tier0)
-            exp_i = compute_exposure(scratch)
             t0_i = frozenset(scratch.tier0_nodes)
+            if (probe.spec.op == "add" and not probe.spec.deny and t0_i == t0_b and not scratch.denies
+                    and getattr(exp_b, "fx", None) is not None):
+                # adding edges only shortens or creates routes: derive the result from the baseline instead of recomputing
+                exp_i = fork_with_added_edges(exp_b, scratch, [(s, t, probe.spec.edge_type) for s, t in probe.added_pairs])
+            else:
+                exp_i = compute_exposure(scratch)
             prom_i = t0_i - t0_b
             dem_i = {n for n in (t0_b - t0_i) if scratch.get_node(n)}
             exposed_i = exp_i.exposed()
             new_i = exposed_i - exposed_b - prom_i - dem_i
             sec_i = exposed_b - exposed_i - prom_i
-            short_i = {n for n in exposed_i & exposed_b
-                       if exp_i.hops(n) is not None and exp_b.hops(n) is not None and exp_i.hops(n) < exp_b.hops(n)}
+            short_i = shortened_nodes(exp_b, exp_i, exposed_b, exposed_i)
             marginal_exposed |= new_i
             edge = probe.edge_keys()
             cr = by_index[rc.spec.index]

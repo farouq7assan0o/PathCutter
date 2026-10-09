@@ -80,6 +80,23 @@ class AttackGraph:
         self._group_members: dict[str, set[str]] = {}  # group_id -> direct member IDs
         self._transitive_cache: dict[str, set[str]] = {}  # node_id -> all groups (transitive)
         self.denies: set[Deny] = set()                    # Deny ACEs (identity-sensitive, see Deny)
+        self._fx = None                                   # FastIndex cache, see fastindex.py
+        self._shared = False                              # self.graph is shared with a clone: copy before writing
+        self._seed_t0: set[str] = set()                   # Tier 0 by name/SID alone (what retier starts from)
+        self._tiered: set[str] = set()                    # ids whose tier is below 2 (what retier must reset)
+
+    def _own(self) -> None:
+        """Copy-on-write: clone() shares the networkx graph; the first writer on either side takes its own copy."""
+        if self._shared:
+            self.graph = self.graph.copy()
+            self._shared = False
+
+    def fast(self):
+        """Integer-indexed reverse adjacency (built on first use, kept in sync by add_edge/remove_edge)."""
+        if self._fx is None:
+            from .fastindex import FastIndex
+            self._fx = FastIndex.build(self.graph)
+        return self._fx
 
     @property
     def node_count(self) -> int:
@@ -95,6 +112,7 @@ class AttackGraph:
 
     def add_node(self, node: ADNode) -> None:
         """Add an AD node to the graph."""
+        self._own()
         self._nodes[node.object_id] = node
         self.graph.add_node(
             node.object_id,
@@ -104,12 +122,22 @@ class AttackGraph:
             enabled=node.enabled,
             tier=node.tier,
         )
+        if self._fx is not None:
+            self._fx.node(node.object_id)
         if is_tier0(node.name, node.object_id, node.node_type.value):
             node.tier = 0
             self._tier0.add(node.object_id)
+            self._seed_t0.add(node.object_id)
+        else:
+            self._seed_t0.discard(node.object_id)      # the node was replaced by one that is no longer Tier 0 by name
+        if node.tier < 2:
+            self._tiered.add(node.object_id)
 
     def add_edge(self, edge: ADEdge) -> None:
         """Add an attack relationship to the graph."""
+        self._own()
+        if self._fx is not None:
+            self._fx.add_edge(edge.source_id, edge.target_id, edge.edge_type)
         weight = exploitability_weight(edge.edge_type)
         self.graph.add_edge(
             edge.source_id,
@@ -126,6 +154,8 @@ class AttackGraph:
 
     def add_edges_bulk(self, edges: list[ADEdge]) -> None:
         """Add multiple edges efficiently (defers cache invalidation)."""
+        self._own()
+        self._fx = None
         for edge in edges:
             weight = exploitability_weight(edge.edge_type)
             self.graph.add_edge(
@@ -141,6 +171,8 @@ class AttackGraph:
         self._transitive_cache.clear()
 
     def add_nodes_bulk(self, nodes: list[ADNode]) -> None:
+        self._own()
+        self._fx = None
         """Add multiple nodes efficiently."""
         for node in nodes:
             self._nodes[node.object_id] = node
@@ -155,18 +187,24 @@ class AttackGraph:
             if is_tier0(node.name, node.object_id, node.node_type.value):
                 node.tier = 0
                 self._tier0.add(node.object_id)
+                self._seed_t0.add(node.object_id)
+            if node.tier < 2:
+                self._tiered.add(node.object_id)
 
     def clone(self) -> "AttackGraph":
-        """Independent deep copy (own nodes, edges, tier state)."""
+        """Independent deep copy (own nodes, edges, tier state), built by copying structures rather than re-adding."""
         new = AttackGraph()
-        new.add_nodes_bulk([replace(n, properties=dict(n.properties)) for n in self._nodes.values()])
-        edges = []
-        for u, v, d in self.all_edges():
-            props = {k: val for k, val in d.items() if k not in ("edge_type", "inherited", "weight")}
-            edges.append(ADEdge(u, v, d.get("edge_type", ""), d.get("inherited", False), props))
-        new.add_edges_bulk(edges)
+        new.graph = self.graph                           # shared until either side writes (see _own)
+        new._shared = self._shared = True
+        new._nodes = {k: ADNode(n.object_id, n.name, n.node_type, n.domain, n.enabled, n.admin_count, n.tier,
+                                dict(n.properties)) for k, n in self._nodes.items()}
         new._tier0 = set(self._tier0)
+        new._seed_t0 = set(self._seed_t0)
+        new._tiered = set(self._tiered)
+        new._group_members = {k: set(v) for k, v in self._group_members.items()}
         new.denies = set(self.denies)
+        if self._fx is not None:
+            new._fx = self._fx.copy()
         return new
 
     def deny_actor_sets(self) -> list[tuple[Deny, frozenset[str]]]:
@@ -196,8 +234,12 @@ class AttackGraph:
         if not data:
             return 0
         keys = [k for k, d in data.items() if d.get("edge_type") == edge_type]
+        if keys:
+            self._own()
         for k in keys:
             self.graph.remove_edge(source_id, target_id, k)
+        if keys and self._fx is not None:
+            self._fx.remove_edge(source_id, target_id, edge_type)
         if keys and edge_type == "MemberOf":
             if not self.has_edge_type(source_id, target_id, "MemberOf"):
                 self._group_members.get(target_id, set()).discard(source_id)
@@ -211,18 +253,23 @@ class AttackGraph:
         so a removed membership would otherwise leave a stale Tier 0 behind.
         extra_tier0 lets a caller declare additional crown-jewel object ids.
         """
+        nodes, gn = self._nodes, self.graph.nodes
+        for nid in self._tiered:                       # only what was raised above Tier 2 needs resetting
+            node = nodes.get(nid)
+            if node is not None:
+                node.tier = 2
+        self._tiered = set()
         self._tier0 = set()
-        for node in self._nodes.values():
-            node.tier = 2
-            if is_tier0(node.name, node.object_id, node.node_type.value) or (
-                    extra_tier0 and node.object_id in extra_tier0):
-                node.tier = 0
-                self._tier0.add(node.object_id)
+        seeds = set(self._seed_t0)
+        if extra_tier0:
+            seeds |= {i for i in extra_tier0 if i in nodes}
+        for nid in seeds:
+            nodes[nid].tier = 0
+            self._tier0.add(nid)
+        self._tiered |= seeds
         self._transitive_cache.clear()
         self.classify_tiers()
-        for node in self._nodes.values():
-            if node.object_id in self.graph:
-                self.graph.nodes[node.object_id]["tier"] = node.tier
+        # (the networkx node attribute "tier" is never read; ADNode.tier is the source of truth)
 
     def get_node(self, node_id: str) -> ADNode | None:
         return self._nodes.get(node_id)
@@ -315,6 +362,7 @@ class AttackGraph:
                     if member:
                         member.tier = 0
                         self._tier0.add(member_id)
+                        self._tiered.add(member_id)
 
         # Phase 2: Mark nodes with direct admin access to Tier 0 as Tier 1
         for t0_id in self._tier0:
@@ -325,6 +373,7 @@ class AttackGraph:
                         node = self._nodes.get(source_id)
                         if node and node.tier > 1:
                             node.tier = 1
+                            self._tiered.add(source_id)
 
     def _recursive_members(self, group_id: str) -> set[str]:
         """All members of a group, recursively."""

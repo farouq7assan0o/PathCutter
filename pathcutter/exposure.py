@@ -1,70 +1,77 @@
-"""Exact attack-path reachability to Tier 0.
+"""Exact attack-path reachability to Tier 0, on an integer-indexed graph.
 
-Path *enumeration* (pathfinder.py) is capped for speed, so its path counts are
-estimates on big graphs. A change gate cannot afford estimates for the question
-"can this principal now reach Tier 0?", so this module answers that exactly with a
-reverse breadth-first search that never enumerates paths.
+This is the production engine. `exposure_ref.py` keeps the original dictionary-based implementation as an executable
+specification: the two are fuzzed against each other (tests/test_engine_equivalence.py), so the fast version can keep
+changing without anyone having to re-derive what "correct" means.
 
-State is (node, has_attack_edge). A principal is *exposed* when the state
-(node, True) is reachable: some route to Tier 0 contains at least one genuine
-attack edge (not just MemberOf/Contains plumbing), which matches how
-pathfinder.find_all_paths defines an attack path. BFS order also gives the
-minimum hop count for free, and the parent pointers rebuild a concrete shortest
-attack path for any exposed principal.
+Semantics (unchanged): a principal is *exposed* when some route to Tier 0 contains at least one genuine attack edge.
+The search is a reverse breadth-first search over (node, has_attack_edge) states, so hop counts are minimal and no
+paths are enumerated. It runs over walks, which is exact whenever the shortest route is a simple path; a node whose
+shortest route revisits a node is re-checked with an exact bounded search (a gate prefers a flagged maybe to a silent
+miss). Only nodes whose route touches a node that is reachable in BOTH states can possibly repeat, so only those are
+re-checked: that keeps the exact check off the hot path.
 
-The search runs over walks, which is exact whenever the shortest route is a simple
-path (always true on acyclic graphs). When the shortest route revisits a node
-(a cycle that only "helps" by looping back on itself) the node is re-checked with
-an exact bounded search for a real simple path: if none exists the node is dropped,
-if the search budget runs out it is kept and listed in `unverified` (a gate should
-prefer a flagged maybe over a silent miss).
-
-Deny ACEs are identity-sensitive: a deny on (principal P, right R, object O) stops every identity in P's token from
-using R on O, whichever allow would have granted it, while everyone else keeps the right. When the graph carries
-effective denies the search runs over (node, has_attack_edge, deny-signature) where the signature is the set of
-denies binding the identity that most recently *landed* (the start, or the target of any non-MemberOf hop).
-Group membership keeps the identity; every other hop re-computes it. Without denies nothing changes.
+Deny ACEs are identity-sensitive and use the product search in exposure_ref.py.
 """
 from __future__ import annotations
 
-from collections import deque
+import heapq
 from dataclasses import dataclass, field
 
+from .exposure_ref import PathStep, VERIFY_BUDGET, VERIFY_MAX_DEPTH, _simple_attack_path  # noqa: F401
 from .graph import AttackGraph
 from .pathfinder import _ATTACK_EDGES
 
-State = tuple[str, bool]
-VERIFY_MAX_DEPTH = 14
-VERIFY_BUDGET = 60000          # node expansions per suspicious node
-
-
-@dataclass
-class PathStep:
-    node_id: str
-    edge_type: str | None = None   # edge from this node to the next; None on the last node
+__all__ = ["Exposure", "PathStep", "compute_exposure"]
 
 
 @dataclass
 class Exposure:
     """Result of one reverse search over a graph."""
-    dist: dict[State, int] = field(default_factory=dict)
-    nxt: dict[State, tuple[State, str]] = field(default_factory=dict)
-    tier0: frozenset[str] = frozenset()
-    removed: set[str] = field(default_factory=set)             # walk-only: no real simple path exists
-    override: dict[str, list[PathStep]] = field(default_factory=dict)   # verified simple paths
-    unverified: set[str] = field(default_factory=set)          # kept, but the exact check hit its budget
-    denial: "DenyContext | None" = None                        # set when Deny ACEs shaped this result
-    pnxt: dict = field(default_factory=dict)                   # product-search parent pointers (with denies)
+    fx: object = None                                   # FastIndex the arrays refer to
+    dist: list = field(default_factory=list)            # state (2*node + flag) -> hops, -1 = unreachable
+    nxt: list = field(default_factory=list)             # state -> successor state toward Tier 0
+    nxt_et: list = field(default_factory=list)          # state -> edge type of that hop
+    tier0: frozenset = frozenset()
+    removed: set = field(default_factory=set)           # walk-only: no real simple path exists
+    override: dict = field(default_factory=dict)        # verified simple paths (node id -> steps)
+    unverified: set = field(default_factory=set)        # kept, but the exact check hit its budget
+    _exposed: set | None = None
+    # --- a fork is a base result plus a sparse overlay of the states that an added edge improved
+    base: "Exposure | None" = None
+    over: dict = field(default_factory=dict)            # state -> (dist, successor state, edge type)
+
+    def _d(self, s: int) -> int:
+        o = self.over.get(s)
+        if o is not None:
+            return o[0]
+        b = self.base if self.base is not None else self
+        return b.dist[s] if s < len(b.dist) else -1
 
     def exposed(self) -> set[str]:
-        return {n for (n, flag) in self.dist if flag and n not in self.tier0 and n not in self.removed}
+        if self.base is not None:
+            ids, t0, removed = self.fx.ids, self.tier0, self.removed
+            out = self.base.exposed() - removed
+            for s, (d, _, _) in self.over.items():
+                if s & 1 and ids[s >> 1] not in t0 and ids[s >> 1] not in removed:
+                    out.add(ids[s >> 1])
+            return out
+        if self._exposed is None:
+            ids, dist, t0, removed = self.fx.ids, self.dist, self.tier0, self.removed
+            self._exposed = {ids[i] for i in range(len(dist) // 2)
+                             if dist[2 * i + 1] >= 0 and ids[i] not in t0 and ids[i] not in removed}
+        return set(self._exposed)
 
     def hops(self, node_id: str) -> int | None:
         if node_id in self.removed:
             return None
         if node_id in self.override:
             return len(self.override[node_id]) - 1
-        return self.dist.get((node_id, True))
+        i = self.fx.pos.get(node_id)
+        if i is None:
+            return None
+        d = self._d(2 * i + 1)
+        return d if d >= 0 else None
 
     def path(self, node_id: str) -> list[PathStep]:
         """Shortest attack path from node_id to Tier 0 (empty if not exposed)."""
@@ -75,205 +82,184 @@ class Exposure:
         return self._walk_path(node_id)
 
     def _walk_path(self, node_id: str) -> list[PathStep]:
-        if self.denial is not None:
-            pstate = (node_id, True, self.denial.sig(node_id))
-            if pstate not in self.pnxt:
-                return []
-            steps_p: list[PathStep] = []
-            guard = 0
-            while pstate in self.pnxt and guard < 400:
-                nxt_p, edge_type = self.pnxt[pstate]
-                steps_p.append(PathStep(pstate[0], edge_type))
-                pstate = nxt_p
-                guard += 1
-            steps_p.append(PathStep(pstate[0], None))
-            return steps_p
-        state: State = (node_id, True)
-        if state not in self.dist:
+        i = self.fx.pos.get(node_id)
+        if i is None or self._d(2 * i + 1) < 0:
             return []
+        ids = self.fx.ids
+        b = self.base if self.base is not None else self
+        s = 2 * i + 1
         steps: list[PathStep] = []
         guard = 0
-        while state in self.nxt and guard < 400:
-            nxt_state, edge_type = self.nxt[state]
-            steps.append(PathStep(state[0], edge_type))
-            state = nxt_state
+        while guard < 400:
+            o = self.over.get(s)
+            if o is not None:
+                nx_s, et = o[1], o[2]
+            elif s < len(b.nxt):
+                nx_s, et = b.nxt[s], b.nxt_et[s]
+            else:
+                break
+            if nx_s < 0:
+                break
+            steps.append(PathStep(ids[s >> 1], et))
+            s = nx_s
             guard += 1
-        steps.append(PathStep(state[0], None))
+        steps.append(PathStep(ids[s >> 1], None))
         return steps
 
 
-class DenyContext:
-    """Per-graph lookup tables for identity-sensitive denies."""
-
-    def __init__(self, graph: AttackGraph):
-        entries = graph.deny_actor_sets()
-        self.entries = entries
-        self.guard: dict[tuple[str, str], frozenset[int]] = {}      # (target, edge type) -> deny indices guarding it
-        sig: dict[str, set[int]] = {}
-        for i, (d, actors) in enumerate(entries):
-            self.guard[(d.target_id, d.edge_type)] = self.guard.get((d.target_id, d.edge_type), frozenset()) | {i}
-            for a in actors:
-                sig.setdefault(a, set()).add(i)
-        self.sig_of: dict[str, frozenset[int]] = {n: frozenset(s) for n, s in sig.items()}
-        self.universe: set[frozenset[int]] = {frozenset()} | set(self.sig_of.values())
-
-    def blocked(self, sig: frozenset, target: str, edge_type: str) -> bool:
-        g = self.guard.get((target, edge_type))
-        return bool(g and (sig & g))
-
-    def sig(self, node: str) -> frozenset:
-        return self.sig_of.get(node, frozenset())
-
-
-def compute_exposure(graph: AttackGraph, verify: bool = True) -> Exposure:
-    tier0 = frozenset(graph.tier0_nodes)
-    result = Exposure(tier0=tier0)
+def compute_exposure(graph: AttackGraph, verify: bool = True):
     if graph.denies:
-        ctx = DenyContext(graph)
-        if ctx.entries:
-            return _compute_with_denies(graph, result, ctx, verify)
-    dist, nxt = result.dist, result.nxt
-    queue: deque[State] = deque()
+        from . import exposure_ref
+        return exposure_ref.compute_exposure(graph, verify)
+    fx = graph.fast()
+    n = len(fx.ids)
+    tier0 = frozenset(graph.tier0_nodes)
+    result = Exposure(fx=fx, tier0=tier0)
+    pos, rev = fx.pos, fx.rev
+    dist = [-1] * (2 * n)
+    nxt = [-1] * (2 * n)
+    nxt_et: list = [None] * (2 * n)
+    is_t0 = bytearray(n)
+    queue: list[int] = []
     for t in tier0:
-        if t in graph.graph:
-            dist[(t, False)] = 0
-            queue.append((t, False))
-
-    g = graph.graph
-    while queue:
-        state = queue.popleft()
-        v, flag = state
-        d = dist[state]
-        for u, _, data in g.in_edges(v, data=True):
-            if u in tier0:
-                continue          # already Tier 0; no need to route through it
-            et = data.get("edge_type", "")
-            nflag = flag or et in _ATTACK_EDGES
-            ns = (u, nflag)
-            if ns in dist:
+        i = pos.get(t)
+        if i is not None:
+            is_t0[i] = 1
+            dist[2 * i] = 0
+            queue.append(2 * i)
+    attack = _ATTACK_EDGES
+    head = 0
+    while head < len(queue):
+        s = queue[head]
+        head += 1
+        d = dist[s] + 1
+        flag = s & 1
+        for u, et in rev[s >> 1]:
+            if is_t0[u]:
                 continue
-            dist[ns] = d + 1
-            nxt[ns] = (state, et)
-            queue.append(ns)
-    if verify:
-        _verify_cyclic(graph, result)
-    return result
-
-
-def _compute_with_denies(graph: AttackGraph, result: Exposure, ctx: DenyContext, verify: bool) -> Exposure:
-    result.denial = ctx
-    g = graph.graph
-    tier0 = result.tier0
-    pdist: dict[tuple, int] = {}
-    queue: deque = deque()
-    for t in tier0:
-        if t in g:
-            for s in ctx.universe:
-                pdist[(t, False, s)] = 0
-                queue.append((t, False, s))
-    pnxt = result.pnxt
-    while queue:
-        state = queue.popleft()
-        v, flag, s_v = state
-        d = pdist[state]
-        for u, _, data in g.in_edges(v, data=True):
-            if u in tier0:
-                continue
-            et = data.get("edge_type", "")
-            if et == "MemberOf":                       # same identity, one group up
-                cands = [((u, flag, s_v), et)]
-            else:                                      # a landing: the identity becomes v, so s_v must be v's own signature
-                if s_v != ctx.sig(v):
-                    continue
-                nflag = flag or et in _ATTACK_EDGES
-                cands = [((u, nflag, s), et) for s in ctx.universe if not ctx.blocked(s, v, et)]
-            for ns, e in cands:
-                if ns in pdist:
-                    continue
-                pdist[ns] = d + 1
-                pnxt[ns] = (state, e)
+            ns = 2 * u + (1 if (flag or et in attack) else 0)
+            if dist[ns] < 0:
+                dist[ns] = d
+                nxt[ns] = s
+                nxt_et[ns] = et
                 queue.append(ns)
-    for (n, flag, s), dist_v in pdist.items():
-        if s == ctx.sig(n) and n not in tier0:
-            result.dist[(n, flag)] = dist_v
-    for t in tier0:
-        if t in g:
-            result.dist[(t, False)] = 0
+    result.dist, result.nxt, result.nxt_et = dist, nxt, nxt_et
     if verify:
-        _verify_cyclic(graph, result)
+        _verify_cyclic(graph, result, queue)
     return result
 
 
-def _verify_cyclic(graph: AttackGraph, result: Exposure) -> None:
-    for n in sorted(result.exposed()):
-        steps = result._walk_path(n)
-        if len({s.node_id for s in steps}) == len(steps):
-            continue                                   # the shortest route is already a simple path
-        found, exhausted = _simple_attack_path(graph, n, result.tier0, len(steps) - 1, result.denial)
-        if found:
-            result.override[n] = found
-        elif exhausted:
-            result.unverified.add(n)
-        else:
-            result.removed.add(n)
+def fork_with_added_edges(base: Exposure, graph: AttackGraph, edges: list[tuple[str, str, str]]) -> Exposure:
+    """Exposure after ADDING edges, derived from `base` without recomputing it.
 
-
-def _simple_attack_path(graph: AttackGraph, start: str, tier0: frozenset[str], min_len: int,
-                        denial: DenyContext | None = None) -> tuple[list[PathStep] | None, bool]:
-    """Shortest SIMPLE path from start to Tier 0 containing an attack edge, by iterative deepening.
-
-    Returns (steps | None, budget_exhausted).
+    `graph` must already contain the edges (and have the same Tier 0 set as `base`). Adding an edge can only shorten
+    or create routes, so a decrease-only relaxation seeded at the new edges finds every changed state; the result is
+    a sparse overlay on `base`. Equivalent to compute_exposure(graph) (fuzzed in tests/test_engine_equivalence.py).
     """
-    g = graph.graph
-    budget = [VERIFY_BUDGET]
-    out_cache: dict[str, list[tuple[str, str]]] = {}
+    fx = graph.fast()
+    pos, rev = fx.pos, fx.rev
+    fork = Exposure(fx=fx, tier0=base.tier0, base=base.base or base)
+    is_t0 = lambda i: fx.ids[i] in base.tier0           # noqa: E731
+    attack = _ATTACK_EDGES
+    over = fork.over
+    heap: list[tuple[int, int]] = []
 
-    def out(node: str) -> list[tuple[str, str]]:
-        if node not in out_cache:
-            seen, lst = set(), []
-            for _, v, data in g.out_edges(node, data=True):
-                et = data.get("edge_type", "")
-                if (v, et) not in seen:
-                    seen.add((v, et))
-                    lst.append((v, et))
-            out_cache[node] = lst
-        return out_cache[node]
+    def improve(s: int, d: int, succ: int, et: str) -> None:
+        cur = fork._d(s)
+        if cur < 0 or d < cur:
+            over[s] = (d, succ, et)
+            heapq.heappush(heap, (d, s))
 
-    def dfs(node: str, limit: int, trail: list[PathStep], seen: set[str], attack: bool,
-            sig: frozenset = frozenset()) -> list[PathStep] | None:
-        if budget[0] <= 0:
-            return None
-        for v, et in out(node):
-            if v in seen:
+    for u, v, et in edges:
+        iu, iv = pos.get(u), pos.get(v)
+        if iu is None or iv is None or fx.ids[iu] in base.tier0:
+            continue
+        for f in (0, 1):
+            sv = 2 * iv + f
+            dv = fork._d(sv)
+            if dv >= 0:
+                improve(2 * iu + (1 if (f or et in attack) else 0), dv + 1, sv, et)
+    while heap:
+        d, s = heapq.heappop(heap)
+        if fork._d(s) != d:
+            continue
+        flag = s & 1
+        for u, et in rev[s >> 1]:
+            if fx.ids[u] in base.tier0:
                 continue
-            if denial is not None:
-                if et != "MemberOf" and denial.blocked(sig, v, et):
-                    continue
-                nsig = sig if et == "MemberOf" else denial.sig(v)
-            else:
-                nsig = sig
-            budget[0] -= 1
-            is_attack = attack or et in _ATTACK_EDGES
-            step = PathStep(node, et)
-            if v in tier0:
-                if is_attack and len(trail) + 1 == limit:
-                    return trail + [step, PathStep(v, None)]
-                continue
-            if len(trail) + 1 >= limit:
-                continue
-            seen.add(v)
-            found = dfs(v, limit, trail + [step], seen, is_attack, nsig)
-            seen.discard(v)
-            if found:
-                return found
-            if budget[0] <= 0:
-                return None
-        return None
-
-    for limit in range(max(1, min_len), VERIFY_MAX_DEPTH + 1):
-        found = dfs(start, limit, [], {start}, False, denial.sig(start) if denial else frozenset())
+            improve(2 * u + (1 if (flag or et in attack) else 0), d + 1, s, et)
+    # cycle check, restricted to nodes whose route changed (everything else keeps its verified base answer)
+    changed = {s >> 1 for s in over if s & 1}
+    fork.removed = {n for n in base.removed if fx.pos.get(n) not in changed}
+    fork.override = {n: p for n, p in base.override.items() if fx.pos.get(n) not in changed}
+    fork.unverified = {n for n in base.unverified if fx.pos.get(n) not in changed}
+    for i in changed:
+        node = fx.ids[i]
+        if node in base.tier0:
+            continue
+        steps = fork._walk_path(node)
+        if len({st.node_id for st in steps}) == len(steps):
+            continue
+        found, exhausted = _simple_attack_path(graph, node, base.tier0, len(steps) - 1)
         if found:
-            return found, False
-        if budget[0] <= 0:
-            return None, True
-    return None, False
+            fork.override[node] = found
+        elif exhausted:
+            fork.unverified.add(node)
+        else:
+            fork.removed.add(node)
+    return fork
+
+
+def shortened_nodes(base: Exposure, new: Exposure, exposed_base: set, exposed_new: set) -> set:
+    """Nodes exposed in both whose route got shorter. For a fork only the changed states can differ."""
+    nb = getattr(new, "base", None)
+    if nb is not None and (nb is base or nb is getattr(base, "base", None)):
+        ids = new.fx.ids
+        cand = {ids[s >> 1] for s in new.over if s & 1} & exposed_base & exposed_new
+    else:
+        cand = exposed_new & exposed_base
+    out = set()
+    for n in cand:
+        a, b = new.hops(n), base.hops(n)
+        if a is not None and b is not None and a < b:
+            out.add(n)
+    return out
+
+
+def _verify_cyclic(graph: AttackGraph, result: Exposure, order: list[int]) -> None:
+    """Re-check nodes whose shortest walk might revisit a node.
+
+    A walk can only repeat a node if that node is reachable in both states (it appears once before and once after the
+    last attack edge). `touch[s]` marks states whose route passes through such a node; every other route is
+    provably simple and is never walked.
+    """
+    dist, nxt = result.dist, result.nxt
+    n = len(result.fx.ids)
+    both = bytearray(n)
+    any_both = False
+    for i in range(n):
+        if dist[2 * i] >= 0 and dist[2 * i + 1] >= 0:
+            both[i] = 1
+            any_both = True
+    if not any_both:
+        return
+    touch = bytearray(2 * n)
+    for s in order:                                   # BFS order: a state's successor is always earlier
+        p = nxt[s]
+        touch[s] = 1 if (both[s >> 1] or (p >= 0 and touch[p])) else 0
+    ids = result.fx.ids
+    t0 = result.tier0
+    for i in range(n):
+        s = 2 * i + 1
+        if dist[s] < 0 or ids[i] in t0 or not touch[s]:
+            continue
+        steps = result._walk_path(ids[i])
+        if len({st.node_id for st in steps}) == len(steps):
+            continue                                   # the shortest route is already a simple path
+        found, exhausted = _simple_attack_path(graph, ids[i], result.tier0, len(steps) - 1)
+        if found:
+            result.override[ids[i]] = found
+        elif exhausted:
+            result.unverified.add(ids[i])
+        else:
+            result.removed.add(ids[i])
