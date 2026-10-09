@@ -213,6 +213,8 @@ def render_doctor(r: dict) -> str:
 # ------------------------------------------------------------------------------------------------ anonymize
 
 _GUID = re.compile(r"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b")
+_WORD = re.compile(r"[A-Za-z0-9_]+")
+_NAME_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-")
 _OID = re.compile(r"((?<![\w.])\d+(?:\.\d+){2,}(?![\w.]))")
 _DOM_SID = re.compile(r"S-1-5-21-(\d+)-(\d+)-(\d+)")
 _DROP = {"description", "email", "mail", "homedirectory", "scriptpath", "title", "department", "info", "telephonenumber",
@@ -339,10 +341,17 @@ class Anonymizer:
             if first and first not in _KEEP_WORDS:
                 alts.setdefault(first, lbl)                       # NetBIOS name
         alts.update(self.tokens)
-        keys = sorted(alts, key=len, reverse=True)
         self._alts = alts
-        if keys:
-            self._rx = re.compile(r"(?<![A-Za-z0-9_-])(" + "|".join(re.escape(k) for k in keys) + r")(?!(?:[A-Za-z0-9_]|-(?!S-1-)))", re.I)
+        # index every token by its first word: scanning a string is then linear in its length, not in the number of names
+        by_first: dict[str, list[tuple[str, int]]] = {}
+        for k in alts:
+            m = _WORD.search(k)                              # names such as $141000-ABC start with a non-word character
+            if m:
+                by_first.setdefault(m.group(0), []).append((k, m.start()))
+        for lst in by_first.values():
+            lst.sort(key=lambda t: len(t[0]), reverse=True)  # longest first: NORTH.SEVENKINGDOMS.LOCAL before NORTH
+        self._by_first = by_first
+        self._rx = bool(by_first)
 
     # ---- pass 2: rewrite
     def text(self, s: str) -> str:
@@ -352,9 +361,33 @@ class Anonymizer:
             # OIDs (1.3.6.1.5.5.7.3.2 ...) are public identifiers: a user called "1" must not rewrite them
             parts = _OID.split(s)
             for i in range(0, len(parts), 2):
-                parts[i] = self._rx.sub(lambda m: self._alts[m.group(1).upper()], parts[i])
+                parts[i] = self._replace_names(parts[i])
             s = "".join(parts)
         return s
+
+    def _replace_names(self, s: str) -> str:
+        up = s.upper()
+        if len(up) != len(s):                              # a character whose upper case is longer: keep it simple and exact
+            up = s
+        out, last, n = [], 0, len(s)
+        for m in _WORD.finditer(up):
+            cands = self._by_first.get(m.group(0))
+            if not cands:
+                continue
+            for tok, off in cands:
+                a = m.start() - off
+                b = a + len(tok)
+                if a < last or a < 0 or (a > 0 and up[a - 1] in _NAME_CHARS):
+                    continue
+                if up.startswith(tok, a) and (b >= n or not (up[b].isalnum() or up[b] == "_" or (up[b] == "-" and not up.startswith("-S-1-", b)))):
+                    out.append(s[last:a])
+                    out.append(self._alts[tok])
+                    last = b
+                    break
+        if not out:
+            return s
+        out.append(s[last:])
+        return "".join(out)
 
     def _guid(self, g: str) -> str:
         from .azure import KNOWN_ROLES
