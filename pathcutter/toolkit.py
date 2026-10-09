@@ -310,6 +310,14 @@ class Anonymizer:
             for t in {local, str(p.get("samaccountname", "")).rstrip("$")}:
                 if t and ft != "domains" and t.upper() not in _KEEP_WORDS and not builtin and t.upper() not in self.tokens:
                     self.tokens[t.upper()] = f"{prefix}{self._h(t)}"
+            for t in o.get("Trusts") or []:                     # partner domains named only inside a trust
+                tn = str(t.get("TargetDomainName") or "")
+                if "." in tn:
+                    self._dom_label(tn)
+                elif tn and tn.upper() not in _KEEP_WORDS:
+                    self.tokens.setdefault(tn.upper(), f"DOM{self._h(tn, 4)}")
+                for m in _DOM_SID.finditer(str(t.get("TargetDomainSid") or "")):
+                    self._dom_sid_for(m)
             for m in _DOM_SID.finditer(oid):
                 self._dom_sid_for(m)
             for m in _DOM_SID.finditer(str(p.get("domainsid", ""))):

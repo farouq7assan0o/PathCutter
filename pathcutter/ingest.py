@@ -159,12 +159,7 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
 
             edge_name = _ACE_MAP.get(right) or _CE_EDGE_MAP.get(right)
             if edge_name:
-                graph.add_edge(ADEdge(
-                    source_id=principal_sid,
-                    target_id=oid,
-                    edge_type=edge_name,
-                    inherited=inherited,
-                ))
+                _ace_edge(graph, principal_sid, oid, right, edge_name, inherited, node_type)
 
         # Group members -> MemberOf edges (inverted: member -> group)
         members_raw = obj.get("Members", [])
@@ -232,12 +227,8 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
             if sql_sid:
                 graph.add_edge(ADEdge(source_id=sql_sid, target_id=oid, edge_type="SQLAdmin"))
 
-        # Domain trusts
-        for trust in obj.get("Trusts", []):
-            target_id = trust.get("TargetDomainSid", "")
-            if target_id:
-                graph.add_edge(ADEdge(source_id=oid, target_id=target_id, edge_type="TrustedBy",
-                                      properties=_trust_props(trust)))
+        _trusts(obj, oid, name, graph)
+        _common_extras(obj, oid, graph)
 
     return count
 
@@ -284,12 +275,7 @@ def _parse_v5_file(data: dict, graph: AttackGraph) -> int:
 
             edge_name = _CE_EDGE_MAP.get(right) or _ACE_MAP.get(right)
             if edge_name:
-                graph.add_edge(ADEdge(
-                    source_id=principal_sid,
-                    target_id=oid,
-                    edge_type=edge_name,
-                    inherited=inherited,
-                ))
+                _ace_edge(graph, principal_sid, oid, right, edge_name, inherited, node_type)
 
         # v5 edges array (some CE exports put edges in a separate section)
         for edge in obj.get("Edges", obj.get("edges", [])):
@@ -329,11 +315,8 @@ def _parse_v5_file(data: dict, graph: AttackGraph) -> int:
             if child_id:
                 graph.add_edge(ADEdge(source_id=oid, target_id=child_id, edge_type="Contains"))
 
-        for trust in obj.get("Trusts", []):
-            target_id = trust.get("TargetDomainSid", "")
-            if target_id:
-                graph.add_edge(ADEdge(source_id=oid, target_id=target_id, edge_type="TrustedBy",
-                                      properties=_trust_props(trust)))
+        _trusts(obj, oid, name, graph)
+        _common_extras(obj, oid, graph)
 
     return count
 
@@ -450,6 +433,10 @@ def _add_implicit_memberships(graph: AttackGraph) -> None:
     just those two keeps this to a handful of edges per domain instead of one per object."""
     domains = {n.name.upper(): n.object_id for n in graph.nodes_by_type(NodeType.DOMAIN)}
     for oid in list(graph.graph.nodes):
+        if isinstance(oid, str) and (oid.endswith("-S-1-5-11") or oid == "S-1-5-11"):
+            everyone = oid[:-len("S-1-5-11")] + "S-1-1-0"
+            if graph.graph.has_node(everyone) and not graph.has_edge_type(oid, everyone, "MemberOf"):
+                graph.add_edge(ADEdge(source_id=oid, target_id=everyone, edge_type="MemberOf"))
         if not isinstance(oid, str) or not (oid.endswith("-S-1-1-0") or oid.endswith("-S-1-5-11") or oid in ("S-1-1-0", "S-1-5-11")):
             continue
         prefix = oid.rpartition("-S-1-")[0].upper()
@@ -494,6 +481,8 @@ def _guess_file_type(filename: str) -> str:
     lower = filename.lower()
     if "denies" in lower:
         return "denies"
+    if "sessions" in lower:
+        return "sessions"
     for key in _TYPE_MAP:
         if key in lower:
             return key
@@ -585,6 +574,8 @@ def _finish(graph: AttackGraph) -> AttackGraph:
     _link_unconstrained_delegation(graph)
     graph.classify_tiers()
     from .adcs import derive_adcs_edges
+    from .derived import derive_dcsync
+    derive_dcsync(graph)
     derive_adcs_edges(graph)
     return graph
 
@@ -617,6 +608,45 @@ def _load_from_directory(dir_path: Path, graph: AttackGraph) -> int:
         if isinstance(data, dict) and ("data" in data or "value" in data):
             total += _parse_one_file(data, graph, file_type)
     return total
+
+
+def _ace_edge(graph: AttackGraph, src: str, oid: str, right: str, edge_name: str, inherited: bool, node_type: NodeType) -> None:
+    """One ACE as an edge. An ACE a principal holds on itself is dropped (BloodHound does too), and AllExtendedRights on a
+    domain object includes the replication rights, so it is DCSync as well."""
+    if src == oid:
+        return
+    graph.add_edge(ADEdge(source_id=src, target_id=oid, edge_type=edge_name, inherited=inherited))
+    if right == "AllExtendedRights" and node_type == NodeType.DOMAIN:
+        graph.add_edge(ADEdge(source_id=src, target_id=oid, edge_type="DCSync", inherited=inherited))
+
+
+def _trusts(obj: dict, oid: str, name: str, graph: AttackGraph) -> None:
+    """Trust edges as BloodHound draws them: Outbound D -> T, Inbound T -> D, Bidirectional both. Trusted domains that
+    were not collected get a named placeholder (their SID is all the collector knows)."""
+    for trust in obj.get("Trusts") or []:
+        tid = trust.get("TargetDomainSid", "")
+        if not tid:
+            continue
+        if graph.get_node(tid) is None:
+            graph.add_node(ADNode(object_id=tid, name=str(trust.get("TargetDomainName") or tid).upper(), node_type=NodeType.DOMAIN,
+                                  domain=str(trust.get("TargetDomainName") or "").upper(), properties={"placeholder": True}))
+        direction = str(trust.get("TrustDirection") or "").lower()
+        props = _trust_props(trust)
+        if direction in ("outbound", "bidirectional", ""):
+            graph.add_edge(ADEdge(source_id=oid, target_id=tid, edge_type="TrustedBy", properties=dict(props)))
+        if direction in ("inbound", "bidirectional"):
+            graph.add_edge(ADEdge(source_id=tid, target_id=oid, edge_type="TrustedBy", properties=dict(props)))
+
+
+def _common_extras(obj: dict, oid: str, graph: AttackGraph) -> None:
+    """Relationships the collector states on the child side or in per-type fields."""
+    cb = obj.get("ContainedBy")
+    parent = cb.get("ObjectIdentifier") if isinstance(cb, dict) else None
+    if parent and parent != oid and not graph.has_edge_type(parent, oid, "Contains"):
+        graph.add_edge(ADEdge(source_id=parent, target_id=oid, edge_type="Contains"))
+    for t in obj.get("SpnTargets") or obj.get("SPNTargets") or []:
+        if isinstance(t, dict) and str(t.get("Service", "")).lower() == "sqladmin" and t.get("ComputerSID"):
+            graph.add_edge(ADEdge(source_id=oid, target_id=t["ComputerSID"], edge_type="SQLAdmin"))
 
 
 def _trust_props(trust: dict) -> dict:
@@ -689,6 +719,11 @@ def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
     """Route to v4 or v5 parser based on format detection."""
     if str((data.get("meta") or {}).get("type", "")).lower() == "denies" or file_type == "denies":
         _parse_denies(data, graph)
+        return 0
+    if str((data.get("meta") or {}).get("type", "")).lower() == "sessions" or file_type == "sessions":
+        for rec in data.get("data", []):
+            if rec.get("ComputerSID") and rec.get("UserSID"):
+                graph.add_edge(ADEdge(source_id=rec["ComputerSID"], target_id=rec["UserSID"], edge_type="HasSession"))
         return 0
     from . import azure, conditional_access
     if conditional_access.is_ca_file(data):

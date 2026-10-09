@@ -723,6 +723,42 @@ ADCSESC13 = EdgeType(
     description="Derived from certificate template, issuance policy and CA data",
 )
 
+GetChanges = EdgeType(
+    name="GetChanges",
+    category=EdgeCategory.ACL,
+    abuse="DS-Replication-Get-Changes: half of what DCSync needs",
+    mitre="T1003.006",
+    exploitability=0,
+    fix_template="# Remove the replication right unless the principal is a domain controller or Entra Connect",
+    detection_difficulty="medium",
+    reversible=True,
+    description="One of the two replication rights; DCSync is derived for principals that hold both",
+)
+
+GetChangesAll = EdgeType(
+    name="GetChangesAll",
+    category=EdgeCategory.ACL,
+    abuse="DS-Replication-Get-Changes-All: the other half of what DCSync needs",
+    mitre="T1003.006",
+    exploitability=0,
+    fix_template="# Remove the replication right unless the principal is a domain controller or Entra Connect",
+    detection_difficulty="medium",
+    reversible=True,
+    description="One of the two replication rights; DCSync is derived for principals that hold both",
+)
+
+GetChangesInFilteredSet = EdgeType(
+    name="GetChangesInFilteredSet",
+    category=EdgeCategory.ACL,
+    abuse="DS-Replication-Get-Changes-In-Filtered-Set: replicates only filtered attributes, not secrets",
+    mitre="T1003.006",
+    exploitability=0,
+    fix_template="# Remove the replication right unless the principal is a domain controller or Entra Connect",
+    detection_difficulty="medium",
+    reversible=True,
+    description="One of the two replication rights; DCSync is derived for principals that hold both",
+)
+
 # -------------------------------------------------------------------
 # Registry: name -> EdgeType lookup
 # -------------------------------------------------------------------
@@ -760,7 +796,7 @@ def exploitability_weight(edge_name: str) -> float:
 # Rights that are INPUTS to derived edges (ADCSESC*) rather than steps an attacker can walk: holding Enroll on a
 # template is not control of it. They stay in the graph for the derivations and for reports, but no path crosses them.
 NON_TRAVERSABLE = frozenset({"Enroll", "AutoEnroll", "ManageCA", "ManageCertificates", "WritePKIEnrollmentFlag",
-                             "WritePKINameFlag", "OIDGroupLink"})
+                             "WritePKINameFlag", "OIDGroupLink", "GetChanges", "GetChangesAll", "GetChangesInFilteredSet"})
 
 TIER0_GROUPS = frozenset({
     "DOMAIN ADMINS",
@@ -795,6 +831,24 @@ TIER0_SIDS_SUFFIXES = frozenset({
     "-518",   # Schema Admins
     "-519",   # Enterprise Admins
     "-521",   # Read-only Domain Controllers
+    "-498",   # Enterprise Read-only Domain Controllers
+    "-517",   # Cert Publishers
+    "-526",   # Key Admins
+    "-527",   # Enterprise Key Admins
+})
+
+# Built-in groups are Tier 0 by SID too, so a renamed or localized group is still recognised (ids are often domain-prefixed)
+TIER0_BUILTIN_SIDS = frozenset({
+    "S-1-5-32-544",   # Administrators
+    "S-1-5-32-548",   # Account Operators
+    "S-1-5-32-549",   # Server Operators
+    "S-1-5-32-550",   # Print Operators
+    "S-1-5-32-551",   # Backup Operators
+    "S-1-5-32-557",   # Incoming Forest Trust Builders
+    "S-1-5-32-559",   # Performance Log Users
+    "S-1-5-32-562",   # Distributed COM Users
+    "S-1-5-32-569",   # Cryptographic Operators
+    "S-1-5-9",        # Enterprise Domain Controllers
 })
 
 
@@ -818,6 +872,8 @@ def is_tier0(node_name: str, node_sid: str = "", node_type: str = "") -> bool:
         return True
     # Check SID suffix
     if node_sid:
+        if node_sid in TIER0_BUILTIN_SIDS or any(node_sid.endswith("-" + b) for b in TIER0_BUILTIN_SIDS):
+            return True
         for suffix in TIER0_SIDS_SUFFIXES:
             if node_sid.endswith(suffix):
                 return True

@@ -374,3 +374,13 @@ def test_tier_zero_agrees_with_bloodhound_on_its_fixture():
     assert not missing, f"BloodHound tags these Tier Zero and we do not: {sorted(missing)}"
     assert (mine & templates) <= theirs, "we tag a template that BloodHound does not"
     assert len(mine & templates) >= 10, "published templates must be Tier 0"
+
+
+def test_both_rights_found_even_when_someone_else_already_holds_both():
+    """alice is in two unrelated groups, one per right, while another principal holds both directly: alice must still be found."""
+    from pathcutter.adcs import _both
+    g = lab(enroll_t=("u-grp",), enroll_ca=("u-other",))
+    g.add_node(ADNode("u-both", "BOTH@X.LOCAL", NodeType.GROUP, "X.LOCAL"))
+    g.add_edge(ADEdge("u-alice", "u-other", "MemberOf"))
+    got = _both(g, {"u-grp", "u-both"}, {"u-other", "u-both"})
+    assert "u-both" in got and "u-alice" in got

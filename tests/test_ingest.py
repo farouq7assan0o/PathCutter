@@ -146,10 +146,10 @@ def test_ace_edges(tmp_path):
     data_dir = _write_sharphound_files(tmp_path)
     graph = load_sharphound(data_dir)
 
-    # admin has GenericAll on self (from ACE on user object)
+    # an ACE a principal holds on itself is dropped (BloodHound does the same)
     edges = graph.out_edges("S-1-5-21-TEST-1001")
     edge_types = [d["edge_type"] for _, _, d in edges]
-    assert "GenericAll" in edge_types
+    assert "GenericAll" not in edge_types
 
     # jdoe has ForceChangePassword on HelpDesk (from ACE on group object)
     edges = graph.out_edges("S-1-5-21-TEST-1002")

@@ -56,10 +56,9 @@ def _both(graph: AttackGraph, a: set[str], b: set[str]) -> set[str]:
     reaching each right through two unrelated groups is resolved on the (bounded) intersection of the two closures."""
     da, db = _down(graph, a), _down(graph, b)
     out = {p for p in a if p in db} | {p for p in b if p in da}
-    if not out:
-        cross = da & db
-        if len(cross) <= _MAX_CROSS:
-            out = cross
+    cross = da & db
+    if len(cross) <= _MAX_CROSS:                      # principals that reach each right through a different group
+        out |= cross - _down(graph, out)
     return out
 
 

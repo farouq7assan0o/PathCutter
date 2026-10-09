@@ -1,3 +1,7 @@
 adcs_raw/
 adcs_analyzed.json
 all_analyzed.json
+raw_*/
+analyzed_*.json
+ingested_*.json
+Version*.zip

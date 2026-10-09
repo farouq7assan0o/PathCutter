@@ -22,9 +22,9 @@
     "WriteGPLink": "WriteGPLink",
     "SyncLAPSPassword": "ReadLAPSPassword",
     "DumpSMSAPassword": "ReadGMSAPassword",
-    "GetChanges": "DCSync",
-    "GetChangesAll": "DCSync",
-    "GetChangesInFilteredSet": "DCSync"
+    "GetChanges": "GetChanges",
+    "GetChangesAll": "GetChangesAll",
+    "GetChangesInFilteredSet": "GetChangesInFilteredSet"
   },
   "collector_edge": {
     "GenericAll": "GenericAll",
@@ -59,9 +59,9 @@
     "WritePKIEnrollmentFlag": "WritePKIEnrollmentFlag",
     "WritePKINameFlag": "WritePKINameFlag",
     "HasSIDHistory": "GenericAll",
-    "GetChanges": "DCSync",
-    "GetChangesAll": "DCSync",
-    "GetChangesInFilteredSet": "DCSync",
+    "GetChanges": "GetChanges",
+    "GetChangesAll": "GetChangesAll",
+    "GetChangesInFilteredSet": "GetChangesInFilteredSet",
     "AZResetPassword": "ForceChangePassword",
     "AZAddMembers": "AddMember",
     "AZGlobalAdmin": "GenericAll",

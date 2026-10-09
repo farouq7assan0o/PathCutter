@@ -15,7 +15,8 @@ NAMES = sorted({e.name for e in EDGE_REGISTRY.values()})
 # Edges that are not attack steps by themselves (plumbing)
 STRUCTURAL = {"MemberOf", "Contains", "AZContains"}
 # Known gap: AD CS rights are ingested and typed but only become attack steps once the ESC conditions are modeled.
-PENDING_ADCS = {"Enroll", "AutoEnroll", "ManageCA", "ManageCertificates", "WritePKIEnrollmentFlag", "WritePKINameFlag", "OIDGroupLink"}
+PENDING_ADCS = {"Enroll", "AutoEnroll", "ManageCA", "ManageCertificates", "WritePKIEnrollmentFlag", "WritePKINameFlag", "OIDGroupLink",
+                "GetChanges", "GetChangesAll", "GetChangesInFilteredSet"}
 
 
 def test_every_edge_is_an_attack_step_or_explicitly_not():
