@@ -1,0 +1,269 @@
+{
+  "_comment": "Single source of truth for AD rights. ingest.py, ps_rules.py and tools/Export-AdDenyAces.ps1 are built from this (tools/gen_collector_table.py regenerates the PowerShell table). Adding a right = one entry here.",
+  "collector_ace": {
+    "GenericAll": "GenericAll",
+    "GenericWrite": "GenericWrite",
+    "WriteOwner": "WriteOwner",
+    "WriteDacl": "WriteDacl",
+    "Owns": "Owns",
+    "ForceChangePassword": "ForceChangePassword",
+    "AddMember": "AddMember",
+    "ReadLAPSPassword": "ReadLAPSPassword",
+    "ReadGMSAPassword": "ReadGMSAPassword",
+    "WriteSPN": "WriteSPN",
+    "AddAllowedToAct": "AddAllowedToAct",
+    "WriteAccountRestrictions": "GenericWrite",
+    "AllExtendedRights": "GenericAll",
+    "User-Force-Change-Password": "ForceChangePassword",
+    "Member": "AddMember",
+    "WriteKeyCredentialLink": "WriteKeyCredentialLink",
+    "AddSelf": "AddMember",
+    "AddKeyCredentialLink": "WriteKeyCredentialLink",
+    "WriteGPLink": "WriteGPLink",
+    "SyncLAPSPassword": "ReadLAPSPassword",
+    "DumpSMSAPassword": "ReadGMSAPassword",
+    "GetChanges": "DCSync",
+    "GetChangesAll": "DCSync",
+    "GetChangesInFilteredSet": "DCSync"
+  },
+  "collector_edge": {
+    "GenericAll": "GenericAll",
+    "GenericWrite": "GenericWrite",
+    "WriteOwner": "WriteOwner",
+    "WriteDacl": "WriteDacl",
+    "Owns": "Owns",
+    "ForceChangePassword": "ForceChangePassword",
+    "AddMember": "AddMember",
+    "ReadLAPSPassword": "ReadLAPSPassword",
+    "ReadGMSAPassword": "ReadGMSAPassword",
+    "WriteSPN": "WriteSPN",
+    "AddAllowedToAct": "AddAllowedToAct",
+    "WriteKeyCredentialLink": "WriteKeyCredentialLink",
+    "DCSync": "DCSync",
+    "MemberOf": "MemberOf",
+    "AdminTo": "AdminTo",
+    "HasSession": "HasSession",
+    "CanRDP": "CanRDP",
+    "CanPSRemote": "CanPSRemote",
+    "ExecuteDCOM": "ExecuteDCOM",
+    "SQLAdmin": "SQLAdmin",
+    "AllowedToDelegate": "AllowedToDelegate",
+    "AllowedToAct": "AllowedToAct",
+    "GPLink": "GPOControlsObject",
+    "Contains": "Contains",
+    "TrustedBy": "TrustedBy",
+    "Enroll": "Enroll",
+    "AutoEnroll": "AutoEnroll",
+    "ManageCA": "ManageCA",
+    "ManageCertificates": "ManageCertificates",
+    "WritePKIEnrollmentFlag": "WritePKIEnrollmentFlag",
+    "WritePKINameFlag": "WritePKINameFlag",
+    "HasSIDHistory": "GenericAll",
+    "GetChanges": "DCSync",
+    "GetChangesAll": "DCSync",
+    "GetChangesInFilteredSet": "DCSync",
+    "AZResetPassword": "ForceChangePassword",
+    "AZAddMembers": "AddMember",
+    "AZGlobalAdmin": "GenericAll",
+    "AZPrivilegedRoleAdmin": "GenericAll"
+  },
+  "properties": [
+    {
+      "name": "member",
+      "guid": "bf9679c0-0de6-11d0-a285-00aa003049e2",
+      "kind": "write_property",
+      "edge": "AddMember",
+      "deny_collector": "Member"
+    },
+    {
+      "name": "serviceprincipalname",
+      "guid": "f3a64788-5306-11d1-a9c5-0000f80367c1",
+      "kind": "write_property",
+      "edge": "WriteSPN",
+      "deny_collector": "Spn"
+    },
+    {
+      "name": "msds-allowedtoactonbehalfofotheridentity",
+      "guid": "3f78c3e5-f79a-46bd-a0b8-9d18116ddc79",
+      "kind": "write_property",
+      "edge": "AddAllowedToAct",
+      "deny_collector": "Rbcd"
+    },
+    {
+      "name": "msds-keycredentiallink",
+      "guid": "5b47d60f-6090-40b2-9f37-2a4de88f3063",
+      "kind": "write_property",
+      "edge": "WriteKeyCredentialLink",
+      "deny_collector": "KeyCredentialLink"
+    },
+    {
+      "name": "mspki-enrollment-flag",
+      "guid": "d15ef7d8-f226-46db-ae79-b34e560bd12c",
+      "kind": "write_property",
+      "edge": "WritePKIEnrollmentFlag",
+      "deny_collector": null
+    },
+    {
+      "name": "mspki-certificate-name-flag",
+      "guid": "ea1dddc4-60ff-416e-8cc0-17cee534bce7",
+      "kind": "write_property",
+      "edge": "WritePKINameFlag",
+      "deny_collector": null
+    },
+    {
+      "name": "user-force-change-password",
+      "guid": "00299570-246d-11d0-a768-00aa006e0529",
+      "kind": "extended_right",
+      "edge": "ForceChangePassword",
+      "deny_collector": "ForceChangePwd"
+    },
+    {
+      "name": "ds-replication-get-changes",
+      "guid": "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2",
+      "kind": "extended_right",
+      "edge": "DCSync",
+      "deny_collector": "GetChanges"
+    },
+    {
+      "name": "ds-replication-get-changes-all",
+      "guid": "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2",
+      "kind": "extended_right",
+      "edge": "DCSync",
+      "deny_collector": "GetChangesAll"
+    },
+    {
+      "name": "ds-replication-get-changes-in-filtered-set",
+      "guid": "89e95b76-444d-4c62-991a-0facbeda640c",
+      "kind": "extended_right",
+      "edge": "DCSync",
+      "deny_collector": "GetChangesFiltered"
+    },
+    {
+      "name": "msds-managedpassword",
+      "guid": "e362ed86-b728-0842-b27d-2dea7a9df218",
+      "kind": "read_property",
+      "edge": "ReadGMSAPassword",
+      "deny_collector": null
+    },
+    {
+      "name": "ms-mcs-admpwd",
+      "guid": null,
+      "kind": "read_property",
+      "edge": "ReadLAPSPassword",
+      "deny_collector": null
+    },
+    {
+      "name": "mslaps-password",
+      "guid": null,
+      "kind": "read_property",
+      "edge": "ReadLAPSPassword",
+      "deny_collector": null
+    },
+    {
+      "name": "mslaps-encryptedpassword",
+      "guid": null,
+      "kind": "read_property",
+      "edge": "ReadLAPSPassword",
+      "deny_collector": null
+    },
+    {
+      "name": "bf9679c0-0de6-11d0-a285-00aa003049e2",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "f3a64788-5306-11d1-a9c5-0000f80367c1",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "3f78c3e5-f79a-46bd-a0b8-9d18116ddc79",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "5b47d60f-6090-40b2-9f37-2a4de88f3063",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "00299570-246d-11d0-a768-00aa006e0529",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "89e95b76-444d-4c62-991a-0facbeda640c",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "e362ed86-b728-0842-b27d-2dea7a9df218",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "d15ef7d8-f226-46db-ae79-b34e560bd12c",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    },
+    {
+      "name": "ea1dddc4-60ff-416e-8cc0-17cee534bce7",
+      "guid": null,
+      "kind": "none",
+      "edge": null,
+      "deny_collector": null
+    }
+  ],
+  "dsacls_letters": {
+    "GA": "GenericAll",
+    "GW": "GenericWrite",
+    "WD": "WriteDacl",
+    "WO": "WriteOwner",
+    "WP": "WriteProperty",
+    "CA": "ExtendedRight",
+    "SW": "Self",
+    "RP": "ReadProperty"
+  },
+  "local_group_rid": {
+    "544": "AdminTo",
+    "555": "CanRDP",
+    "562": "ExecuteDCOM",
+    "580": "CanPSRemote"
+  },
+  "gpo_changes": {
+    "LocalAdmins": "AdminTo",
+    "RemoteDesktopUsers": "CanRDP",
+    "DcomUsers": "ExecuteDCOM",
+    "PSRemoteUsers": "CanPSRemote"
+  }
+}

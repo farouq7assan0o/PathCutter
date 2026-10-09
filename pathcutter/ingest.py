@@ -5,6 +5,7 @@ import json
 import zipfile
 from pathlib import Path
 
+from . import rights as _rights
 from .graph import AttackGraph, ADNode, ADEdge, NodeType
 
 
@@ -37,32 +38,7 @@ _KIND_MAP = {
 }
 
 # SharpHound ACE right name -> our edge type name
-_ACE_MAP = {
-    "GenericAll": "GenericAll",
-    "GenericWrite": "GenericWrite",
-    "WriteOwner": "WriteOwner",
-    "WriteDacl": "WriteDacl",
-    "Owns": "Owns",
-    "ForceChangePassword": "ForceChangePassword",
-    "AddMember": "AddMember",
-    "ReadLAPSPassword": "ReadLAPSPassword",
-    "ReadGMSAPassword": "ReadGMSAPassword",
-    "WriteSPN": "WriteSPN",
-    "AddAllowedToAct": "AddAllowedToAct",
-    "WriteAccountRestrictions": "GenericWrite",
-    "AllExtendedRights": "GenericAll",
-    "User-Force-Change-Password": "ForceChangePassword",
-    "Member": "AddMember",
-    "WriteKeyCredentialLink": "WriteKeyCredentialLink",
-    "AddSelf": "AddMember",
-    "AddKeyCredentialLink": "WriteKeyCredentialLink",
-    "WriteGPLink": "WriteGPLink",
-    "SyncLAPSPassword": "ReadLAPSPassword",
-    "DumpSMSAPassword": "ReadGMSAPassword",
-    "GetChanges": "DCSync",
-    "GetChangesAll": "DCSync",
-    "GetChangesInFilteredSet": "DCSync",
-}
+_ACE_MAP = _rights.collector_ace()
 
 # Well-known SID -> friendly name
 _WELL_KNOWN_SIDS = {
@@ -105,47 +81,7 @@ _CE_KIND_MAP = {
     "NTAuthStore": NodeType.NTAUTH_STORE,
 }
 
-_CE_EDGE_MAP = {
-    "GenericAll": "GenericAll",
-    "GenericWrite": "GenericWrite",
-    "WriteOwner": "WriteOwner",
-    "WriteDacl": "WriteDacl",
-    "Owns": "Owns",
-    "ForceChangePassword": "ForceChangePassword",
-    "AddMember": "AddMember",
-    "ReadLAPSPassword": "ReadLAPSPassword",
-    "ReadGMSAPassword": "ReadGMSAPassword",
-    "WriteSPN": "WriteSPN",
-    "AddAllowedToAct": "AddAllowedToAct",
-    "WriteKeyCredentialLink": "WriteKeyCredentialLink",
-    "DCSync": "DCSync",
-    "MemberOf": "MemberOf",
-    "AdminTo": "AdminTo",
-    "HasSession": "HasSession",
-    "CanRDP": "CanRDP",
-    "CanPSRemote": "CanPSRemote",
-    "ExecuteDCOM": "ExecuteDCOM",
-    "SQLAdmin": "SQLAdmin",
-    "AllowedToDelegate": "AllowedToDelegate",
-    "AllowedToAct": "AllowedToAct",
-    "GPLink": "GPOControlsObject",
-    "Contains": "Contains",
-    "TrustedBy": "TrustedBy",
-    "Enroll": "Enroll",
-    "AutoEnroll": "AutoEnroll",
-    "ManageCA": "ManageCA",
-    "ManageCertificates": "ManageCertificates",
-    "WritePKIEnrollmentFlag": "WritePKIEnrollmentFlag",
-    "WritePKINameFlag": "WritePKINameFlag",
-    "HasSIDHistory": "GenericAll",
-    "GetChanges": "DCSync",
-    "GetChangesAll": "DCSync",
-    "GetChangesInFilteredSet": "DCSync",
-    "AZResetPassword": "ForceChangePassword",
-    "AZAddMembers": "AddMember",
-    "AZGlobalAdmin": "GenericAll",
-    "AZPrivilegedRoleAdmin": "GenericAll",
-}
+_CE_EDGE_MAP = _rights.collector_edge()
 
 
 def _detect_format(data: dict) -> str:
@@ -414,9 +350,8 @@ def _parse_v5_edges_file(data: dict, graph: AttackGraph) -> int:
     return count
 
 
-_LOCAL_GROUP_EDGE = {"544": "AdminTo", "555": "CanRDP", "562": "ExecuteDCOM", "580": "CanPSRemote"}
-_GPO_CHANGE_EDGE = {"LocalAdmins": "AdminTo", "RemoteDesktopUsers": "CanRDP", "DcomUsers": "ExecuteDCOM",
-                    "PSRemoteUsers": "CanPSRemote"}
+_LOCAL_GROUP_EDGE = _rights.local_group_rid()
+_GPO_CHANGE_EDGE = _rights.gpo_changes()
 
 
 def _principal_id(value) -> str:

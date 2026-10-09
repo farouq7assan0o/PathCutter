@@ -68,3 +68,35 @@ def test_help_lists_every_edge():
     from pathcutter.syntax_help import edges
     text = edges()
     assert not [n for n in NAMES if n not in text]
+
+
+# ------------------------------------------------------------------ data/rights.json is the single source
+
+def test_rights_json_is_well_formed():
+    from pathcutter import rights
+    doc = rights.load()
+    names = [p["name"] for p in doc["properties"]]
+    guids = [p["guid"] for p in doc["properties"] if p.get("guid")]
+    assert len(names) == len(set(names)) and len(guids) == len(set(guids))
+    for p in doc["properties"]:
+        assert p["kind"] in ("write_property", "extended_right", "read_property", "none")
+        assert (p["kind"] == "none") == (not p.get("edge")), p
+        if p.get("guid"):
+            assert re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", p["guid"]), p
+        if p.get("edge"):
+            assert p["edge"] in NAMES, p
+    for table in ("collector_ace", "collector_edge", "local_group_rid", "gpo_changes"):
+        assert not [v for v in doc[table].values() if v not in NAMES], table
+
+
+def test_collector_script_table_is_generated_from_rights_json():
+    import subprocess, sys
+    r = subprocess.run([sys.executable, str(Path(__file__).parent.parent / "tools" / "gen_collector_table.py"), "--check"],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_modules_use_the_json_not_private_copies():
+    from pathcutter import rights
+    assert ingest._ACE_MAP == rights.collector_ace() and ingest._CE_EDGE_MAP == rights.collector_edge()
+    assert ps_rules.PROP_GUIDS == rights.property_guids()

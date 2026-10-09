@@ -38,16 +38,18 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
 # schema / extended-right GUIDs that map to PathCutter edges
+# BEGIN GENERATED (tools/gen_collector_table.py from pathcutter/data/rights.json)
 $Ids = @{
-    Member            = 'bf9679c0-0de6-11d0-a285-00aa003049e2'
-    Spn               = 'f3a64788-5306-11d1-a9c5-0000f80367c1'
-    Rbcd              = '3f78c3e5-f79a-46bd-a0b8-9d18116ddc79'
-    KeyCredentialLink = '5b47d60f-6090-40b2-9f37-2a4de88f3063'
-    ForceChangePwd    = '00299570-246d-11d0-a768-00aa006e0529'
-    GetChanges        = '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'
-    GetChangesAll     = '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2'
+    Member             = 'bf9679c0-0de6-11d0-a285-00aa003049e2'
+    Spn                = 'f3a64788-5306-11d1-a9c5-0000f80367c1'
+    Rbcd               = '3f78c3e5-f79a-46bd-a0b8-9d18116ddc79'
+    KeyCredentialLink  = '5b47d60f-6090-40b2-9f37-2a4de88f3063'
+    ForceChangePwd     = '00299570-246d-11d0-a768-00aa006e0529'
+    GetChanges         = '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'
+    GetChangesAll      = '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2'
     GetChangesFiltered = '89e95b76-444d-4c62-991a-0facbeda640c'
 }
+# END GENERATED
 
 function Convert-DenyRule {
     <# Maps one ActiveDirectoryAccessRule (Deny) to the PathCutter right names it blocks. #>

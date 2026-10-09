@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 
 from .changes import _normalise_ref
+from . import rights as _rights
 from .powershell import Acl, AclAccess, HashLit, Rule, ev, run, scan, split_args, split_top
 
 UNKNOWN = object()
@@ -24,28 +25,11 @@ _ALIAS_NAMES = {"member": "members", "membername": "members", "group": "identity
                 "targetname": "targetname", "users": "user"}
 
 # ObjectType GUID -> what write/extended right it represents
-PROP_GUIDS = {
-    "bf9679c0-0de6-11d0-a285-00aa003049e2": "member",
-    "f3a64788-5306-11d1-a9c5-0000f80367c1": "serviceprincipalname",
-    "3f78c3e5-f79a-46bd-a0b8-9d18116ddc79": "msds-allowedtoactonbehalfofotheridentity",
-    "5b47d60f-6090-40b2-9f37-2a4de88f3063": "msds-keycredentiallink",
-    "00299570-246d-11d0-a768-00aa006e0529": "user-force-change-password",
-    "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2": "ds-replication-get-changes",
-    "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2": "ds-replication-get-changes-all",
-    "89e95b76-444d-4c62-991a-0facbeda640c": "ds-replication-get-changes-in-filtered-set",
-    "e362ed86-b728-0842-b27d-2dea7a9df218": "msds-managedpassword",
-    "d15ef7d8-f226-46db-ae79-b34e560bd12c": "mspki-enrollment-flag",
-    "ea1dddc4-60ff-416e-8cc0-17cee534bce7": "mspki-certificate-name-flag",
-}
+PROP_GUIDS = _rights.property_guids()
 # right-name / property-name -> edge, per kind of right
-_WRITE_PROP = {"member": "AddMember", "serviceprincipalname": "WriteSPN",
-               "msds-allowedtoactonbehalfofotheridentity": "AddAllowedToAct",
-               "msds-keycredentiallink": "WriteKeyCredentialLink",
-               "mspki-enrollment-flag": "WritePKIEnrollmentFlag", "mspki-certificate-name-flag": "WritePKINameFlag"}
-_EXT_RIGHT = {"user-force-change-password": "ForceChangePassword", "ds-replication-get-changes": "DCSync",
-              "ds-replication-get-changes-all": "DCSync", "ds-replication-get-changes-in-filtered-set": "DCSync"}
-_READ_PROP = {"msds-managedpassword": "ReadGMSAPassword", "ms-mcs-admpwd": "ReadLAPSPassword",
-              "mslaps-password": "ReadLAPSPassword", "mslaps-encryptedpassword": "ReadLAPSPassword"}
+_WRITE_PROP = _rights.write_property_edges()
+_EXT_RIGHT = _rights.extended_right_edges()
+_READ_PROP = _rights.read_property_edges()
 
 
 def rights_to_edges(rights: str, prop: str = "", deny: bool = False) -> tuple[list[str], str]:
@@ -376,8 +360,7 @@ def h_create(kind: str):
 
 # ---- ACLs ------------------------------------------------------------------
 
-_DSACLS_RIGHTS = {"GA": "GenericAll", "GW": "GenericWrite", "WD": "WriteDacl", "WO": "WriteOwner", "WP": "WriteProperty",
-                  "CA": "ExtendedRight", "SW": "Self", "RP": "ReadProperty"}
+_DSACLS_RIGHTS = _rights.dsacls_letters()
 
 
 def _dsacls_edges(spec: str) -> tuple[str, list[str], str]:

@@ -21,4 +21,4 @@ pathcutter = "pathcutter.cli:main"
 testpaths = ["tests"]
 
 [tool.setuptools.package-data]
-pathcutter = ["graph_view.js"]
+pathcutter = ["graph_view.js", "data/*.json"]
