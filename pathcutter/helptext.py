@@ -22,6 +22,7 @@ COMMANDS
 
   Trust the data / share it
     doctor     is this export complete enough to trust? lists blind spots and the collector flags that fix them
+    audit      hygiene findings from attributes: roastable accounts, passwords in attributes, LAPS, delegation, old OS, trusts
     anonymize  a shareable copy of your export: pseudonyms, no free text, identical attack paths
 
   Gate changes BEFORE they ship
@@ -134,6 +135,19 @@ Output: sigma/*.yml  splunk/*.spl  sentinel/*.kql  elastic/*.kql  coverage.md  c
 Read prerequisites.md first: a rule only fires if the matching Advanced Audit Policy is enabled.
 """
 
+AUDIT = """Examples:
+  pathcutter audit export.zip                          # everything at low severity and above
+  pathcutter audit export.zip --min-severity high      # the urgent ones
+  pathcutter audit export.zip --fail-on critical       # CI: exit 2 if any critical finding exists
+  pathcutter audit export.zip --json > audit.json
+
+Rules: Kerberoastable / AS-REP roastable accounts (privileged ones are critical), passwords in descriptions or
+attributes, no-password accounts, stale privileged accounts, old krbtgt, unprotected Tier 0 accounts, SID history,
+orphaned adminCount, unconstrained delegation, protocol transition, unsupported OS, no LAPS, stale computers, old
+functional level, trusts without SID filtering, and Everyone-like groups holding dangerous rights (including AD CS).
+Time-based rules use the newest activity in the collection as "now", so an old export is judged as of its date.
+"""
+
 DOCTOR = """Examples:
   pathcutter doctor export.zip                 # verdict + what is missing + the SharpHound flag that fixes each gap
   pathcutter doctor export.zip --strict        # exit 1 on warnings too (CI: refuse to gate on a thin collection)
@@ -161,10 +175,11 @@ DESCRIPTIONS = {
     "snapshot": "Save a reusable baseline (.pcsnap) from a SharpHound export so `check` runs in seconds.",
     "check": "Check proposed Active Directory changes for new attack paths to Tier 0 BEFORE they are applied.",
     "demo": "Generate a realistic lab environment, with a ready-made baseline, to try PathCutter without real data.",
+    "audit": "AD hygiene findings from collected attributes, with why it matters and how to fix it; complements attack-path analysis.",
     "doctor": "Inspect a SharpHound export for missing data (sessions, local groups, ACLs, ADCS) before you trust its results.",
     "anonymize": "Write a pseudonymized copy of an export that gives the same attack paths and can be shared safely.",
     "detect": "Generate detections scoped to the exact objects on the attack paths you have not fixed.",
 }
 EPILOGS = {"analyze": ANALYZE, "score": SCORE, "fix": FIX, "graph": GRAPH, "diff": DIFF, "export": EXPORT,
            "snapshot": SNAPSHOT, "demo": DEMO, "check": CHECK, "detect": DETECT,
-           "doctor": DOCTOR, "anonymize": ANONYMIZE}
+           "doctor": DOCTOR, "anonymize": ANONYMIZE, "audit": AUDIT}

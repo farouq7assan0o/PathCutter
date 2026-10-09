@@ -342,6 +342,11 @@ def add_parsers(sub) -> None:
     p.add_argument("input", help="SharpHound ZIP or directory")
     p.add_argument("--json", action="store_true", help="Machine-readable output")
     p.add_argument("--strict", action="store_true", help="Exit 1 on warnings too (default: only on errors)")
+    au = sub.add_parser("audit", help="AD hygiene findings from collected attributes (roastable accounts, passwords in attributes, LAPS, ...)")
+    au.add_argument("input", help="SharpHound ZIP or directory")
+    au.add_argument("--min-severity", choices=["info", "low", "medium", "high", "critical"], default="low")
+    au.add_argument("--json", action="store_true")
+    au.add_argument("--fail-on", choices=["low", "medium", "high", "critical"], help="exit 2 if a finding at or above this severity exists")
     a = sub.add_parser("anonymize", help="Make a shareable copy of your export (pseudonyms, no free text), same attack paths")
     a.add_argument("input", help="SharpHound ZIP or directory")
     a.add_argument("-o", "--output", default="anonymized.zip", help="Output ZIP (default ./anonymized.zip)")
@@ -361,6 +366,25 @@ def cmd_doctor(args) -> int:
         print(render_doctor(r))
     sev = {s for s, _, _ in r["findings"]}
     return 1 if "ERROR" in sev or (args.strict and "WARN" in sev) else 0
+
+
+def cmd_audit(args) -> int:
+    import sys
+    from .hygiene import SEVERITIES, audit, render
+    try:
+        graph = load_sharphound(args.input)
+    except (ValueError, OSError, zipfile.BadZipFile) as exc:
+        print(f"[!] {exc}", file=sys.stderr)
+        return 1
+    findings = audit(graph)
+    shown = [f for f in findings if SEVERITIES.index(f.severity) >= SEVERITIES.index(args.min_severity)]
+    if args.json:
+        print(json.dumps([f.to_dict() for f in shown], indent=2))
+    else:
+        print(render(findings, args.min_severity))
+    if args.fail_on and any(SEVERITIES.index(f.severity) >= SEVERITIES.index(args.fail_on) for f in findings):
+        return 2
+    return 0
 
 
 def cmd_anonymize(args) -> int:

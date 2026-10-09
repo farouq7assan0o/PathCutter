@@ -165,6 +165,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "doctor":
         from .toolkit import cmd_doctor
         return cmd_doctor(args)
+    elif args.command == "audit":
+        from .toolkit import cmd_audit
+        return cmd_audit(args)
     elif args.command == "anonymize":
         from .toolkit import cmd_anonymize
         return cmd_anonymize(args)
