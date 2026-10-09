@@ -36,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     p_analyze.add_argument("--html", action="store_true", help="Generate HTML report")
     p_analyze.add_argument("--json", action="store_true", dest="json_out", help="Generate JSON snapshot")
     p_analyze.add_argument("--markdown", action="store_true", help="Generate markdown summary")
+    p_analyze.add_argument("--graph-nodes", type=int, default=6000, metavar="N",
+                           help="Max nodes drawn in the HTML attack graph (default 6000)")
 
     # score
     p_score = sub.add_parser("score", help="Quick risk score")
@@ -85,8 +87,8 @@ def main(argv: list[str] | None = None) -> int:
     # demo
     p_demo = sub.add_parser("demo", help="Generate a realistic demo AD environment and run full analysis")
     p_demo.add_argument("-o", "--output", default=".", help="Output directory for reports")
-    p_demo.add_argument("--size", choices=["small", "medium", "large"], default="medium",
-                         help="Environment size: small (~50 nodes), medium (~200), large (~1000)")
+    p_demo.add_argument("--size", choices=["small", "medium", "large", "huge"], default="medium",
+                         help="Environment size: small (~50 nodes), medium (~200), large (~1000), huge (~12000)")
 
     args = parser.parse_args(argv)
 
@@ -206,6 +208,7 @@ def _cmd_analyze(args) -> int:
             html = generate_html_report(
                 graph, report, posture, node_scores, choke,
                 chains=chains, safety=assessments if choke.fixes else None,
+                max_graph_nodes=args.graph_nodes,
             )
             if out_dir:
                 path = out_dir / "pathcutter-report.html"
@@ -447,7 +450,7 @@ def _cmd_demo(args) -> int:
     import random
     from .graph import AttackGraph, ADNode, ADEdge, NodeType
 
-    sizes = {"small": (50, 12, 8), "medium": (200, 30, 20), "large": (1000, 80, 50)}
+    sizes = {"small": (50, 12, 8), "medium": (200, 30, 20), "large": (1000, 80, 50), "huge": (9000, 400, 2600)}
     n_users, n_groups, n_computers = sizes[args.size]
 
     print(f"[*] Generating demo AD environment ({args.size}: ~{n_users + n_groups + n_computers} objects)...")

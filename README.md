@@ -77,13 +77,15 @@ The interactive report includes:
 - **Defend**: MITRE coverage, detection difficulty breakdown, log sources, per-edge guidance
 - **What If**: toggle fixes on/off to see projected risk score, path elimination, and exposure in real-time
 - **Path Explorer**: browse and inspect individual attack paths with SVG path diagrams
-- **Attack Graph**: BloodHound-style force-directed graph with:
-  - Shaped nodes per type (user, computer, group, domain, GPO)
-  - Tier 0 diamond outlines and risk glow halos
-  - Edge type filtering and color-coded relationships
-  - Search with zoom-to-node
-  - Right-click context menu
-  - Togglable tier-based hierarchical layout
+- **Attack Graph**: Canvas-rendered graph built for large environments:
+  - Scales to thousands of nodes: viewport culling, quadtree hit-testing, sprite nodes, time-sliced layout (the page never freezes), and an adaptive fast mode while you pan or zoom
+  - Leaf users/computers that share one identical edge collapse into labelled clusters, so a 12,000-object domain shows ~1,600 readable nodes
+  - Shaped nodes per type, Tier 0 diamonds, risk halos, minimap, PNG export
+  - Click a node: its neighbourhood plus its shortest path to Tier 0 light up; one-click path to Tier 0, or set a path start and end to find the shortest attack path between any two objects
+  - Simulate fixes on the graph: a slider applies the top-N remediations, removed edges show as red ghosts, and objects that can no longer reach Tier 0 are ringed green (stays in sync with the What If tab)
+  - Locate any recommended fix as a pulsing edge on the graph
+  - Search (also finds users inside clusters), edge-type filter, structural-edge toggle, tier layout
+- Use `--graph-nodes N` on `analyze` to change how many nodes the graph draws (default 6000)
 - **Keyboard shortcuts**: 1-8 jump to tabs, arrow keys navigate, / focuses search, ? shows help
 
 ## CI/CD Integration
