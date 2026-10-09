@@ -18,11 +18,11 @@ from .chains import detect_chains
 from .safety import assess_fixes, summarize_safety
 
 
-def _quality_summary(args):
+def _quality_summary(args, graph=None):
     """Collection verdict and the top gaps for the report's overview (None if the raw files cannot be inspected)."""
     try:
         from .toolkit import diagnose
-        r = diagnose([args.input, *getattr(args, "also", [])] if getattr(args, "also", None) else args.input)
+        r = diagnose([args.input, *getattr(args, "also", [])] if getattr(args, "also", None) else args.input, graph)
     except Exception:
         return None
     errs = [f for f in r["findings"] if f[0] == "ERROR"]
@@ -291,7 +291,7 @@ def _cmd_analyze(args) -> int:
             html = generate_html_report(
                 graph, report, posture, node_scores, choke,
                 chains=chains, safety=assessments if choke.fixes else None,
-                max_graph_nodes=args.graph_nodes, quality=_quality_summary(args),
+                max_graph_nodes=args.graph_nodes, quality=_quality_summary(args, graph),
             )
             if out_dir:
                 path = out_dir / "pathcutter-report.html"

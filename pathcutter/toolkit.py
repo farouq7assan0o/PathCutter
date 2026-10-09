@@ -66,7 +66,7 @@ _BENIGN_RIGHTS = {"GenericRead", "ReadProperty", "WriteProperty", "ReadControl",
                   "AccessSystemSecurity", "Read", "Write", "Execute"}
 
 
-def diagnose(path) -> dict:
+def diagnose(path, graph=None) -> dict:
     """Inspect a collection without trusting it. Returns a dict of findings (see render_doctor)."""
     files, objs, rights_seen, unmapped = Counter(), Counter(), Counter(), Counter()
     comp = {"total": 0, "sessions": 0, "localgroups": 0, "dc": 0}
@@ -113,7 +113,7 @@ def diagnose(path) -> dict:
     result = {"files": dict(files), "objects": dict(objs), "formats": dict(formats), "unreadable": unreadable,
               "unmapped_rights": dict(unmapped.most_common(15)), "rights_seen": sum(rights_seen.values()),
               "computers": comp, "users": users, "latest_activity": latest, "trusts": trusts}
-    graph = load_sharphound(path)
+    graph = graph if graph is not None else load_sharphound(path)
     t0 = graph.tier0_nodes
     result["collections"] = graph.meta.get("collections", 1)
     seen = [d.get("seen", 1) for _, _, d in graph.all_edges() if d.get("edge_type") == "HasSession"]

@@ -232,26 +232,28 @@ def shortest_paths_to_targets(graph: AttackGraph, source_id: str,
 
 def reachable_from(graph: AttackGraph, node_id: str, max_depth: int = 20) -> set[str]:
     """Blast radius: all nodes reachable from this node (BFS, follows all edge types)."""
-    visited = set()
-    queue = deque([(node_id, 0)])
-
-    while queue:
-        current, depth = queue.popleft()
-        if current in visited or depth > max_depth:
-            continue
-        visited.add(current)
-        for succ in graph.successors(current):
-            if succ not in visited:
-                queue.append((succ, depth + 1))
-
+    adj = graph.graph._succ                      # the adjacency dict itself: no per-node list copies on a 190k-edge graph
+    if node_id not in adj:
+        return set()
+    visited = {node_id}
+    frontier = [node_id]
+    for _ in range(max_depth):
+        nxt = []
+        for cur in frontier:
+            for succ in adj[cur]:
+                if succ not in visited:
+                    visited.add(succ)
+                    nxt.append(succ)
+        if not nxt:
+            break
+        frontier = nxt
     visited.discard(node_id)
     return visited
 
 
 def reachable_tier0(graph: AttackGraph, node_id: str, max_depth: int = 20) -> set[str]:
     """Which Tier 0 nodes are reachable from this node?"""
-    reachable = reachable_from(graph, node_id, max_depth)
-    return reachable & graph.tier0_nodes
+    return reachable_from(graph, node_id, max_depth) & graph.tier0_nodes
 
 
 def nodes_reaching_targets(graph: AttackGraph, targets: set[str],

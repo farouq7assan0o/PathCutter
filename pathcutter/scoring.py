@@ -76,8 +76,9 @@ def score_nodes(graph: AttackGraph, path_report: PathReport) -> list[NodeRisk]:
     t0_cache: dict[str, int] = {}
 
     for i, (node_id, _) in enumerate(sorted_by_count[:FULL_ANALYSIS_CAP]):
-        blast_cache[node_id] = len(reachable_from(graph, node_id, max_depth=6))
-        t0_cache[node_id] = len(reachable_tier0(graph, node_id, max_depth=6))
+        reach = reachable_from(graph, node_id, max_depth=6)         # once: the Tier 0 reach is a subset of it
+        blast_cache[node_id] = len(reach)
+        t0_cache[node_id] = len(reach & graph.tier0_nodes)
 
     results = []
     for node_id, count in sorted_by_count:
