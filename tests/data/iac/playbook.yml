@@ -1,0 +1,84 @@
+---
+- name: Directory changes for the quarter
+  hosts: srv01
+  vars:
+    ops_group: Helpdesk
+    new_admins:
+      - alice
+      - bob
+  tasks:
+    - name: Create a service group
+      microsoft.ad.group:
+        name: Deployers
+        scope: global
+        state: present
+        members:
+          add:
+            - svc_deploy
+            - "{{ extra_member }}"
+
+    - name: Give the ops group its members
+      community.windows.win_domain_group_membership:
+        name: "{{ ops_group }}"
+        members: "{{ new_admins }}"
+        state: present
+
+    - name: Loop over users
+      microsoft.ad.user:
+        name: "{{ item }}"
+        groups:
+          add:
+            - "Server Admins"
+      loop:
+        - carol
+        - dave
+
+    - name: Take someone out of Backup Operators
+      microsoft.ad.group:
+        name: Backup Operators
+        members:
+          remove:
+            - eve
+
+    - name: Local admin on the jump host
+      ansible.windows.win_group_membership:
+        name: Administrators
+        members:
+          - CORP\helpdesk
+        state: present
+
+    - name: Embedded PowerShell
+      ansible.windows.win_shell: |
+        Add-ADGroupMember -Identity "Account Operators" -Members frank
+
+    - name: Conditional change
+      microsoft.ad.group:
+        name: Printers
+        members:
+          add: [gina]
+      when: ansible_facts['os_family'] == 'Windows'
+
+    - name: Whole-membership replacement
+      microsoft.ad.group:
+        name: Auditors
+        members:
+          set: [hank]
+
+    - name: Rights on the DC
+      ansible.windows.win_user_right:
+        name: SeBackupPrivilege
+        users: [ivan]
+        action: add
+
+    - name: Unrelated
+      ansible.windows.win_copy:
+        src: a
+        dest: b
+
+- name: Fleet
+  hosts: windows
+  tasks:
+    - name: Local admin everywhere
+      ansible.windows.win_group_membership:
+        name: Administrators
+        members: [CORP\ops]

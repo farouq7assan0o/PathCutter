@@ -17,6 +17,11 @@
   passwords in descriptions and attributes, no-password accounts, stale privileged accounts, old krbtgt, unprotected
   Tier 0 accounts, SID history, orphaned adminCount, unconstrained delegation, protocol transition, unsupported OS,
   no LAPS, stale computers, old functional level, unfiltered trusts, AD CS and Everyone-like groups with dangerous rights).
+- **Infrastructure-as-code change sources** for `check`: `--terraform` (HCL configuration or `terraform show -json` plans;
+  `ad` and `azuread` providers), `--ansible` (microsoft.ad / ansible.windows / community.windows modules, embedded
+  PowerShell, variables and loops), `--dsc` (ActiveDirectoryDsc / PSDscResources). New sources are one entry in
+  `extractors.EXTRACTORS`. Anything it cannot evaluate (count/for_each, unresolved variables, inventory groups, roles) is
+  reported by name, never skipped.
 - **Microsoft Entra ID and hybrid identity** from AzureHound output (`pathcutter/azure.py`).
 - **AD CS**: ESC3, ESC5, golden certificate, ESC9 added to ESC1/4/6/7.
 - `data/rights.json`: the single declarative source for collector rights, PowerShell GUIDs and dsacls letters; the

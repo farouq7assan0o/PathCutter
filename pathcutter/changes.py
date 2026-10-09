@@ -402,7 +402,14 @@ def load_change_file(path: str | Path, start_index: int = 1
                      ) -> tuple[list[ChangeSpec], list[ChangeWarning]]:
     p = Path(path)
     text = _read_untrusted(p)
-    suffix, shown = p.suffix.lower(), display_path(p)
+    suffix, shown, lower = p.suffix.lower(), display_path(p), p.name.lower()
+    from .extractors import EXTRACTORS
+    if lower.endswith((".dsc.ps1", ".configuration.ps1")):
+        return EXTRACTORS["dsc"].extract(text, shown, start_index)
+    if suffix == ".tf" or lower.endswith(".tf.json") or (suffix == ".json" and '"resource_changes"' in text[:200000]):
+        return EXTRACTORS["terraform"].extract(text, shown, start_index)
+    if suffix in (".yml", ".yaml"):
+        return EXTRACTORS["ansible"].extract(text, shown, start_index)
     if suffix == ".json":
         return parse_json(text, shown, start_index), []
     if suffix in (".ps1", ".psm1"):
@@ -428,8 +435,8 @@ def _expand_dirs(paths: list[str], suffixes: tuple[str, ...]) -> list[tuple[str,
     return out
 
 
-def load_changes(files: list[str] = (), inline: list[str] = (), powershell: list[str] = ()
-                 ) -> tuple[list[ChangeSpec], list[ChangeWarning]]:
+def load_changes(files: list[str] = (), inline: list[str] = (), powershell: list[str] = (),
+                 extra: dict[str, list[str]] | None = None) -> tuple[list[ChangeSpec], list[ChangeWarning]]:
     """Combine every input source into one ordered, 1-indexed change list.
 
     `files` and `powershell` may name directories; every change file inside is used.
@@ -456,6 +463,22 @@ def load_changes(files: list[str] = (), inline: list[str] = (), powershell: list
             continue
         specs.extend(s)
         warns.extend(w)
+    from .extractors import EXTRACTORS
+    for kind, paths in (extra or {}).items():
+        ex = EXTRACTORS[kind]
+        try:
+            expanded = _expand_dirs(list(paths), ex.suffixes)
+        except ChangeSetError as exc:
+            errors.extend(exc.errors)
+            continue
+        for path, _ in expanded:
+            try:
+                s, w = ex.extract(_read_untrusted(Path(path)), display_path(path), len(specs) + 1)
+            except ChangeSetError as exc:
+                errors.extend(exc.errors)
+                continue
+            specs.extend(s)
+            warns.extend(w)
     for n, line in enumerate(inline, 1):
         try:
             spec = parse_line(line, len(specs) + 1, f"--change #{n}")
@@ -475,7 +498,8 @@ def load_changes(files: list[str] = (), inline: list[str] = (), powershell: list
 
 # Which node types make sense at each end of an edge (used to disambiguate names).
 _ENDPOINTS: dict[str, tuple[set[NodeType] | None, set[NodeType] | None]] = {
-    "MemberOf": ({NodeType.USER, NodeType.COMPUTER, NodeType.GROUP}, {NodeType.GROUP}),
+    "MemberOf": ({NodeType.USER, NodeType.COMPUTER, NodeType.GROUP, NodeType.AZ_USER, NodeType.AZ_SP, NodeType.AZ_GROUP},
+                 {NodeType.GROUP, NodeType.AZ_GROUP, NodeType.AZ_ROLE}),
     "AdminTo": (None, {NodeType.COMPUTER}),
     "HasSession": (None, {NodeType.COMPUTER}),
     "CanRDP": (None, {NodeType.COMPUTER}),

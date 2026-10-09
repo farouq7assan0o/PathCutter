@@ -107,6 +107,9 @@ BUILD A COMMAND IN THREE STEPS
   2. the changes    --changes ad-changes/               a file or a directory of .changes / .json / .ps1
                     --change "add-member alice HELPDESK"   one change inline (repeatable)
                     --powershell deploy.ps1              extract the changes a script would make
+                    --terraform infra/  (file, dir, or `terraform show -json` plan)   ad / azuread providers
+                    --ansible playbooks/                 microsoft.ad / ansible.windows / community.windows modules
+                    --dsc configs/directory.dsc.ps1      ActiveDirectoryDsc / PSDscResources configurations
   3. what to emit   --html review.html --markdown comment.md --sarif out.sarif --json out.json
 
 EXAMPLES
@@ -115,6 +118,8 @@ EXAMPLES
   pathcutter check --baseline baseline.pcsnap --changes ad-changes/ --policy policy.json \\
                    --markdown comment.md --sarif check.sarif --fail-on review
   pathcutter check --baseline baseline.pcsnap --powershell remediation.ps1      # verify a fix script
+  pathcutter check --baseline baseline.pcsnap --terraform tfplan.json --fail-on review   # gate a Terraform apply
+  pathcutter check --baseline baseline.pcsnap --ansible site.yml --policy policy.json
 
 CHANGE SYNTAX (one per line in a file, or one per --change)
 """ + "\n".join("  " + line for line in VERB_HELP.splitlines()) + """

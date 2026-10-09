@@ -12,7 +12,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "pyyaml>=6.0"]
+yaml = ["pyyaml>=6.0"]
 
 [project.scripts]
 pathcutter = "pathcutter.cli:main"

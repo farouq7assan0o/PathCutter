@@ -39,6 +39,10 @@ def add_parsers(sub) -> None:
                    help='One change in DSL form, e.g. --change "add-member alice HELPDESK". Repeatable.')
     c.add_argument("--powershell", action="append", default=[], metavar="FILE",
                    help="Extract AD changes from a PowerShell script. Repeatable.")
+    from .extractors import EXTRACTORS
+    for name, ex in EXTRACTORS.items():
+        if name != "powershell":
+            c.add_argument(f"--{name}", action="append", default=[], metavar="FILE_OR_DIR", help=f"Extract AD changes from {ex.describe}. Repeatable.")
     c.add_argument("--policy", metavar="FILE", help="Policy JSON (thresholds, extra Tier 0 assets, waivers)")
     c.add_argument("--on-unresolved", choices=["error", "assume-new"], default="error",
                    help="What to do with a name not in the baseline (default: error)")
@@ -117,7 +121,9 @@ def cmd_check(args) -> int:
     today = dt.date.fromisoformat(args.today) if args.today else dt.date.today()
     try:
         policy = load_policy(args.policy)
-        specs, warns = load_changes(args.changes, args.change, args.powershell)
+        from .extractors import EXTRACTORS
+        extra = {n: getattr(args, n) for n in EXTRACTORS if n != "powershell" and getattr(args, n, None)}
+        specs, warns = load_changes(args.changes, args.change, args.powershell, extra)
         graph, base_info = load_baseline(args.baseline, today)
     except (ChangeSetError, PolicyError) as exc:
         for line in exc.errors:
@@ -127,7 +133,7 @@ def cmd_check(args) -> int:
         _err(str(exc))
         return EXIT_INPUT
     if not specs and not warns:
-        _err("no changes given: use --changes FILE, --change \"...\" or --powershell FILE")
+        _err("no changes given: use --changes FILE, --change \"...\", --powershell, --terraform, --ansible or --dsc")
         return EXIT_INPUT
 
     resolved, errors = resolve_changes(graph, specs, args.on_unresolved)
