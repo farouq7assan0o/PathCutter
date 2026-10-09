@@ -9,6 +9,8 @@ pathcutter-report.*
 pathcutter-snapshot.*
 pathcutter-remediate.*
 *.zip
+!tests/data/real/*.zip
+!tests/data/vendor/*.zip
 datasets/
 test-data/
 tests/test_sharphound_data/
