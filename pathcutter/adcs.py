@@ -12,6 +12,7 @@ collected data:
   ADCSESC5  control of the NTAuth store or an enterprise CA object
   GoldenCert  local administrator of the host of a trusted CA (the CA key can be extracted)
   ADCSESC15 schema-version-1 template with an enrollee-supplied subject (EKUwu, CVE-2024-49019): assumes an unpatched CA
+  ADCSESC13 an issuance policy linked to a group: enrolling gives that group's membership (edge principal -> group)
   ADCSESC9  UPN-change attack: GenericWrite over an account that can enroll in a no-security-extension template,
             while a domain controller does not enforce strong certificate binding (needs DC registry data)
 
@@ -85,9 +86,14 @@ def auth_template(p: dict) -> bool:
 def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
     """Add ADCSESC* edges (principal -> its domain). Returns how many of each were added."""
     counts = {"ADCSESC1": 0, "ADCSESC3": 0, "ADCSESC4": 0, "ADCSESC5": 0, "ADCSESC6": 0, "ADCSESC7": 0, "ADCSESC9": 0,
-              "ADCSESC15": 0, "GoldenCert": 0}
+              "ADCSESC15": 0, "ADCSESC13": 0, "GoldenCert": 0}
     domains = {n.name.upper(): n.object_id for n in graph.nodes_by_type(NodeType.DOMAIN)}
     added: set[tuple[str, str, str]] = set()
+
+    policies = {}
+    for pol in graph.nodes_by_type(NodeType.ISSUANCE_POLICY):
+        if pol.properties.get("_group_link") and pol.properties.get("oid"):
+            policies[str(pol.properties["oid"])] = str(pol.properties["_group_link"])
 
     def emit(src: str, dom: str, kind: str) -> None:
         if src in graph.tier0_nodes or (src, dom, kind) in added:
@@ -118,6 +124,12 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
                     and not (p.get("authorizedsignatures") or 0)):
                 for src in can_enroll:
                     emit(src, dom, "ADCSESC15")
+            if policies and auth_template(p):
+                for oid in p.get("issuancepolicies") or []:
+                    group = policies.get(str(oid))
+                    if group is not None and graph.get_node(group) is not None:
+                        for src in can_enroll:
+                            emit(src, group, "ADCSESC13")
             if san_open and auth_template(p):
                 for src in can_enroll:
                     emit(src, dom, "ADCSESC6")
@@ -134,11 +146,11 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
                     both = _both(graph, _holders(graph, a.object_id, _ENROLL), _holders(graph, b.object_id, _ENROLL))
                     for src in _both(graph, both, ca_enrollers):
                         emit(src, dom, "ADCSESC3")
-        # golden certificate: whoever administers the machine that holds the CA key
+        # golden certificate: the machine that holds the CA key can forge any certificate (BloodHound models it the same
+        # way: host -> domain; whoever administers the host then reaches it through AdminTo)
         host = ca.properties.get("_host")
         if host and host not in graph.tier0_nodes and graph.get_node(host) is not None:
-            for src in _holders(graph, host, {"AdminTo"}):
-                emit(src, dom, "GoldenCert")
+            emit(host, dom, "GoldenCert")
         # ESC9: needs the template flag AND a domain controller that does not enforce strong binding
         if _weak_binding(graph, dom):
             for t in enabled:
@@ -149,6 +161,16 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
                     for v in victims:
                         for src in _holders(graph, v, {"GenericWrite", "GenericAll"}):
                             emit(src, dom, "ADCSESC9")
+    # a published template is a Tier 0 object (BloodHound tags them too): changing one makes it an ESC1 template.
+    # Done after the loop so the ESC edges above are still derived for the non-Tier-0 principals around it.
+    for ca in trusted_cas(graph):
+        for tid in ca.properties.get("_enabled_templates") or []:
+            t = graph.get_node(tid)
+            if t is not None and t.node_type == NodeType.CERT_TEMPLATE and tid not in graph.tier0_nodes:
+                t.tier = 0
+                graph._tier0.add(tid)
+                graph._seed_t0.add(tid)
+                graph._tiered.add(tid)
     # ESC5: control of the objects the PKI trust hangs from
     for store in graph.nodes_by_type(NodeType.NTAUTH_STORE) + graph.nodes_by_type(NodeType.ENTERPRISE_CA):
         d = domains.get(str(store.domain).upper())

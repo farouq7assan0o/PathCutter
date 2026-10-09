@@ -19,6 +19,7 @@ import heapq
 from dataclasses import dataclass, field
 
 from .exposure_ref import PathStep, VERIFY_BUDGET, VERIFY_MAX_DEPTH, _simple_attack_path  # noqa: F401
+from .edges import NON_TRAVERSABLE
 from .graph import AttackGraph
 from .pathfinder import _ATTACK_EDGES
 
@@ -277,7 +278,7 @@ def fork_with_removed_edges(base: Exposure, graph: AttackGraph, edges: list[tupl
         best = None
         for _, vid, et in g.out_edges(ids[u], data="edge_type"):
             iv = pos.get(vid)
-            if iv is None:
+            if iv is None or et in NON_TRAVERSABLE:
                 continue
             for gflag in (0, 1):
                 if (1 if (gflag or et in attack) else 0) != flag:

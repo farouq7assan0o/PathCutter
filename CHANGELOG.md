@@ -35,6 +35,13 @@
 - Path enumeration (`analyze`, chokepoint ranking) now stops at the first Tier 0 target instead of crossing it, so fix
   recommendations no longer point at edges that leave Tier 0 groups; on the SpecterOps sample the top fix is now
   `EVERYONE -> T1_FABIAN` (2,781 paths), visible only because Everyone is now connected to every user.
+- **Validated against BloodHound itself**: SpecterOps' own CE test fixture (raw collector output plus the edges and Tier Zero tags
+  BloodHound computed) is vendored as an oracle (`tests/data/vendor`). Our ESC1 edges and Tier Zero set agree with it. That comparison
+  showed us missing Tier Zero members, now added: DnsAdmins, Cryptographic Operators, Distributed COM Users, Performance Log Users,
+  Incoming Forest Trust Builders, GPOs linked to the domain or the Domain Controllers OU, the PKI trust anchors (CAs, NTAuth store),
+  and published certificate templates. Rights that only feed a derivation (Enroll, ManageCA, ...) are no longer walkable edges, so
+  enrolling in a template is not control of it; golden certificate is now host -> domain like BloodHound's. Added ESC13 (issuance
+  policy linked to a group).
 - `tests/test_registry.py` fails when edge-type knowledge drifts between modules (ingest, PowerShell rules, collector).
 
 ## 0.4.0

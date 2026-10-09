@@ -253,9 +253,9 @@ def test_esc5_and_golden_cert():
     g.add_edge(ADEdge("u-grp", "host", "AdminTo"))
     g.classify_tiers()
     derive_adcs_edges(g)
-    assert ("u-other", "ADCSESC5") in kinds(g) and ("u-grp", "GoldenCert") in kinds(g)
+    assert ("u-other", "ADCSESC5") in kinds(g) and ("host", "GoldenCert") in kinds(g)
     exp = compute_exposure(g)
-    assert exp.hops("u-alice") == 2
+    assert [s.edge_type for s in exp.path("u-alice")] == ["MemberOf", "AdminTo", "GoldenCert", None]
 
 
 def test_golden_cert_is_redundant_when_the_ca_runs_on_a_tier0_host():
@@ -268,7 +268,7 @@ def test_golden_cert_is_redundant_when_the_ca_runs_on_a_tier0_host():
     g.add_node(ADNode("u-da", "DOMAIN ADMINS@X.LOCAL", NodeType.GROUP, "X.LOCAL"))
     g.classify_tiers()
     derive_adcs_edges(g)
-    assert ("u-grp", "GoldenCert") not in kinds(g)
+    assert not [k for k in kinds(g) if k[1] == "GoldenCert"]
 
 
 def test_esc9_needs_weak_binding_data_and_a_victim():
@@ -295,3 +295,82 @@ def test_esc15_needs_v1_subject_and_no_approval(tpl):
     g = lab(template={"schemaversion": 1, **tpl})
     derive_adcs_edges(g)
     assert ("u-grp", "ADCSESC15") not in kinds(g)
+
+
+# ------------------------------------------------------------ ESC13 (issuance policy linked to a group)
+
+OID = "1.3.6.1.4.1.311.21.8.1.400"
+
+
+def lab13(policy_link="grp-linked", template=None, extra_policy_oid=OID):
+    g = lab(template={"enrolleesuppliessubject": False, "issuancepolicies": [OID], **(template or {})})
+    g.add_node(ADNode("grp-linked", "LINKED@X.LOCAL", NodeType.GROUP, "X.LOCAL"))
+    g.add_node(ADNode("pol", "POLICY@X.LOCAL", NodeType.ISSUANCE_POLICY, "X.LOCAL", properties={"oid": extra_policy_oid, "_group_link": policy_link}))
+    g.classify_tiers()
+    return g
+
+
+def test_esc13_edge_points_at_the_linked_group():
+    g = lab13()
+    derive_adcs_edges(g)
+    assert [(u, v, d["edge_type"]) for u, v, d in g.all_edges() if d["edge_type"] == "ADCSESC13"] == [("u-grp", "grp-linked", "ADCSESC13")]
+
+
+def test_esc13_reaches_tier0_when_the_linked_group_is_privileged():
+    g = lab13()
+    g.add_node(ADNode("da", "DOMAIN ADMINS@X.LOCAL", NodeType.GROUP, "X.LOCAL"))
+    g.add_edge(ADEdge("grp-linked", "da", "MemberOf"))
+    g.classify_tiers()
+    derive_adcs_edges(g)
+    assert compute_exposure(g).hops("u-alice") == 2
+
+
+@pytest.mark.parametrize("what,kw", [
+    ("policy is not linked", {"policy_link": None}),
+    ("template does not carry that policy", {"extra_policy_oid": "1.2.3.4"}),
+    ("template cannot authenticate", {"template": {"authenticationenabled": False}}),
+    ("manager approval", {"template": {"requiresmanagerapproval": True}}),
+])
+def test_esc13_needs_its_conditions(what, kw):
+    g = lab13(**kw)
+    derive_adcs_edges(g)
+    assert not [1 for _, _, d in g.all_edges() if d["edge_type"] == "ADCSESC13"], what
+
+
+# ------------------------------------------------------------ BloodHound's own fixture as an independent oracle
+
+VENDOR = Path(__file__).parent / "data" / "vendor"
+
+
+@pytest.mark.skipif(not (VENDOR / "adcs_fixture.zip").exists(), reason="vendor fixture missing")
+def test_esc1_matches_bloodhound_on_its_own_fixture():
+    """tests/data/vendor holds SpecterOps' BloodHound CE test fixture (Apache-2.0): raw collector output plus the edges
+    BloodHound itself computed from it (expected_edges.json). Our derivation must agree on every ADCS edge it also models."""
+    import json
+    g = load_sharphound(VENDOR / "adcs_fixture.zip")
+    expected = json.loads((VENDOR / "expected_edges.json").read_text(encoding="utf-8"))
+    ours = {(g.get_node(u).name, d["edge_type"], g.get_node(v).name) for u, v, d in g.all_edges()
+            if d["edge_type"].startswith("ADCSESC") or d["edge_type"] == "GoldenCert"}
+    t0_names = {g.get_node(i).name for i in g.tier0_nodes}
+    # BloodHound also draws these edges from sources that are already Tier 0 (informational); we omit them by design
+    theirs = {tuple(e) for e in expected["adcs"] if e[0] not in t0_names}
+    modeled = {"ADCSESC1", "ADCSESC3", "ADCSESC4", "ADCSESC6", "ADCSESC9", "ADCSESC13", "GoldenCert"}
+    assert {e for e in theirs if e[1] in modeled} <= ours, f"BloodHound found edges we did not: {sorted({e for e in theirs if e[1] in modeled} - ours)}"
+    extra = sorted(e for e in ours if e[1] in modeled and e not in theirs)
+    assert not extra, f"we report ADCS edges BloodHound does not (check the conditions): {extra}"
+
+
+@pytest.mark.skipif(not (VENDOR / "adcs_fixture.zip").exists(), reason="vendor fixture missing")
+def test_tier_zero_agrees_with_bloodhound_on_its_fixture():
+    """BloodHound tags 63 objects Tier Zero in its own fixture. Everything it tags that is not a certificate template must
+    be Tier 0 here too; templates are tagged only when published (deliberate: unpublished ones cannot be enrolled in)."""
+    import json
+    g = load_sharphound(VENDOR / "adcs_fixture.zip")
+    theirs = set(json.loads((VENDOR / "expected_edges.json").read_text(encoding="utf-8"))["tier_zero_names"])
+    mine = {g.get_node(i).name for i in g.tier0_nodes}
+    templates = {n.name for n in g.nodes_by_type(NodeType.CERT_TEMPLATE)}
+    unnamed = {n for n in theirs if n.startswith("S-1-5-21-")}           # principals of another domain that BloodHound names by SID
+    missing = (theirs - mine) - templates - unnamed
+    assert not missing, f"BloodHound tags these Tier Zero and we do not: {sorted(missing)}"
+    assert (mine & templates) <= theirs, "we tag a template that BloodHound does not"
+    assert len(mine & templates) >= 10, "published templates must be Tier 0"

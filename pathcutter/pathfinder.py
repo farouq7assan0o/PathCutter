@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass, field
 
+from .edges import NON_TRAVERSABLE
 from .graph import AttackGraph
 
 
@@ -98,7 +99,7 @@ _ATTACK_EDGES = frozenset({
     "AddMember", "Owns", "WriteSPN", "AddAllowedToAct", "WriteKeyCredentialLink",
     "AllowedToDelegate", "AllowedToAct", "AdminTo", "HasSession", "CanRDP",
     "CanPSRemote", "ExecuteDCOM", "SQLAdmin", "DCSync", "GPOControlsObject",
-    "ReadLAPSPassword", "ReadGMSAPassword", "TrustedBy", "HasSIDHistory", "WriteGPLink", "ADCSAbuse", "ADCSESC1", "ADCSESC4", "ADCSESC6", "ADCSESC7", "ADCSESC3", "ADCSESC5", "GoldenCert", "ADCSESC9", "ADCSESC15",
+    "ReadLAPSPassword", "ReadGMSAPassword", "TrustedBy", "HasSIDHistory", "WriteGPLink", "ADCSAbuse", "ADCSESC1", "ADCSESC4", "ADCSESC6", "ADCSESC7", "ADCSESC3", "ADCSESC5", "GoldenCert", "ADCSESC9", "ADCSESC15", "ADCSESC13",
     "AZOwner", "AZContributor", "AZUserAccessAdmin", "AZVMAdminLogin", "AZManagedIdentity",
     "AZMGGrantRole", "AZMGAddSecret",
     "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo",
@@ -124,7 +125,7 @@ def find_all_paths(graph: AttackGraph, targets: set[str],
         if node_id not in pred_cache:
             preds = []
             for src in graph.predecessors(node_id):
-                edges = graph.get_edge_data(src, node_id)
+                edges = [e for e in (graph.get_edge_data(src, node_id) or []) if e.get("edge_type") not in NON_TRAVERSABLE]
                 if edges:
                     preds.append((src, edges))
             pred_cache[node_id] = preds

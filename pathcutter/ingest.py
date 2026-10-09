@@ -23,6 +23,7 @@ _TYPE_MAP = {
     "rootcas": NodeType.ROOT_CA,
     "aiacas": NodeType.AIACA,
     "ntauthstores": NodeType.NTAUTH_STORE,
+    "issuancepolicies": NodeType.ISSUANCE_POLICY,
 }
 
 # BloodHound CE kind string -> NodeType
@@ -79,6 +80,7 @@ _CE_KIND_MAP = {
     "AIACA": NodeType.AIACA,
     "RootCA": NodeType.ROOT_CA,
     "NTAuthStore": NodeType.NTAUTH_STORE,
+    "IssuancePolicy": NodeType.ISSUANCE_POLICY,
 }
 
 _CE_EDGE_MAP = _rights.collector_edge()
@@ -659,6 +661,18 @@ def _capture_ca_extras(data: dict, graph: AttackGraph) -> None:
         node.properties["_agent_collected"] = bool(ear.get("Collected"))
 
 
+def _capture_issuance_policies(data: dict, graph: AttackGraph) -> None:
+    """Issuance policy objects: the OID and the group it is linked to (msDS-OIDToGroupLink), for ESC13."""
+    for obj in data.get("data", []):
+        node = graph.get_node(obj.get("ObjectIdentifier", ""))
+        if node is None:
+            continue
+        link = (obj.get("GroupLink") or {}).get("ObjectIdentifier")
+        node.properties["_group_link"] = link
+        if link:
+            graph.add_edge(ADEdge(node.object_id, str(link), "OIDGroupLink"))
+
+
 def _capture_dc_registry(data: dict, graph: AttackGraph) -> None:
     """StrongCertificateBindingEnforcement from domain controllers (only newer collectors gather it)."""
     for obj in data.get("data", []):
@@ -684,6 +698,8 @@ def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
         return azure.parse_azure_file(data, graph)
     n = _parse_known_file(data, graph, file_type)
     ftype = str((data.get("meta") or {}).get("type", "")).lower() or file_type
+    if ftype == "issuancepolicies":
+        _capture_issuance_policies(data, graph)
     if ftype == "enterprisecas":
         _capture_ca_extras(data, graph)
     elif ftype == "computers":

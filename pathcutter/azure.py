@@ -84,7 +84,12 @@ def _member_id(m) -> str:
 
 
 def is_azure_file(data: dict) -> bool:
-    return str((data.get("meta") or {}).get("type", "")).lower() == "azure"
+    """AzureHound writes {"meta": {"type": "azure"}, "data": [...]} or just {"data": [...]}: recognise it by its AZ* kinds."""
+    if str((data.get("meta") or {}).get("type", "")).lower() == "azure":
+        return True
+    items = data.get("data")
+    return isinstance(items, list) and bool(items) and all(
+        isinstance(x, dict) and str(x.get("kind", "")).startswith("AZ") and isinstance(x.get("data"), (dict, list)) for x in items[:50])
 
 
 def parse_azure_file(data: dict, graph: AttackGraph) -> int:

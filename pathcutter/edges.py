@@ -699,6 +699,30 @@ AZMGAddSecret = EdgeType(
     description="Microsoft Graph application permission edge",
 )
 
+OIDGroupLink = EdgeType(
+    name="OIDGroupLink",
+    category=EdgeCategory.GROUP,
+    abuse="An issuance policy is linked to a group: a certificate issued under it grants membership of that group at sign-in",
+    mitre="T1649",
+    exploitability=0,
+    fix_template="# Unlink the issuance policy (msDS-OIDToGroupLink) or restrict who can enroll in templates that carry it",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Input to the ESC13 derivation, not an attack step by itself",
+)
+
+ADCSESC13 = EdgeType(
+    name="ADCSESC13",
+    category=EdgeCategory.SPECIAL,
+    abuse="Enroll in a template whose issuance policy is linked to a group and authenticate with the certificate to gain that group's membership (ESC13)",
+    mitre="T1649",
+    exploitability=8,
+    fix_template="# Remove the OID-to-group link or limit who can enroll in templates that carry the issuance policy",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template, issuance policy and CA data",
+)
+
 # -------------------------------------------------------------------
 # Registry: name -> EdgeType lookup
 # -------------------------------------------------------------------
@@ -733,6 +757,11 @@ def exploitability_weight(edge_name: str) -> float:
     return 10.0 / et.exploitability
 
 
+# Rights that are INPUTS to derived edges (ADCSESC*) rather than steps an attacker can walk: holding Enroll on a
+# template is not control of it. They stay in the graph for the derivations and for reports, but no path crosses them.
+NON_TRAVERSABLE = frozenset({"Enroll", "AutoEnroll", "ManageCA", "ManageCertificates", "WritePKIEnrollmentFlag",
+                             "WritePKINameFlag", "OIDGroupLink"})
+
 TIER0_GROUPS = frozenset({
     "DOMAIN ADMINS",
     "ENTERPRISE ADMINS",
@@ -750,6 +779,12 @@ TIER0_GROUPS = frozenset({
     "ENTERPRISE DOMAIN CONTROLLERS",
     "READ-ONLY DOMAIN CONTROLLERS",
     "ENTERPRISE READ-ONLY DOMAIN CONTROLLERS",
+    # also Tier Zero in BloodHound's own tagging: each gives code execution or trust control on domain controllers
+    "DNSADMINS",
+    "CRYPTOGRAPHIC OPERATORS",
+    "DISTRIBUTED COM USERS",
+    "PERFORMANCE LOG USERS",
+    "INCOMING FOREST TRUST BUILDERS",
 })
 
 TIER0_SIDS_SUFFIXES = frozenset({
@@ -771,6 +806,8 @@ def is_tier0(node_name: str, node_sid: str = "", node_type: str = "") -> bool:
     """Determine if a node is Tier 0 (high-value target)."""
     if node_type == "AZRole" and node_sid.upper() in TIER0_AZ_ROLE_IDS:
         return True
+    if node_type in ("EnterpriseCA", "RootCA", "AIACA", "NTAuthStore"):
+        return True                       # whoever controls the PKI trust anchors can issue certificates for anyone
     if node_type.lower() == "domain":
         return True                       # the domain object is the crown jewel: DCSync, WriteDacl or GPO control on it is a takeover
     upper = node_name.upper()

@@ -23,6 +23,7 @@ class NodeType(Enum):
     ROOT_CA = "RootCA"
     AIACA = "AIACA"
     NTAUTH_STORE = "NTAuthStore"
+    ISSUANCE_POLICY = "IssuancePolicy"
     AZ_USER = "AZUser"
     AZ_GROUP = "AZGroup"
     AZ_APP = "AZApp"
@@ -455,6 +456,18 @@ class AttackGraph:
 
     def classify_tiers(self) -> None:
         """Classify all nodes into tiers based on group membership and proximity to Tier 0."""
+        # GPOs linked to the domain root or to the Domain Controllers OU apply to every domain controller: Tier 0
+        for u, v, d in self.graph.edges(data="edge_type"):
+            if d == "GPOControlsObject":
+                tgt = self._nodes.get(v)
+                src = self._nodes.get(u)
+                if tgt is not None and src is not None and src.node_type == NodeType.GPO and (
+                        tgt.node_type == NodeType.DOMAIN
+                        or (tgt.node_type == NodeType.OU and tgt.display_name.upper() == "DOMAIN CONTROLLERS")):
+                    src.tier = 0
+                    self._tier0.add(u)
+                    self._seed_t0.add(u)
+                    self._tiered.add(u)
         # Phase 1: Mark Tier 0 (already done in add_node for known groups)
         # Also mark members of Tier 0 groups as Tier 0
         for t0_id in list(self._tier0):

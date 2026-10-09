@@ -7,6 +7,8 @@ add_node (O(1) / O(in-degree)); bulk loads simply drop it and it is rebuilt on f
 """
 from __future__ import annotations
 
+from .edges import NON_TRAVERSABLE
+
 
 class FastIndex:
     __slots__ = ("ids", "pos", "rev", "version")
@@ -26,14 +28,15 @@ class FastIndex:
         pos = fx.pos
         rev: list[list[tuple[int, str]]] = [[] for _ in ids]
         for u, v, d in nx_graph.edges(data="edge_type"):
-            rev[pos[v]].append((pos[u], d or ""))
+            if d not in NON_TRAVERSABLE:
+                rev[pos[v]].append((pos[u], d or ""))
         fx.rev = rev
         return fx
 
     def remove_one(self, u: str, v: str, edge_type: str) -> None:
         """Remove a single (u, edge_type) entry from v's predecessors (undo of one add_edge)."""
         iu, iv = self.pos.get(u), self.pos.get(v)
-        if iu is None or iv is None:
+        if iu is None or iv is None or edge_type in NON_TRAVERSABLE:
             return
         lst = self.rev[iv]
         for k in range(len(lst) - 1, -1, -1):
@@ -64,12 +67,14 @@ class FastIndex:
 
     def add_edge(self, u: str, v: str, edge_type: str) -> None:
         iu, iv = self.node(u), self.node(v)
+        if edge_type in NON_TRAVERSABLE:
+            return
         self.rev[iv].append((iu, edge_type))
         self.version += 1
 
     def remove_edge(self, u: str, v: str, edge_type: str) -> None:
         iu, iv = self.pos.get(u), self.pos.get(v)
-        if iu is None or iv is None:
+        if iu is None or iv is None or edge_type in NON_TRAVERSABLE:
             return
         self.rev[iv] = [(a, t) for a, t in self.rev[iv] if not (a == iu and t == edge_type)]
         self.version += 1

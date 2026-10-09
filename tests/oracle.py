@@ -6,6 +6,7 @@ contains at least one attack edge, or omits the node when none exists.
 """
 from __future__ import annotations
 
+from pathcutter.edges import NON_TRAVERSABLE
 from pathcutter.pathfinder import _ATTACK_EDGES
 
 
@@ -18,7 +19,7 @@ def oracle_hops(graph, max_depth: int = 14) -> dict[str, int]:
         if depth >= max_depth:
             return
         for _, nxt, data in g.out_edges(node, data=True):
-            if nxt in seen:
+            if nxt in seen or data.get("edge_type") in NON_TRAVERSABLE:
                 continue
             is_attack = attack or data.get("edge_type") in _ATTACK_EDGES
             if nxt in t0:

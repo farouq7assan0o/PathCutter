@@ -335,16 +335,13 @@ def _detect_adcs_abuse(graph: AttackGraph, report: PathReport) -> list[AttackCha
     """Detect AD Certificate Services abuse paths (ESC1-ESC8).
 
     SharpHound/Certify data may expose edges like:
-    - Enroll / AutoEnroll on certificate templates
-    - WritePKIEnrollmentFlag / WritePKINameFlag
-    - ManageCA / ManageCertificates on CA
-    - GenericAll/GenericWrite on templates
-    These enable ESC1 (request cert as anyone), ESC4 (modify template),
-    ESC7 (CA officer abuse), etc.
+    The derived ADCSESC* / GoldenCert edges mark principals that can escalate through certificate services; GenericAll /
+    GenericWrite / WriteDacl / WriteOwner on a template or CA object also count (ESC4 / ESC5 by direct control).
     """
+    # the derived escalation edges (adcs.py) are the attack steps; the raw rights are only their inputs
     adcs_edge_types = {
-        "Enroll", "AutoEnroll", "ManageCA", "ManageCertificates",
-        "WritePKIEnrollmentFlag", "WritePKINameFlag",
+        "ADCSESC1", "ADCSESC3", "ADCSESC4", "ADCSESC5", "ADCSESC6", "ADCSESC7", "ADCSESC9", "ADCSESC13", "ADCSESC15",
+        "GoldenCert", "ADCSAbuse",
     }
 
     adcs_nodes = set()

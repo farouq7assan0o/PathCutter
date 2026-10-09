@@ -30,6 +30,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass, field
 
+from .edges import NON_TRAVERSABLE
 from .graph import AttackGraph
 from .pathfinder import _ATTACK_EDGES
 
@@ -148,6 +149,8 @@ def compute_exposure(graph: AttackGraph, verify: bool = True) -> Exposure:
             if u in tier0:
                 continue          # already Tier 0; no need to route through it
             et = data.get("edge_type", "")
+            if et in NON_TRAVERSABLE:
+                continue
             nflag = flag or et in _ATTACK_EDGES
             ns = (u, nflag)
             if ns in dist:
@@ -180,6 +183,8 @@ def _compute_with_denies(graph: AttackGraph, result: Exposure, ctx: DenyContext,
             if u in tier0:
                 continue
             et = data.get("edge_type", "")
+            if et in NON_TRAVERSABLE:
+                continue
             if et == "MemberOf":                       # same identity, one group up
                 cands = [((u, flag, s_v), et)]
             else:                                      # a landing: the identity becomes v, so s_v must be v's own signature
@@ -233,7 +238,7 @@ def _simple_attack_path(graph: AttackGraph, start: str, tier0: frozenset[str], m
             seen, lst = set(), []
             for _, v, data in g.out_edges(node, data=True):
                 et = data.get("edge_type", "")
-                if (v, et) not in seen:
+                if et not in NON_TRAVERSABLE and (v, et) not in seen:
                     seen.add((v, et))
                     lst.append((v, et))
             out_cache[node] = lst
