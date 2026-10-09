@@ -48,19 +48,20 @@ class Exposure:
         b = self.base if self.base is not None else self
         return b.dist[s] if s < len(b.dist) else -1
 
+    def _walk_exposed(self) -> set[str]:
+        """Nodes with a route containing an attack edge by WALK (before the simple-path verdicts are applied)."""
+        if self._exposed is None:
+            ids, dist, t0 = self.fx.ids, self.dist, self.tier0
+            self._exposed = {ids[i] for i in range(len(dist) // 2) if dist[2 * i + 1] >= 0 and ids[i] not in t0}
+        return self._exposed
+
     def exposed(self) -> set[str]:
         if self.base is not None:
-            ids, t0, removed = self.fx.ids, self.tier0, self.removed
-            out = self.base.exposed() - removed
-            for s, (d, _, _) in self.over.items():
-                if s & 1 and ids[s >> 1] not in t0 and ids[s >> 1] not in removed:
-                    out.add(ids[s >> 1])
-            return out
-        if self._exposed is None:
-            ids, dist, t0, removed = self.fx.ids, self.dist, self.tier0, self.removed
-            self._exposed = {ids[i] for i in range(len(dist) // 2)
-                             if dist[2 * i + 1] >= 0 and ids[i] not in t0 and ids[i] not in removed}
-        return set(self._exposed)
+            ids, t0 = self.fx.ids, self.tier0
+            out = set(self.base._walk_exposed())
+            out.update(ids[s >> 1] for s in self.over if s & 1 and ids[s >> 1] not in t0)
+            return out - self.removed
+        return self._walk_exposed() - self.removed
 
     def hops(self, node_id: str) -> int | None:
         if node_id in self.removed:
@@ -188,14 +189,18 @@ def fork_with_added_edges(base: Exposure, graph: AttackGraph, edges: list[tuple[
             if fx.ids[u] in base.tier0:
                 continue
             improve(2 * u + (1 if (flag or et in attack) else 0), d + 1, s, et)
-    # cycle check, restricted to nodes whose route changed (everything else keeps its verified base answer)
+    # Cycle check. A node needs a fresh verdict if its route changed, OR if it already needed the exact check in the
+    # base (removed / override / unverified): adding an edge can turn a walk-only route into a real one without
+    # changing the walk at all. Everything else keeps its verified base answer.
     changed = {s >> 1 for s in over if s & 1}
-    fork.removed = {n for n in base.removed if fx.pos.get(n) not in changed}
-    fork.override = {n: p for n, p in base.override.items() if fx.pos.get(n) not in changed}
-    fork.unverified = {n for n in base.unverified if fx.pos.get(n) not in changed}
-    for i in changed:
+    special = set(base.removed) | set(base.override) | set(base.unverified)
+    recheck = changed | {fx.pos[n] for n in special if n in fx.pos}
+    fork.removed = {n for n in base.removed if fx.pos.get(n) not in recheck}
+    fork.override = {n: p for n, p in base.override.items() if fx.pos.get(n) not in recheck}
+    fork.unverified = {n for n in base.unverified if fx.pos.get(n) not in recheck}
+    for i in recheck:
         node = fx.ids[i]
-        if node in base.tier0:
+        if node in base.tier0 or fork._d(2 * i + 1) < 0:
             continue
         steps = fork._walk_path(node)
         if len({st.node_id for st in steps}) == len(steps):
