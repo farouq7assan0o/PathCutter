@@ -69,6 +69,19 @@ def main(argv: list[str] | None = None) -> int:
     p_diff.add_argument("--html", action="store_true", help="Generate HTML diff report")
     p_diff.add_argument("-o", "--output", help="Output directory for reports")
 
+    # export (CI/CD)
+    p_export = sub.add_parser("export", help="CI/CD-friendly JSON output with threshold gating")
+    p_export.add_argument("input", help="SharpHound ZIP or directory")
+    p_export.add_argument("--top", type=int, default=10, help="Top N fixes")
+    p_export.add_argument("--max-depth", type=int, default=20)
+    p_export.add_argument("--max-paths", type=int, default=10000)
+    p_export.add_argument("-o", "--output", help="Output JSON file (default: stdout)")
+    p_export.add_argument("--fail-above", type=int, default=None, metavar="SCORE",
+                           help="Exit non-zero if risk score exceeds this threshold (0-100)")
+    p_export.add_argument("--fail-exposure", type=float, default=None, metavar="PCT",
+                           help="Exit non-zero if Tier 2 exposure exceeds this percentage")
+    p_export.add_argument("--compact", action="store_true", help="Minimal JSON (no indentation)")
+
     # demo
     p_demo = sub.add_parser("demo", help="Generate a realistic demo AD environment and run full analysis")
     p_demo.add_argument("-o", "--output", default=".", help="Output directory for reports")
@@ -91,6 +104,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_graph(args)
     elif args.command == "diff":
         return _cmd_diff(args)
+    elif args.command == "export":
+        return _cmd_export(args)
     elif args.command == "demo":
         return _cmd_demo(args)
 
@@ -327,6 +342,60 @@ def _cmd_diff(args) -> int:
             print(f"\n[+] HTML diff report: {path}")
         else:
             print(html)
+
+    return 0
+
+
+def _cmd_export(args) -> int:
+    """CI/CD export: JSON output with optional threshold gating."""
+    graph, report = _load_and_analyze(args)
+    posture = score_posture(graph, report)
+    node_scores = score_nodes(graph, report)
+    choke = find_chokepoints(graph, report, max_fixes=args.top)
+    chains = detect_chains(graph, report)
+    assessments = assess_fixes(graph, choke.fixes) if choke.fixes else []
+
+    snapshot = _build_json_snapshot(graph, report, posture, node_scores, choke)
+    snapshot["chains"] = [
+        {"type": c.chain_type, "severity": c.severity, "description": c.description,
+         "mitre": c.mitre, "path_count": c.path_count}
+        for c in chains
+    ]
+
+    # Threshold gating
+    gate_failed = False
+    gates = {}
+    if args.fail_above is not None:
+        passed = posture.score <= args.fail_above
+        gates["score"] = {"threshold": args.fail_above, "actual": posture.score, "passed": passed}
+        if not passed:
+            gate_failed = True
+    if args.fail_exposure is not None:
+        actual = round(posture.exposure_pct, 1)
+        passed = actual <= args.fail_exposure
+        gates["exposure"] = {"threshold": args.fail_exposure, "actual": actual, "passed": passed}
+        if not passed:
+            gate_failed = True
+
+    if gates:
+        snapshot["gates"] = gates
+        snapshot["gate_passed"] = not gate_failed
+
+    indent = None if args.compact else 2
+    output = json.dumps(snapshot, indent=indent)
+
+    if args.output:
+        out_path = Path(args.output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(output, encoding="utf-8")
+        print(f"[+] Export: {out_path}", file=sys.stderr)
+    else:
+        print(output)
+
+    if gate_failed:
+        failed_gates = [k for k, v in gates.items() if not v["passed"]]
+        print(f"[!] Gate FAILED: {', '.join(failed_gates)}", file=sys.stderr)
+        return 2
 
     return 0
 
