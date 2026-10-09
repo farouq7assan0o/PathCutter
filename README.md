@@ -42,6 +42,12 @@ pathcutter graph <sharphound-dir> --target "DOMAIN ADMINS"
 
 # Compare before/after snapshots
 pathcutter diff <old-snapshot> <new-snapshot>
+
+# CI/CD export with threshold gating
+pathcutter export <sharphound-dir> --fail-above 50 --fail-exposure 30 -o report.json
+
+# Generate a demo environment (no SharpHound data needed)
+pathcutter demo --size medium -o ./demo
 ```
 
 ## Example output
@@ -69,7 +75,8 @@ The interactive report includes:
 - **Remediation**: priority-ordered fixes with safety assessment, copy-paste PowerShell
 - **Attack Chains**: detected composite attack patterns (shadow creds, delegation, ADCS)
 - **Defend**: MITRE coverage, detection difficulty breakdown, log sources, per-edge guidance
-- **Path Explorer**: browse and inspect individual attack paths step by step
+- **What If**: toggle fixes on/off to see projected risk score, path elimination, and exposure in real-time
+- **Path Explorer**: browse and inspect individual attack paths with SVG path diagrams
 - **Attack Graph**: BloodHound-style force-directed graph with:
   - Shaped nodes per type (user, computer, group, domain, GPO)
   - Tier 0 diamond outlines and risk glow halos
@@ -77,6 +84,20 @@ The interactive report includes:
   - Search with zoom-to-node
   - Right-click context menu
   - Togglable tier-based hierarchical layout
+- **Keyboard shortcuts**: 1-8 jump to tabs, arrow keys navigate, / focuses search, ? shows help
+
+## CI/CD Integration
+
+```bash
+# Fail the pipeline if risk score exceeds 50
+pathcutter export <sharphound-dir> --fail-above 50 -o report.json
+echo $?  # exit code 2 = gate failed, 0 = passed
+
+# Fail if more than 30% of Tier 2 nodes are exposed
+pathcutter export <sharphound-dir> --fail-exposure 30 --compact
+```
+
+The export command outputs structured JSON with posture scores, top fixes, attack chains, and gate pass/fail status.
 
 ## Supported formats
 
