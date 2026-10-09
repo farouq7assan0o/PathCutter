@@ -38,6 +38,8 @@ class Fix:
             if et == "ADCSESC11":
                 return "Close AD CS ESC11: enforce RPC encryption (IF_ENFORCEENCRYPTICERTREQUEST) on the CA"
             return f"Close AD CS {et[4:]} for {self.source_name} (fix the template or CA setting, or restrict who can enroll)"
+        if et == "GPOUserRight":
+            return f"Remove the dangerous user right that a GPO grants {self.source_name} on {self.target_name}"
         if et == "GoldenCert":
             return f"Treat {self.source_name} (it holds a CA key) as Tier 0: remove non-admin local administrators"
         if et == "SyncedTo":

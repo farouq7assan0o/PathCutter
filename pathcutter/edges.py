@@ -555,6 +555,18 @@ ADCSESC16 = EdgeType(
     description="Derived from CA policy-module settings (tools/Export-AdCsRelay.ps1) and domain controller data",
 )
 
+GPOUserRight = EdgeType(
+    name="GPOUserRight",
+    category=EdgeCategory.SPECIAL,
+    abuse="A Group Policy user-rights assignment grants a privilege that lets the holder become SYSTEM on the computer (backup, restore, take ownership, debug, load driver, act as part of the OS)",
+    mitre="T1078.003",
+    exploitability=8,
+    fix_template="# Remove the principal from the privilege in the GPO's Computer Configuration > Windows Settings > Security Settings > Local Policies > User Rights Assignment. Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from SYSVOL security templates (tools/Export-AdGpoRights.ps1) and the objects the GPO is linked to",
+)
+
 AZOwns = EdgeType(
     name="AZOwns",
     category=EdgeCategory.SPECIAL,

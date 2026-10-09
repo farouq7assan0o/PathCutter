@@ -44,7 +44,7 @@ def iter_raw(path):
 def file_type(entry: str, data) -> str:
     meta = (data or {}).get("meta", {}) if isinstance(data, dict) else {}
     t = str(meta.get("type", "")).lower()
-    if t in _TYPE_MAP or t in ("azure", "adcsrelay"):
+    if t in _TYPE_MAP or t in ("azure", "adcsrelay", "gporights"):
         return t
     low = entry.lower()
     return next((k for k in _TYPE_MAP if k in low), "unknown")
@@ -172,6 +172,9 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
             f.append(("WARN", f"local groups collected on only {c['localgroups']}/{c['total']} computers", "unreachable hosts hide their admins; exposure is a floor, not a ceiling"))
     if not r["files"].get("gpos"):
         f.append(("WARN", "no GPO file: policy-driven local admin and GPO control paths are not modeled", "collect with `-c GPOLocalGroup,Container`"))
+    if r["files"].get("gpos") and not r["files"].get("gporights"):
+        f.append(("INFO", "GPO user-rights assignments (SeBackupPrivilege, SeDebugPrivilege ...) are not in this data",
+                  "run tools/Export-AdGpoRights.ps1 and add its *_gporights.json to the collection"))
     if g["adcs"] and not r["files"].get("adcsrelay"):
         f.append(("INFO", "AD CS ESC8 and ESC11 (NTLM relay to the CA's enrollment endpoints) cannot be assessed from this data",
                   "run tools/Export-AdCsRelay.ps1 and add its *_adcsrelay.json to the collection"))

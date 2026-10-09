@@ -483,6 +483,8 @@ def _guess_file_type(filename: str) -> str:
         return "denies"
     if "adcsrelay" in lower:
         return "adcsrelay"
+    if "gporights" in lower:
+        return "gporights"
     if "sessions" in lower:
         return "sessions"
     for key in _TYPE_MAP:
@@ -574,6 +576,8 @@ def _finish(graph: AttackGraph) -> AttackGraph:
     _name_uncollected_principals(graph)
     _add_implicit_memberships(graph)
     _link_unconstrained_delegation(graph)
+    from .gpo_rights import derive_gpo_privileges
+    derive_gpo_privileges(graph)
     from .restrictions import apply_restrictions
     apply_restrictions(graph)
     graph.classify_tiers()
@@ -748,6 +752,10 @@ def _capture_dc_registry(data: dict, graph: AttackGraph) -> None:
 
 def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
     """Route to v4 or v5 parser based on format detection."""
+    if str((data.get("meta") or {}).get("type", "")).lower() == "gporights" or file_type == "gporights":
+        from . import gpo_rights
+        gpo_rights.capture(data, graph)
+        return 0
     if str((data.get("meta") or {}).get("type", "")).lower() == "adcsrelay" or file_type == "adcsrelay":
         _capture_relay(data, graph)
         return 0
