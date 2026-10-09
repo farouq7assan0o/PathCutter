@@ -246,6 +246,10 @@ def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
                         for rc in resolved if rc.spec.op == "add" and not rc.noop}
 
     exposed_b, exposed_a = exp_b.exposed(), exp_a.exposed()
+    unverified = exp_b.unverified | exp_a.unverified
+    if unverified:
+        rep.warnings.append(f"{len(unverified)} object(s) are flagged because of a cyclic route that could not be fully verified "
+                            "within the search budget; they are kept as exposed to stay on the safe side.")
     promoted = t0_a - t0_b
     demoted = {n for n in (t0_b - t0_a) if after.get_node(n)}
     newly_exposed = exposed_a - exposed_b - promoted - demoted

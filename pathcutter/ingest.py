@@ -260,11 +260,7 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
             if user_sid:
                 graph.add_edge(ADEdge(source_id=user_sid, target_id=oid, edge_type="HasSession"))
 
-        # Delegation
-        if props.get("unconstraineddelegation"):
-            for target_sid in _find_dc_sids(graph):
-                graph.add_edge(ADEdge(source_id=oid, target_id=target_sid, edge_type="AllowedToDelegate"))
-
+        # Delegation (unconstrained delegation is resolved after every file is loaded; see load_sharphound)
         for target in _unwrap_results(obj.get("AllowedToDelegate", [])):
             target_sid = target.get("ObjectIdentifier", target) if isinstance(target, dict) else target
             if target_sid:
@@ -414,13 +410,32 @@ def _parse_v5_edges_file(data: dict, graph: AttackGraph) -> int:
     return count
 
 
-def _find_dc_sids(graph: AttackGraph) -> list[str]:
-    """Find SIDs of Domain Controller computers already in the graph."""
-    dc_sids = []
+def find_dc_sids(graph: AttackGraph) -> list[str]:
+    """Domain controller computers: computers that are members of a Domain Controllers group.
+
+    Must run after every file is loaded, because membership edges arrive with the group files.
+    """
+    dc_groups = {n.object_id for n in graph.all_nodes()
+                 if n.object_id.endswith("-516") or n.name.upper().split("@")[0] == "DOMAIN CONTROLLERS"}
+    dcs = []
     for node in graph.nodes_by_type(NodeType.COMPUTER):
-        if node.object_id.endswith("-516"):  # Domain Controllers group
-            dc_sids.append(node.object_id)
-    return dc_sids
+        if any(t in dc_groups for _, t, d in graph.out_edges(node.object_id) if d.get("edge_type") == "MemberOf"):
+            dcs.append(node.object_id)
+    return dcs
+
+
+def _link_unconstrained_delegation(graph: AttackGraph) -> None:
+    """A host trusted for unconstrained delegation can capture the TGT of anything that authenticates to
+    it, so it is treated as able to act as every domain controller (edge AllowedToDelegate host -> DC)."""
+    dcs = set(find_dc_sids(graph))
+    if not dcs:
+        return
+    for node in graph.all_nodes():
+        if node.object_id in dcs or not node.properties.get("unconstraineddelegation"):
+            continue
+        for dc in dcs:
+            if not graph.has_edge_type(node.object_id, dc, "AllowedToDelegate"):
+                graph.add_edge(ADEdge(source_id=node.object_id, target_id=dc, edge_type="AllowedToDelegate"))
 
 
 def _guess_file_type(filename: str) -> str:
@@ -454,6 +469,7 @@ def load_sharphound(path: str | Path) -> AttackGraph:
                 node_type=NodeType.GROUP,
             ))
 
+    _link_unconstrained_delegation(graph)
     graph.classify_tiers()
     return graph
 
