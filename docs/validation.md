@@ -1,7 +1,7 @@
 # How PathCutter's results are validated
 
 A security gate that is wrong is worse than none, so the claims here are checked, not asserted. Everything below
-is reproducible with `python -m pytest tests/` (3,500+ tests, about 10 seconds).
+is reproducible with `python -m pytest tests/` (15,000+ tests, under a minute). See also `docs/extending.md`.
 
 ## 1. Ground truth on a public, documented environment
 
@@ -81,6 +81,27 @@ where the real AST sees no call, and no real call to a cmdlet we claim to unders
 Deny ACEs are proven against a forward brute-force oracle with identity tracking
 (`tests/test_deny.py`, 1,500 random graphs).
 
+## 7. Scale and equivalence
+
+* `exposure_ref.py` (the original engine) is the executable specification. The production engine, the incremental updates for added
+  and removed edges, the identity-sensitive deny search and the in-place probe are fuzzed against it and against brute-force
+  oracles: `python tests/fuzz.py --seeds 1000000` (about 3,000 graphs per second per machine). The fuzzer found two real bugs in the
+  incremental update on its first run (a walk-only verdict that goes stale when an edge is added); both are fixed and pinned as
+  regression seeds.
+* Measured on one laptop (`benchmarks/`): exposure over 1,000,000 objects about 4 s; a 10-change `check` on 1,000,000 objects about
+  20 s (was 58 s), on 200,000 objects 3.8 s (was 38 s); ingest of 1,000,000 objects about 22 s, peak memory about 2 GB.
+
+## 8. New model areas and how each is checked
+
+* AD CS (ESC1, 3, 4, 5, 6, 7, 9, 15, golden certificate): every condition has a test that removes it and expects no edge; the real
+  SpecterOps collection, which contains deliberately vulnerable templates, is re-derived independently from the raw JSON.
+* Entra ID / Azure RBAC / Graph application permissions: built from the AzureHound source models, exercised on synthetic data in
+  that shape. **Not yet checked against a real tenant export.**
+* Conditional Access: evaluated per identity (users, groups, roles, nesting, MFA, authentication strength, state); conditions that are
+  not evaluated make a policy count as *not* covering, so coverage is never over-stated.
+* Infrastructure-as-code extractors (Terraform HCL and plan JSON, Ansible, DSC): fixtures in `tests/data/iac/` and end-to-end `check`
+  runs against the real SEVENKINGDOMS collection.
+
 ## What is NOT validated
 
 * Production exports. Real collector output from public labs IS tested (section 6), but no export from a real
@@ -89,9 +110,10 @@ Deny ACEs are proven against a forward brute-force oracle with identity tracking
 * A live running AD. The generated detections are tested for validity and consistency, not run against live
   event streams (use each rule's `test_command` in your own lab), and `Export-AdDenyAces.ps1` is tested offline
   (its right mapping and descriptor parsing in real PowerShell) but has not been pointed at a live domain.
-* Conditional Access, MFA and PIM enforcement are not modeled (they can be declared as controls, which only lower
-  severity); Protected Users, authentication silos and replication delay are not modeled. See
-  `pathcutter syntax model`.
+* Whether MFA / PIM approval is really enforced at sign-in is not known to PathCutter (Conditional Access is evaluated and reported by
+  `audit`; declared controls only lower severity); Protected Users and authentication silos are reported, not modeled as graph
+  restrictions; replication delay and network reachability are not modeled. See `pathcutter syntax model`.
+* Entra ID, Azure RBAC and Graph application permissions have not been run against a real tenant export (none is public).
 
 ## Performance (measured, one laptop)
 
