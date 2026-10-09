@@ -152,6 +152,11 @@ MODELED (exposure is computed exactly for these)
   and only at the hop where that identity acts. Collect them with tools/Export-AdDenyAces.ps1 (SharpHound does
   not), or state them with `deny` / `undeny`, `dsacls /D` and Deny access rules in scripts.
 
+RESTRICTIONS (applied when the graph is built; always reported, never silent)
+  Protected Users / 'sensitive and cannot be delegated': constrained and resource-based delegation edges into a host
+  are removed when EVERY administrator of that host is protected. Listed by `audit`; `check` does not re-evaluate it
+  and says so when a change touches memberships or administrators.
+
 MODELED AS REPORTING, NOT AS A GRAPH CHANGE
   Conditional Access: policies are evaluated against the collected Entra identities (users, groups, roles, nested; MFA,
   authentication strength, block; enabled / report-only / disabled) and reported by `pathcutter audit`. Locations,
@@ -165,11 +170,11 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
   but every trust is treated as traversable (conservative: it can over-report, not under-report).
 
 NOT MODELED (stated so nobody assumes otherwise)
-  AD CS ESC2 (feeds ESC3), ESC8 and ESC11 (relay to enrollment endpoints), ESC10/16, ESC13/14; AD CS paths are only as
-  good as the template, CA and NTAuth data collected. Entra administrative units, application API permissions
-  (other than RoleManagement.ReadWrite.Directory, AppRoleAssignment.ReadWrite.All and Application.ReadWrite.All), custom Azure roles, deny assignments and key vault data-plane access policies.
+  AD CS ESC2 (feeds ESC3), ESC8 and ESC11 (relay to enrollment endpoints), ESC14/16; AD CS paths are only as
+  good as the template, CA and NTAuth data collected. Entra administrative units, Graph application
+  permissions other than the role, secret, group-member and user-password ones, custom Azure roles, deny assignments and key vault data-plane access policies.
   Whether MFA / PIM approval is really enforced at sign-in (Conditional Access is evaluated and reported, not turned
-  into graph edges), Protected Users and authentication silos as graph restrictions (reported by `audit`), smart-card
+  into graph edges), authentication silos as graph restrictions, smart-card
   required flags, fine-grained password policy, network reachability and firewalls, SMB/LDAP signing and NTLM relay,
   EDR, GPO content other than local-group membership, Kerberos ticket and token contents.
   Sessions are snapshots of one moment: merge several collections with --also.

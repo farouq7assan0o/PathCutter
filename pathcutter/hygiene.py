@@ -88,6 +88,20 @@ def _enabled(n) -> bool:
 # ---------------------------------------------------------------------------------------------- accounts
 
 @rule
+def delegation_neutralized(ctx):
+    out = []
+    for r in ctx.graph.meta.get("restrictions", []):
+        if r.get("kind") == "protected-users":
+            out.append(HygieneFinding("protected-users-neutralizes-delegation",
+                                      f"{r['count']} delegation edge(s) ignored because every administrator of the target is protected", "info",
+                                      "Constrained and resource-based delegation cannot impersonate Protected Users or accounts marked sensitive. "
+                                      "These edges are not in the attack graph. This holds only while every administrator of the target stays protected.",
+                                      "Keep all administrators of these hosts in Protected Users; add a new administrator only after protecting the account.",
+                                      "T1134.001", sorted({ctx.graph.get_node_name(e["target"]) for e in r["edges"]})[:25], r["count"]))
+    return out
+
+
+@rule
 def kerberoastable(ctx):
     bad = [n for n in ctx.users if _enabled(n) and ctx.has(n, "hasspn") and n.display_name.upper() != "KRBTGT"
            and not ctx.has(n, "gmsa") and not ctx.has(n, "msa")]

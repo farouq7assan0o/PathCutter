@@ -572,6 +572,8 @@ def _finish(graph: AttackGraph) -> AttackGraph:
     _name_uncollected_principals(graph)
     _add_implicit_memberships(graph)
     _link_unconstrained_delegation(graph)
+    from .restrictions import apply_restrictions
+    apply_restrictions(graph)
     graph.classify_tiers()
     from .adcs import derive_adcs_edges
     from .derived import derive_dcsync

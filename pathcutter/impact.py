@@ -279,6 +279,17 @@ def _operational_notes(resolved: list, before: AttackGraph, new_finding) -> None
             revoked.append(spec.index)
         if spec.op == "delete" and rc.removed_edges:
             revoked.append(spec.index)
+    restr = [r for r in before.meta.get("restrictions", []) if r.get("kind") == "protected-users"]
+    if restr:
+        touched = [rc.spec.index for rc in resolved if not rc.noop and rc.spec.op in ("add", "remove", "delete", "create")
+                   and (rc.spec.edge_type in ("MemberOf", "AdminTo", "") or rc.spec.op == "delete")]
+        if touched:
+            new_finding(kind="NOTE", severity="low", changes=touched,
+                        title=f"{restr[0]['count']} delegation edge(s) are ignored because their targets' administrators are protected",
+                        detail=("The baseline ignores constrained and resource-based delegation into hosts whose administrators are all in "
+                                "Protected Users or marked sensitive. This check does not re-evaluate that: a change that removes someone "
+                                "from Protected Users, or adds an unprotected administrator to such a host, re-opens those edges and is "
+                                "NOT reflected in this result. Review it by hand."))
     if revoked:
         new_finding(kind="NOTE", severity="low", changes=revoked,
                     title=f"Revocation is not instant ({len(revoked)} change{'s' if len(revoked) != 1 else ''})",
