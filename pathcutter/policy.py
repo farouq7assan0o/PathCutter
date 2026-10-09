@@ -26,7 +26,9 @@ GATED_KINDS = ("TIER0_PROMOTION", "NEW_EXPOSURE", "COMBINED_EFFECT", "PATH_SHORT
 ALL_KINDS = GATED_KINDS + ("RISK_REDUCTION", "NOOP", "NOTE")
 _KNOWN_KEYS = {"schema", "block_severity", "block_kinds", "review_severity", "max_new_exposed_actors",
                "max_score_increase", "fail_on_unmodeled", "extra_tier0", "max_baseline_age_days",
-               "require_waiver_expiry", "waivers"}
+               "require_waiver_expiry", "waivers", "controls", "jit_max_minutes"}
+CONTROL_TYPES = ("conditional-access", "mfa", "pim", "vault", "tiering", "network", "monitoring", "other")
+_KNOWN_CONTROL_KEYS = {"id", "type", "owner", "evidence", "expires", "source", "edge", "target", "kinds", "steps", "reason"}
 _KNOWN_WAIVER_KEYS = {"id", "reason", "approver", "expires", "source", "edge", "target", "kinds", "origin"}
 
 
@@ -73,6 +75,39 @@ class Waiver:
 
 
 @dataclass
+class Control:
+    """A DECLARED compensating control (Conditional Access, PIM approval, vaulting, tiering, ...).
+
+    PathCutter cannot see these. A control may lower the severity of the findings it covers, but never below
+    `low` (`medium` for a Tier 0 promotion or a combined effect), never hides a finding, and always says in every
+    report that it was declared and not verified. It needs an owner and evidence, and ideally an expiry.
+    """
+    id: str
+    type: str
+    owner: str
+    evidence: str
+    reason: str = ""
+    expires: dt.date | None = None
+    source: str = "*"
+    edge: str = "*"
+    target: str = "*"
+    kinds: tuple[str, ...] = ("*",)
+    steps: int = 1
+
+    def is_expired(self, today: dt.date) -> bool:
+        return self.expires is not None and self.expires < today
+
+    def matcher(self) -> Waiver:
+        return Waiver(id=self.id, reason=self.reason, source=self.source, edge=self.edge, target=self.target,
+                      kinds=self.kinds)
+
+    def to_dict(self, status: str = "applied") -> dict:
+        return {"id": self.id, "type": self.type, "owner": self.owner, "evidence": self.evidence,
+                "reason": self.reason, "expires": self.expires.isoformat() if self.expires else None,
+                "steps": self.steps, "status": status}
+
+
+@dataclass
 class Policy:
     block_severity: str = "high"
     block_kinds: tuple[str, ...] = ("TIER0_PROMOTION", "NEW_EXPOSURE", "COMBINED_EFFECT")
@@ -84,6 +119,8 @@ class Policy:
     max_baseline_age_days: int | None = None
     require_waiver_expiry: bool = False
     waivers: tuple[Waiver, ...] = ()
+    controls: tuple[Control, ...] = ()
+    jit_max_minutes: int | None = None
     source: str = "built-in default"
 
     def to_dict(self) -> dict:
@@ -92,7 +129,8 @@ class Policy:
                 "max_new_exposed_actors": self.max_new_exposed_actors,
                 "max_score_increase": self.max_score_increase, "fail_on_unmodeled": self.fail_on_unmodeled,
                 "extra_tier0": list(self.extra_tier0), "max_baseline_age_days": self.max_baseline_age_days,
-                "require_waiver_expiry": self.require_waiver_expiry}
+                "require_waiver_expiry": self.require_waiver_expiry, "jit_max_minutes": self.jit_max_minutes,
+                "controls": [c.to_dict("declared") for c in self.controls]}
 
 
 def load_policy(path: str | Path | None) -> Policy:
@@ -172,6 +210,42 @@ def parse_policy(data: dict, source: str = "<policy>") -> Policy:
             source=str(w.get("source", "*")), edge=str(w.get("edge", "*")), target=str(w.get("target", "*")),
             kinds=kinds(w.get("kinds", ["*"]), f"{where}.kinds", ALL_KINDS) or ("*",),
             origin=str(w.get("origin", "*"))))
+    controls: list[Control] = []
+    for n, c in enumerate(data.get("controls", []), 1):
+        where = f"{source}: controls[{n}]"
+        if not isinstance(c, dict):
+            errors.append(f"{where}: must be an object")
+            continue
+        for k in c:
+            if k not in _KNOWN_CONTROL_KEYS:
+                errors.append(f"{where}: unknown key '{k}'")
+        missing = [k for k in ("id", "type", "owner", "evidence") if not c.get(k)]
+        if missing:
+            errors.append(f"{where}: {', '.join(missing)} required (a control without an owner and evidence is a guess)")
+            continue
+        ctype = str(c["type"]).lower()
+        if ctype not in CONTROL_TYPES:
+            errors.append(f"{where}: type must be one of {', '.join(CONTROL_TYPES)} (got '{ctype}')")
+            continue
+        steps = c.get("steps", 1)
+        if isinstance(steps, bool) or not isinstance(steps, int) or not 1 <= steps <= 2:
+            errors.append(f"{where}: steps must be 1 or 2 (a control lowers severity by at most two levels)")
+            continue
+        cexp = None
+        if c.get("expires"):
+            try:
+                cexp = dt.date.fromisoformat(str(c["expires"]))
+            except ValueError:
+                errors.append(f"{where}: expires must be YYYY-MM-DD (got '{c['expires']}')")
+                continue
+        elif require_expiry:
+            errors.append(f"{where}: policy requires every control to have an 'expires' date")
+            continue
+        controls.append(Control(
+            id=str(c["id"]), type=ctype, owner=str(c["owner"]), evidence=str(c["evidence"]),
+            reason=str(c.get("reason", "")), expires=cexp, source=str(c.get("source", "*")),
+            edge=str(c.get("edge", "*")), target=str(c.get("target", "*")),
+            kinds=kinds(c.get("kinds", ["*"]), f"{where}.kinds", ALL_KINDS) or ("*",), steps=steps))
     block_severity = severity("block_severity", "high")
     block_kinds = kinds(data.get("block_kinds", ["TIER0_PROMOTION", "NEW_EXPOSURE", "COMBINED_EFFECT"]),
                         "block_kinds", GATED_KINDS)
@@ -179,6 +253,7 @@ def parse_policy(data: dict, source: str = "<policy>") -> Policy:
     max_exposed = optional_int("max_new_exposed_actors")
     max_score = optional_int("max_score_increase")
     max_age = optional_int("max_baseline_age_days")
+    jit_max = optional_int("jit_max_minutes")
     if errors:
         raise PolicyError(errors)
     return Policy(
@@ -187,7 +262,7 @@ def parse_policy(data: dict, source: str = "<policy>") -> Policy:
         fail_on_unmodeled=bool(data.get("fail_on_unmodeled", False)),
         extra_tier0=tuple(str(x) for x in data.get("extra_tier0", [])),
         max_baseline_age_days=max_age, require_waiver_expiry=require_expiry,
-        waivers=tuple(waivers), source=source)
+        waivers=tuple(waivers), controls=tuple(controls), jit_max_minutes=jit_max, source=source)
 
 
 def resolve_extra_tier0(graph: AttackGraph, names: tuple[str, ...]) -> tuple[set[str], list[str]]:
@@ -215,6 +290,9 @@ def evaluate(report: ImpactReport, policy: Policy, resolved: list[ResolvedChange
     block_floor = severity_rank(policy.block_severity)
     expired_seen: dict[str, Waiver] = {}
     applied: dict[str, Waiver] = {}
+    controls_applied: dict[str, Control] = {}
+    controls_expired: dict[str, Control] = {}
+    _soften_findings(report, policy, by_index, today, controls_applied, controls_expired)
 
     def waiver_for(f: Finding) -> tuple[Waiver | None, Waiver | None]:
         """(valid waiver covering every change in the finding, an expired one that would have)."""
@@ -285,6 +363,9 @@ def evaluate(report: ImpactReport, policy: Policy, resolved: list[ResolvedChange
     for wid, w in expired_seen.items():
         violations.append({"rule": "expired_waiver", "blocking": False,
                            "message": f"Waiver {wid} expired on {w.expires} and no longer applies."})
+    for cid, c in controls_expired.items():
+        violations.append({"rule": "expired_control", "blocking": False,
+                           "message": f"Declared control {cid} expired on {c.expires}; it no longer lowers any finding."})
 
     # per-change verdicts
     by_finding = {f.id: f for f in report.findings}
@@ -326,8 +407,59 @@ def evaluate(report: ImpactReport, policy: Policy, resolved: list[ResolvedChange
     report.policy = {**policy.to_dict(),
                      "waivers_applied": [w.to_dict() for w in applied.values()],
                      "waivers_expired": [w.to_dict() for w in expired_seen.values()],
+                     "controls_applied": [c.to_dict("applied") for c in controls_applied.values()],
+                     "controls_expired": [c.to_dict("expired") for c in controls_expired.values()],
                      "waived_findings": waived_ids}
     return report
+
+
+def _lower(f: Finding, steps: int) -> None:
+    """Lower severity by `steps`, never below `low` (`medium` for a Tier 0 promotion / combined effect)."""
+    floor = severity_rank("medium") if f.kind in ("TIER0_PROMOTION", "COMBINED_EFFECT") else severity_rank("low")
+    new = max(severity_rank(f.severity) - steps, floor)
+    if new < severity_rank(f.severity):
+        f.original_severity = f.original_severity or f.severity
+        f.severity = SEVERITIES[new]
+
+
+def _soften_findings(report: ImpactReport, policy: Policy, by_index: dict, today: dt.date,
+                     applied: dict, expired: dict) -> None:
+    """Time-bound (JIT) grants and declared compensating controls: lower severity, annotate, never suppress."""
+    from .changes import format_ttl
+    for f in report.findings:
+        if f.superseded or f.kind in ("RISK_REDUCTION", "NOOP", "NOTE", "UNMODELED") or not f.changes:
+            continue
+        rcs = [by_index.get(i) for i in f.changes]
+        if any(rc is None for rc in rcs):
+            continue
+        ttls = [rc.spec.ttl_minutes for rc in rcs]
+        if all(ttls):
+            longest = max(ttls)
+            f.temporary = {"minutes": longest, "label": format_ttl(longest)}
+            if policy.jit_max_minutes is not None and longest <= policy.jit_max_minutes:
+                _lower(f, 1)
+        if not policy.controls:
+            continue
+        per_change: list[tuple[int, list[Control]]] = []
+        expired_hit: Control | None = None
+        for rc in rcs:
+            hits = [c for c in policy.controls if ("*" in c.kinds or f.kind in c.kinds) and c.matcher().matches(rc)]
+            live = [c for c in hits if not c.is_expired(today)]
+            if not live:
+                expired_hit = expired_hit or next((c for c in hits if c.is_expired(today)), None)
+                per_change = []
+                break
+            best = max(live, key=lambda c: c.steps)
+            per_change.append((best.steps, live))
+        if per_change:
+            steps = min(s for s, _ in per_change)
+            ctl = max(per_change[0][1], key=lambda c: c.steps)
+            applied[ctl.id] = ctl
+            _lower(f, steps)
+            f.control = ctl.to_dict("applied")
+        elif expired_hit:
+            expired[expired_hit.id] = expired_hit
+            f.control = expired_hit.to_dict("expired")
 
 
 def baseline_age_days(path: str | Path, today: dt.date | None = None) -> int | None:

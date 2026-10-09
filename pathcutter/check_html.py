@@ -12,7 +12,7 @@ from itertools import count
 
 from . import __version__
 from .check_report import CHANGE_VERDICT_LABEL, KIND_LABEL, VERDICT_LABEL
-from .impact import Finding, ImpactReport, severity_rank
+from .impact import Finding, ImpactReport, finding_context, severity_rank
 from .report import _safe_json
 
 e = html.escape
@@ -168,6 +168,8 @@ def _finding_html(f: Finding, changes_by_index: dict) -> str:
                 + (f'<div class="cmdwrap"><button class="copy" type="button" aria-label="Copy command">Copy</button><pre class="cmd">{e(fx["command"])}</pre></div>' if fx.get("command") else "")
                 + "</div>")
         out.append(f'<div class="fix"><h4>Fix these first, then re-run the check</h4><p class="small">{e(f.fix_note)}</p>{"".join(fixes)}</div>')
+    for ctx_line in finding_context(f):
+        out.append(f'<div class="waiver"><strong>Context:</strong> {e(ctx_line)}</div>')
     if f.waiver:
         w = f.waiver
         exp = f' &middot; expires {e(str(w["expires"]))}' if w.get("expires") else ""

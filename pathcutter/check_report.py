@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 
 from . import __version__
-from .impact import SEVERITIES, Finding, ImpactReport, severity_rank
+from .impact import SEVERITIES, Finding, ImpactReport, finding_context, severity_rank
 
 VERDICT_LABEL = {"block": "BLOCK", "review": "REVIEW", "pass": "PASS"}
 KIND_LABEL = {
@@ -109,6 +109,8 @@ def _finding_text(f: Finding, width: int) -> list[str]:
                      f"{'s' if fx['paths_eliminated'] != 1 else ''}, {fx['safety']})")
     if f.fix_note and not f.fix_first:
         lines.append(f"      note : {f.fix_note}")
+    for ctx_line in finding_context(f):
+        lines.append(f"      note : {ctx_line}")
     if f.waiver:
         w = f.waiver
         lines.append(f"      waiver {w['id']} ({w['status']}): {w['reason']}"
@@ -196,6 +198,9 @@ def render_markdown(report: ImpactReport, max_findings: int = 12) -> str:
             out.append("")
         elif f.fix_note:
             out.append(f"_{_md(f.fix_note)}_")
+            out.append("")
+        for ctx_line in finding_context(f):
+            out.append(f"> {_md(ctx_line)}")
             out.append("")
         if f.waiver:
             w = f.waiver

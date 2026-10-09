@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 
 from . import __version__
-from .graph import AttackGraph, ADEdge, ADNode, NodeType
+from .graph import AttackGraph, ADEdge, ADNode, Deny, NodeType
 from .ingest import load_sharphound
 
 FORMAT = "pathcutter.snapshot/1"
@@ -70,7 +70,8 @@ def save_snapshot(graph: AttackGraph, out_path: str | Path, source: str | Path |
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     with gzip.open(out, "wt", encoding="utf-8", compresslevel=6) as f:
-        json.dump({"meta": meta, "nodes": nodes, "edges": edges}, f, separators=(",", ":"), default=str)
+        denies = sorted([d.principal_id, d.edge_type, d.target_id] for d in graph.denies)
+        json.dump({"meta": meta, "nodes": nodes, "edges": edges, "denies": denies}, f, separators=(",", ":"), default=str)
     meta["bytes"] = out.stat().st_size
     return meta
 
@@ -93,6 +94,7 @@ def load_snapshot(path: str | Path) -> tuple[AttackGraph, dict]:
         for n in data.get("nodes", [])])
     graph.add_edges_bulk([
         ADEdge(e[0], e[1], e[2], e[3], e[4] if len(e) > 4 else {}) for e in data.get("edges", [])])
+    graph.denies = {Deny(d[0], d[1], d[2]) for d in data.get("denies", [])}
     graph.retier()
     return graph, meta
 

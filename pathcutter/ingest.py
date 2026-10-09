@@ -536,6 +536,8 @@ def _link_unconstrained_delegation(graph: AttackGraph) -> None:
 def _guess_file_type(filename: str) -> str:
     """Guess SharpHound file type from filename."""
     lower = filename.lower()
+    if "denies" in lower:
+        return "denies"
     for key in _TYPE_MAP:
         if key in lower:
             return key
@@ -600,8 +602,27 @@ def _load_from_directory(dir_path: Path, graph: AttackGraph) -> int:
     return total
 
 
+def _parse_denies(data: dict, graph: AttackGraph) -> int:
+    """Deny ACEs from the optional collector (tools/Export-AdDenyAces.ps1). SharpHound itself does not collect them.
+
+    Each record: {"PrincipalSID", "RightName", "ObjectIdentifier"}. Rights are mapped like allow ACEs."""
+    from .graph import Deny
+    n = 0
+    for rec in data.get("data", []):
+        right = rec.get("RightName", "")
+        edge = _ACE_MAP.get(right) or _CE_EDGE_MAP.get(right)
+        who, obj = rec.get("PrincipalSID") or rec.get("PrincipalSid"), rec.get("ObjectIdentifier")
+        if edge and who and obj:
+            graph.denies.add(Deny(str(who), edge, str(obj)))
+            n += 1
+    return n
+
+
 def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
     """Route to v4 or v5 parser based on format detection."""
+    if str((data.get("meta") or {}).get("type", "")).lower() == "denies" or file_type == "denies":
+        _parse_denies(data, graph)
+        return 0
     fmt = _detect_format(data)
     if fmt == "v5":
         meta = data.get("meta", {})

@@ -98,7 +98,8 @@ def test_splatting():
 
 
 def test_parameter_prefixes_and_positional_forms():
-    assert trip("Add-ADGroupMember -Ident G -Memb a") == [("add", "a", "MemberOf", "G")]
+    assert trip("Add-ADGroupMember -Ident G -Members a") == [("add", "a", "MemberOf", "G")]
+    assert trip("Add-ADGroupMember -Ident G -Memb a") == []     # ambiguous with -MemberTimeToLive: PowerShell itself rejects it
     assert trip('Add-ADGroupMember "G" "a","b"') == [("add", "a", "MemberOf", "G"), ("add", "b", "MemberOf", "G")]
     assert trip("Add-ADGroupMember -Identity:G -Members:a") == [("add", "a", "MemberOf", "G")]
 
@@ -205,9 +206,9 @@ dsacls "CN=U,DC=corp,DC=local" /G "CORP\fay:WD" "CORP\gus:WO"
                           ("add", "fay", "WriteDacl", "U"), ("add", "gus", "WriteOwner", "U")]
 
 
-def test_dsacls_deny_is_not_pretended():
+def test_dsacls_deny_becomes_a_deny_change_not_a_grant():
     specs, warns = ps(r'dsacls "CN=U,DC=corp,DC=local" /D "CORP\bob:GA"')
-    assert not specs and warns
+    assert [(s.op, s.deny, s.source, s.edge_type) for s in specs] == [("add", True, "bob", "GenericAll")]
 
 
 def test_set_acl_with_access_rule_objects():

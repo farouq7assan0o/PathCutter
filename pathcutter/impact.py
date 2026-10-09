@@ -30,6 +30,24 @@ MAX_PRINCIPALS_LISTED = 25
 MAX_PATHS_CAPTURED = 5
 
 
+def finding_context(f: "Finding") -> list[str]:
+    """Plain-text lines explaining why a finding's severity differs from the raw measurement."""
+    out = []
+    if f.temporary:
+        out.append(f"Time-bound grant ({f.temporary['label']}): the exposure window is real but ends by itself; "
+                   "it is not removed.")
+    c = f.control
+    if c:
+        if c["status"] == "applied":
+            out.append(f"Severity lowered {f.original_severity} -> {f.severity} by declared control {c['id']} "
+                       f"({c['type']}; owner {c['owner']}; evidence: {c['evidence']}"
+                       + (f"; expires {c['expires']}" if c.get("expires") else "")
+                       + "). PathCutter cannot verify this control; the path itself still exists.")
+        else:
+            out.append(f"Declared control {c['id']} EXPIRED {c['expires']}: it no longer lowers this finding.")
+    return out
+
+
 def severity_rank(sev: str) -> int:
     return SEVERITIES.index(sev)
 
@@ -54,6 +72,9 @@ class Finding:
     fix_note: str = ""
     origin: str = ""
     waiver: dict | None = None
+    control: dict | None = None      # a declared compensating control that lowered the severity (not verified)
+    temporary: dict | None = None    # every change is a time-bound (JIT/PAM) grant
+    original_severity: str = ""      # severity before a control or JIT window lowered it
     blocking: bool = False
     superseded: bool = False     # cancelled by other changes in the same set
     ids: list[str] = field(default_factory=list, repr=False)   # every affected object id (internal)

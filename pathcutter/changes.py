@@ -52,9 +52,20 @@ class ChangeSpec:
     note: str = ""
     origin: str = ""           # "file:line" for traceability
     raw: str = ""
+    deny: bool = False         # the edge is a Deny ACE (add = deny, remove = lift the deny), not an allow
+    ttl_minutes: int | None = None   # time-bound grant (JIT/PAM): the right expires by itself
 
     def describe(self) -> str:
+        text = self._describe()
+        if self.ttl_minutes:
+            text += f" (temporary: {format_ttl(self.ttl_minutes)})"
+        return text
+
+    def _describe(self) -> str:
         src, tgt = pretty_ref(self.source), pretty_ref(self.target)
+        if self.deny:
+            return (f"deny {src} {self.edge_type} on {tgt}" if self.op == "add"
+                    else f"lift the {self.edge_type} deny of {src} on {tgt}")
         if self.op == "create":
             return f"create {self.new_type} {self.source}"
         if self.op == "move":
@@ -67,6 +78,31 @@ class ChangeSpec:
         if self.edge_type == "MemberOf":
             return f"{'add' if self.op == 'add' else 'remove'} {src} {'to' if self.op == 'add' else 'from'} group {tgt}"
         return f"{verb} {self.edge_type}: {src} -> {tgt}"
+
+
+_TTL_PART = re.compile(r"(\d+)\s*([dhm])", re.I)
+
+
+def parse_ttl(text: str) -> int:
+    """'90m' | '4h' | '2h30m' | '1d' | '01:00:00' | '1.02:00:00' -> minutes. Raises ValueError."""
+    t = text.strip().strip("'\"")
+    m = re.fullmatch(r"(?:(\d+)\.)?(\d{1,2}):(\d{2})(?::(\d{2}))?", t)
+    if m:
+        minutes = int(m.group(1) or 0) * 1440 + int(m.group(2)) * 60 + int(m.group(3))
+    else:
+        parts = _TTL_PART.findall(t)
+        if not parts or "".join(a + b for a, b in parts).lower() != re.sub(r"\s+", "", t).lower():
+            raise ValueError(f"bad ttl '{text}' (use e.g. 90m, 4h, 2h30m, 1d or hh:mm:ss)")
+        minutes = sum(int(n) * {"d": 1440, "h": 60, "m": 1}[u.lower()] for n, u in parts)
+    if minutes <= 0:
+        raise ValueError(f"ttl must be positive (got '{text}')")
+    return minutes
+
+
+def format_ttl(minutes: int) -> str:
+    d, rem = divmod(minutes, 1440)
+    h, m = divmod(rem, 60)
+    return "".join(f"{v}{u}" for v, u in ((d, "d"), (h, "h"), (m, "m")) if v) or "0m"
 
 
 def pretty_ref(ref: str) -> str:
@@ -126,7 +162,10 @@ _VERBS: dict[str, tuple[str, str | None, tuple[int, int]]] = {
     "revoke-all": ("remove", "*", (2, 2)),
     "add": ("add", None, (3, 3)),
     "remove": ("remove", None, (3, 3)),
+    "deny": ("add", None, (3, 3)),
+    "undeny": ("remove", None, (3, 3)),
 }
+_DENY_VERBS = {"deny", "undeny"}
 
 VERB_HELP = """\
 add-member <principal> <group>            remove-member <principal> <group>
@@ -139,6 +178,8 @@ unconstrained <principal>                 move <object> <container-or-OU>
 delete <object>
 grant <principal> <Right> <object>        revoke <principal> <Right> <object>
 revoke-all <principal> <object>           (every ACL right the principal holds on the object)
+deny <principal> <Right> <object>         undeny <principal> <Right> <object>      (a Deny ACE: blocks the principal's token only)
+any grant accepts  ttl=4h | ttl=90m | ttl=1d   (a time-bound JIT/PAM grant; the exposure window is still reported)
 add <src> <EdgeType> <dst>                remove <src> <EdgeType> <dst>
 create user|group|computer <name>
 @members(GROUP) / @members*(GROUP)        every (nested) member of a group, from the baseline; use as <principal>
@@ -172,6 +213,15 @@ def parse_line(line: str, index: int, origin: str) -> ChangeSpec | None:
     if not tokens:
         return None
     verb, args = tokens[0].lower(), tokens[1:]
+    ttl = None
+    if any(a.lower().startswith("ttl=") for a in args):
+        keep = []
+        for a in args:
+            if a.lower().startswith("ttl="):
+                ttl = parse_ttl(a[4:])
+            else:
+                keep.append(a)
+        args = keep
 
     if verb == "create":
         if len(args) != 2 or args[0].lower() not in _NODE_TYPE_BY_WORD:
@@ -208,8 +258,10 @@ def parse_line(line: str, index: int, origin: str) -> ChangeSpec | None:
         edge = canonical_edge(edge_word)
         if edge is None:
             raise ValueError(f"unknown edge type '{edge_word}'{_edge_suggestion(edge_word)}")
-    return ChangeSpec(index, op, source=source, edge_type=edge, target=target,
-                      note=note, origin=origin, raw=stripped)
+    if ttl is not None and op != "add":
+        raise ValueError("ttl= applies to grants (a time-bound right), not to removals")
+    return ChangeSpec(index, op, source=source, edge_type=edge, target=target, note=note, origin=origin,
+                      raw=stripped, deny=verb in _DENY_VERBS, ttl_minutes=ttl)
 
 
 def parse_text(text: str, origin: str = "<changes>", start_index: int = 1) -> list[ChangeSpec]:
@@ -282,9 +334,13 @@ def parse_json(text: str, origin: str = "<changes>", start_index: int = 1) -> li
                         raise ValueError(f"unknown edge type '{edge_word}'{_edge_suggestion(edge_word)}")
                     if not item.get("source") or not (item.get("target") or edge == "DCSync"):
                         raise ValueError("'source' and 'target' are required")
+                    ttl = parse_ttl(str(item["ttl"])) if item.get("ttl") else None
+                    if ttl is not None and op != "add":
+                        raise ValueError("ttl applies to grants, not to removals")
                     spec = ChangeSpec(idx, op, source=str(item["source"]), edge_type=edge,
                                       target=str(item.get("target") or DOMAIN_SENTINEL),
-                                      note=note, origin=where, raw=json.dumps(item))
+                                      note=note, origin=where, raw=json.dumps(item),
+                                      deny=bool(item.get("deny", False)), ttl_minutes=ttl)
             else:
                 raise ValueError("each change must be an object or a DSL string")
         except ValueError as exc:
@@ -444,6 +500,8 @@ class ResolvedChange:
     added_pairs: list[tuple[str, str]] = field(default_factory=list)    # edges this change actually added
     removed_edges: list[tuple[str, str, dict]] = field(default_factory=list)  # restored on undo
     moved_from: list[str] = field(default_factory=list)
+    denies_added: list = field(default_factory=list)       # Deny ACEs this change added
+    denies_removed: list = field(default_factory=list)     # Deny ACEs this change lifted
     expanded: bool = False          # pairs were computed by resolution (possibly empty), not defaulted
 
     def edge_pairs(self) -> list[tuple[str, str]]:
@@ -710,6 +768,24 @@ def apply_change(graph: AttackGraph, rc: ResolvedChange) -> bool:
     rc.noop = False
     rc.noop_reason = ""
 
+    if spec.deny:
+        from .graph import Deny
+        rc.denies_added, rc.denies_removed = [], []
+        for s, t in pairs:
+            d = Deny(s, spec.edge_type, t)
+            if spec.op == "add" and d not in graph.denies:
+                graph.denies.add(d)
+                rc.denies_added.append(d)
+            elif spec.op == "remove" and d in graph.denies:
+                graph.denies.discard(d)
+                rc.denies_removed.append(d)
+        if not (rc.denies_added or rc.denies_removed):
+            rc.noop = True
+            rc.noop_reason = ("that deny is already in place" if spec.op == "add"
+                              else "no such deny exists in the baseline (denies are only known if collected, see docs)")
+            return False
+        return True
+
     if spec.op == "add":
         for s, t in pairs:
             if not graph.has_edge_type(s, t, spec.edge_type):
@@ -752,6 +828,11 @@ def apply_change(graph: AttackGraph, rc: ResolvedChange) -> bool:
 def undo_change(graph: AttackGraph, rc: ResolvedChange) -> None:
     """Reverse apply_change for edge operations (creates are left in place; they are inert)."""
     spec = rc.spec
+    if spec.deny:
+        graph.denies -= set(rc.denies_added)
+        graph.denies |= set(rc.denies_removed)
+        rc.denies_added, rc.denies_removed = [], []
+        return
     if spec.op == "move":
         for s, t in rc.added_pairs:
             graph.remove_edge(s, t, "Contains")

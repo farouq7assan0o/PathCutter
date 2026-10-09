@@ -44,6 +44,18 @@ class ADNode:
         return self.name
 
 
+@dataclass(frozen=True)
+class Deny:
+    """A Deny ACE: `principal` (and, if it is a group, everyone in it) may NOT use `edge_type` on `target_id`.
+
+    A deny wins over every allow, but only for identities in the denied principal's token, so it cannot be
+    modeled by deleting the edge: other identities keep the right. See exposure.py.
+    """
+    principal_id: str
+    edge_type: str
+    target_id: str
+
+
 @dataclass
 class ADEdge:
     """A single attack relationship between two AD objects."""
@@ -67,6 +79,7 @@ class AttackGraph:
         self._tier0: set[str] = set()
         self._group_members: dict[str, set[str]] = {}  # group_id -> direct member IDs
         self._transitive_cache: dict[str, set[str]] = {}  # node_id -> all groups (transitive)
+        self.denies: set[Deny] = set()                    # Deny ACEs (identity-sensitive, see Deny)
 
     @property
     def node_count(self) -> int:
@@ -153,7 +166,26 @@ class AttackGraph:
             edges.append(ADEdge(u, v, d.get("edge_type", ""), d.get("inherited", False), props))
         new.add_edges_bulk(edges)
         new._tier0 = set(self._tier0)
+        new.denies = set(self.denies)
         return new
+
+    def deny_actor_sets(self) -> list[tuple[Deny, frozenset[str]]]:
+        """Each deny with the identities it binds: the principal plus, for a group, all its (nested) members.
+        Denies that bind nothing present in the graph, or that guard an edge that does not exist, are dropped."""
+        out = []
+        for d in sorted(self.denies, key=lambda x: (x.principal_id, x.edge_type, x.target_id)):
+            if d.principal_id not in self._nodes or d.target_id not in self._nodes:
+                continue
+            if not self.has_incoming_type(d.target_id, d.edge_type):
+                continue
+            actors = {d.principal_id}
+            if d.principal_id in self._group_members or self._nodes[d.principal_id].node_type == NodeType.GROUP:
+                actors |= self._recursive_members(d.principal_id)
+            out.append((d, frozenset(actors)))
+        return out
+
+    def has_incoming_type(self, target_id: str, edge_type: str) -> bool:
+        return any(d.get("edge_type") == edge_type for _, _, d in self.graph.in_edges(target_id, data=True))
 
     def has_edge_type(self, source_id: str, target_id: str, edge_type: str) -> bool:
         return any(d.get("edge_type") == edge_type for d in self.get_edge_data(source_id, target_id))

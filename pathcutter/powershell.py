@@ -327,8 +327,9 @@ class Ctx:
         self.why: list[str] = []            # unresolved things found by the last evaluation
         self.computer: str | None = None    # target of an enclosing Invoke-Command -ComputerName
 
-    def emit(self, op, source, edge, target, line, raw, new_type=""):
-        self.items.append((op, source, edge, target, new_type, line, raw))
+    def emit(self, op, source, edge, target, line, raw, new_type="", ttl=None):
+        # op may also be "deny" / "undeny" (a Deny ACE); ttl is minutes for a time-bound (JIT) grant
+        self.items.append((op, source, edge, target, new_type, line, raw, ttl))
 
     def warn(self, line, message, raw="", level="review"):
         self.warns.append(ChangeWarning(f"{self.origin}:{line}", message, raw, level))
@@ -547,15 +548,17 @@ def extract(text: str, origin: str = "<script>", start_index: int = 1
             return f"{m.group(1)}({_normalise_ref(m.group(2))})"
         return ref if ref.startswith("@") else _normalise_ref(ref)
 
-    def add(op, source, edge, target, new_type, line, raw):
+    def add(op, source, edge, target, new_type, line, raw, ttl=None):
         nonlocal idx
         source, target = norm(source), norm(target) if target else target
         key = (op, source.lower(), edge, target.lower(), new_type)
         if key in seen:
             return
         seen.add(key)
-        specs.append(ChangeSpec(idx, op, source=source, edge_type=edge, target=target, new_type=new_type,
-                                origin=f"{origin}:{line}", raw=raw))
+        deny = op in ("deny", "undeny")
+        specs.append(ChangeSpec(idx, {"deny": "add", "undeny": "remove"}.get(op, op), source=source, edge_type=edge,
+                                target=target, new_type=new_type, origin=f"{origin}:{line}", raw=raw,
+                                deny=deny, ttl_minutes=ttl))
         idx += 1
 
     ordered: list[tuple[int, int, tuple]] = []
@@ -568,12 +571,13 @@ def extract(text: str, origin: str = "<script>", start_index: int = 1
             ctx.warn(dline, f"invalid #pc directive: {exc}", dtext)
             continue
         if spec is not None:
-            ordered.append((dline, 10 ** 6 + dline, (spec.op, spec.source, spec.edge_type, spec.target,
-                                                       spec.new_type, dline, dtext)))
+            ordered.append((dline, 10 ** 6 + dline, (("deny" if spec.op == "add" else "undeny") if spec.deny else spec.op,
+                                                       spec.source, spec.edge_type, spec.target,
+                                                       spec.new_type, dline, dtext, spec.ttl_minutes)))
     ordered.sort(key=lambda x: (x[0], x[1]))
     broad = {(norm(i[2][1]).lower(), norm(i[2][3]).lower()) for i in ordered if i[2][0] == "remove" and i[2][2] == "*"}
-    for _, _, (op, source, edge, target, new_type, line, raw) in ordered:
+    for _, _, (op, source, edge, target, new_type, line, raw, ttl) in ordered:
         if op == "remove" and edge not in ("*", "MemberOf") and (norm(source).lower(), norm(target).lower()) in broad:
             continue                      # a specific revoke is already covered by the broader one on the same pair
-        add(op, source, edge, target, new_type, line, raw)
+        add(op, source, edge, target, new_type, line, raw, ttl)
     return specs, ctx.warns

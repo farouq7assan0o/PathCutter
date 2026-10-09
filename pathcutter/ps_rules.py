@@ -56,8 +56,6 @@ def rights_to_edges(rights: str, prop: str = "", deny: bool = False) -> tuple[li
     r = rights.lower().replace(" ", "")
     prop = prop.lower()
     edges: list[str] = []
-    if deny:
-        return [], "deny entries are not modeled (they can only reduce what is granted)"
     if "genericall" in r or "fullcontrol" in r:
         edges.append("GenericAll")
     if "genericwrite" in r:
@@ -203,15 +201,42 @@ def _values_of(ctx, env, raws: list[str]):
 
 # ------------------------------------------------------------------- handlers
 
+def ps_ttl(raw: str | None) -> int | None:
+    """-MemberTimeToLive: (New-TimeSpan -Hours 4) | [timespan]'04:00:00' | '04:00:00'  ->  minutes (None if unknowable)."""
+    if not raw:
+        return None
+    from .changes import parse_ttl
+    m = re.search(r"New-TimeSpan", raw, re.I)
+    if m:
+        total = 0
+        for unit, mult in (("days", 1440), ("hours", 60), ("minutes", 1)):
+            u = re.search(r"-" + unit[0] + r"\w*\s+(\d+)", raw, re.I)
+            if u and re.search(r"-" + unit, raw, re.I):
+                total += int(u.group(1)) * mult
+        return total or None
+    t = re.sub(r"^\(?\s*(\[timespan\])?\s*", "", raw, flags=re.I).strip("()'\" ")
+    try:
+        return parse_ttl(t)
+    except ValueError:
+        return None
+
+
 def h_group_member(op: str):
     def h(ctx, A: Args):
         res = A.need(("identity", 0, True), ("members", 1, False))
         if res is None:
             return
         groups, members = res
+        ttl = None
+        if op == "add" and A.has("membertimetolive"):
+            raw = " ".join(A.named.get("membertimetolive") or [])
+            ttl = ps_ttl(raw)
+            if ttl is None:
+                ctx.warn(A.line, "-MemberTimeToLive could not be read (not a literal timespan): "
+                                 "treated as a permanent membership", A.raw, "note")
         for m in members:
             for g in groups:
-                ctx.emit(op, m, "MemberOf", g, A.line, A.raw)
+                ctx.emit(op, m, "MemberOf", g, A.line, A.raw, ttl=ttl)
     return h
 
 
@@ -388,7 +413,11 @@ def h_dsacls(ctx, A: Args):
             continue
         spec = (ev(t, A.env, ctx) or [t])[0] if t.startswith(("'", '"')) else t
         if mode == "/d":
-            ctx.warn(A.line, "dsacls /D (deny) is not modeled", A.raw, "note")
+            principal, edges, note = _dsacls_edges(spec)
+            for e in edges:
+                ctx.emit("deny", principal, e, target, A.line, A.raw)
+            if not edges:
+                ctx.warn(A.line, f"dsacls deny for {principal}: {note}", A.raw, "note")
         elif mode == "/r":
             ctx.emit("remove", spec, "*", target, A.line, A.raw)
             ctx.warn(A.line, f"dsacls /R removes ALL entries of {spec} on {target}", A.raw, "note")
@@ -533,9 +562,10 @@ def flush_acl(ctx, acl: Acl, commit_line: int) -> None:
         edges, note = rights_to_edges(rule.rights, prop, rule.deny)
         if rule.guid and not prop and not edges:
             note = f"rule on an unrecognised property/right GUID {rule.guid} (not modeled)"
+        eop = (("deny" if op == "add" else "undeny") if rule.deny else op)
         for who in rule.identity or []:
             for e in edges:
-                ctx.emit(op, who, e, target, line, raw)
+                ctx.emit(eop, who, e, target, line, raw)
         if not edges:
             ctx.warn(line, f"access rule: {note}", raw, "note")
     acl.ops = []
@@ -724,7 +754,8 @@ def h_note(text: str):
 
 # ------------------------------------------------------------------ dispatch
 
-P_GROUP = {"identity": "val", "members": "val", "partition": "val", "server": "val", "credential": "val"}
+P_GROUP = {"identity": "val", "members": "val", "partition": "val", "server": "val", "credential": "val",
+           "membertimetolive": "val"}
 P_PRINC = {"identity": "val", "memberof": "val", "partition": "val", "server": "val", "credential": "val"}
 P_SET = {"identity": "val", "add": "val", "remove": "val", "replace": "val", "clear": "val", "server": "val",
          "principalsallowedtodelegatetoaccount": "val", "principalsallowedtoretrievemanagedpassword": "val",
