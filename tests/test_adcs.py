@@ -45,8 +45,8 @@ def kinds(g):
 
 def test_esc1_edge_and_path_to_tier0():
     g = lab()
-    assert {k: v for k, v in derive_adcs_edges(g).items() if v} == {"ADCSESC1": 1}
-    assert kinds(g) == {("u-grp", "ADCSESC1")}
+    assert {k: v for k, v in derive_adcs_edges(g).items() if v} == {"ADCSESC1": 1, "ADCSESC15": 1}   # a v1 template is also ESC15-shaped
+    assert kinds(g) == {("u-grp", "ADCSESC1"), ("u-grp", "ADCSESC15")}
     exp = compute_exposure(g)
     assert exp.hops("u-alice") == 2 and "u-alice" in exp.exposed()
     assert [s.node_id for s in exp.path("u-alice")] == ["u-alice", "u-grp", "dom"]
@@ -282,3 +282,16 @@ def test_esc9_needs_weak_binding_data_and_a_victim():
     assert ("u-other", "ADCSESC9") in build(0) and ("u-other", "ADCSESC9") in build(1)
     assert ("u-other", "ADCSESC9") not in build(2), "full enforcement closes ESC9"
     assert ("u-other", "ADCSESC9") not in build(None), "no registry data is not evidence"
+
+
+def test_esc15_schema_v1_with_enrollee_subject_even_without_client_auth():
+    g = lab(template={"schemaversion": 1, "authenticationenabled": False})        # a WebServer-style template
+    derive_adcs_edges(g)
+    assert ("u-grp", "ADCSESC15") in kinds(g) and ("u-grp", "ADCSESC1") not in kinds(g)
+
+
+@pytest.mark.parametrize("tpl", [{"schemaversion": 2}, {"enrolleesuppliessubject": False}, {"requiresmanagerapproval": True}, {"authorizedsignatures": 1}])
+def test_esc15_needs_v1_subject_and_no_approval(tpl):
+    g = lab(template={"schemaversion": 1, **tpl})
+    derive_adcs_edges(g)
+    assert ("u-grp", "ADCSESC15") not in kinds(g)

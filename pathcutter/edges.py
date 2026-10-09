@@ -591,6 +591,18 @@ SyncedTo = EdgeType(
     description="Microsoft Entra ID / hybrid identity edge",
 )
 
+ADCSESC15 = EdgeType(
+    name="ADCSESC15",
+    category=EdgeCategory.SPECIAL,
+    abuse="Enroll in a schema-version-1 template that lets the requester name the subject and inject a client-authentication application policy, then authenticate as any principal (ESC15 / EKUwu, CVE-2024-49019); fixed on patched CAs, patch level is not collected",
+    mitre="T1649",
+    exploitability=8,
+    fix_template="# Patch the CA (November 2024 or later), replace schema-version-1 templates with version 2+, and disable ENROLLEE_SUPPLIES_SUBJECT",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template data; assumes the CA is unpatched because the patch level is not collected",
+)
+
 # -------------------------------------------------------------------
 # Registry: name -> EdgeType lookup
 # -------------------------------------------------------------------

@@ -11,6 +11,7 @@ collected data:
   ADCSESC3  enrollment-agent template + an agent-enrollable authentication template on the same trusted CA
   ADCSESC5  control of the NTAuth store or an enterprise CA object
   GoldenCert  local administrator of the host of a trusted CA (the CA key can be extracted)
+  ADCSESC15 schema-version-1 template with an enrollee-supplied subject (EKUwu, CVE-2024-49019): assumes an unpatched CA
   ADCSESC9  UPN-change attack: GenericWrite over an account that can enroll in a no-security-extension template,
             while a domain controller does not enforce strong certificate binding (needs DC registry data)
 
@@ -84,7 +85,7 @@ def auth_template(p: dict) -> bool:
 def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
     """Add ADCSESC* edges (principal -> its domain). Returns how many of each were added."""
     counts = {"ADCSESC1": 0, "ADCSESC3": 0, "ADCSESC4": 0, "ADCSESC5": 0, "ADCSESC6": 0, "ADCSESC7": 0, "ADCSESC9": 0,
-              "GoldenCert": 0}
+              "ADCSESC15": 0, "GoldenCert": 0}
     domains = {n.name.upper(): n.object_id for n in graph.nodes_by_type(NodeType.DOMAIN)}
     added: set[tuple[str, str, str]] = set()
 
@@ -113,6 +114,10 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
             if auth_template(p) and p.get("enrolleesuppliessubject"):
                 for src in can_enroll:
                     emit(src, dom, "ADCSESC1")
+            if ((p.get("schemaversion") or 1) == 1 and p.get("enrolleesuppliessubject") and not p.get("requiresmanagerapproval")
+                    and not (p.get("authorizedsignatures") or 0)):
+                for src in can_enroll:
+                    emit(src, dom, "ADCSESC15")
             if san_open and auth_template(p):
                 for src in can_enroll:
                     emit(src, dom, "ADCSESC6")
