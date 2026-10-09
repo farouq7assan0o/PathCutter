@@ -42,6 +42,16 @@
   and published certificate templates. Rights that only feed a derivation (Enroll, ManageCA, ...) are no longer walkable edges, so
   enrolling in a template is not control of it; golden certificate is now host -> domain like BloodHound's. Added ESC13 (issuance
   policy linked to a group).
+- **A second BloodHound oracle (AD edges)**: SpecterOps' version 5 and 6 fixtures (raw output plus every edge BloodHound computed)
+  are compared with our ingest edge by edge (`tests/test_vendor_oracle.py`). It found and fixed: ACEs a principal holds on itself
+  were kept; DCSync was drawn from either replication right instead of both (so a principal holding only Get-Changes looked able to
+  read every hash), and a user who gets the two rights through two different groups was missed; sessions delivered in their own
+  file were ignored; containment stated only on the child (`ContainedBy`) was ignored; SQL admin rights (`SpnTargets`) were
+  ignored; trusts followed one direction regardless of `TrustDirection` and the partner domains were nameless. Built-in groups are
+  now Tier 0 by SID as well as by name (renamed or localized groups, domain-prefixed ids). The anonymizer also leaked partner
+  domain names that appear only inside a trust; fixed.
+- AD CS / DCSync derivations never expand a large group (1,000,000 objects, 300 templates: 0.4 s, was minutes).
+- The real-data fixtures had been excluded from git by `*.zip` in `.gitignore`, so CI skipped those tests; they are tracked now.
 - `tests/test_registry.py` fails when edge-type knowledge drifts between modules (ingest, PowerShell rules, collector).
 
 ## 0.4.0

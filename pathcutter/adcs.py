@@ -40,7 +40,8 @@ def _holders(graph: AttackGraph, target: str, types: set[str]) -> set[str]:
 
 
 def _down(graph: AttackGraph, principals: set[str]) -> set[str]:
-    """The principals and everyone nested under them (a group's rights are held by its members)."""
+    """The principals and everyone nested under them (a group's rights are held by its members). Unbounded: use only on
+    small inputs; the derivations use `_both`, which never expands a large group."""
     out = set(principals)
     for p in principals:
         node = graph.get_node(p)
@@ -49,16 +50,58 @@ def _down(graph: AttackGraph, principals: set[str]) -> set[str]:
     return out
 
 
-def _both(graph: AttackGraph, a: set[str], b: set[str]) -> set[str]:
-    """Principals that hold BOTH rights (each set is a list of direct holders): the highest such principals.
+def _ancestors(graph: AttackGraph, node: str, cache: dict) -> set[str]:
+    """The node and every group it belongs to, transitively (small, cached)."""
+    got = cache.get(node)
+    if got is None:
+        got, stack = {node}, [node]
+        while stack:
+            cur = stack.pop()
+            for _, t, d in graph.out_edges(cur):
+                if d.get("edge_type") == "MemberOf" and t not in got:
+                    got.add(t)
+                    stack.append(t)
+        cache[node] = got
+    return got
 
-    p qualifies when it holds one right directly and is covered by the other through nesting; the unusual case of a user
-    reaching each right through two unrelated groups is resolved on the (bounded) intersection of the two closures."""
-    da, db = _down(graph, a), _down(graph, b)
-    out = {p for p in a if p in db} | {p for p in b if p in da}
-    cross = da & db
-    if len(cross) <= _MAX_CROSS:                      # principals that reach each right through a different group
-        out |= cross - _down(graph, out)
+
+def _members_bounded(graph: AttackGraph, holders: set[str], cap: int) -> set[str] | None:
+    """Everyone nested under the holders, or None if there are more than `cap` of them."""
+    seen, stack = set(), list(holders)
+    while stack:
+        cur = stack.pop()
+        if cur in seen:
+            continue
+        seen.add(cur)
+        kids = graph._group_members.get(cur, ())
+        if len(seen) + len(kids) > cap:              # never materialize a large group
+            return None
+        stack.extend(kids)
+    return seen
+
+
+def _both(graph: AttackGraph, a: set[str], b: set[str], cache: dict | None = None) -> set[str]:
+    """Principals that hold BOTH rights, where a and b are the direct holders of each: the highest such principals.
+
+    p qualifies when it holds one right directly and is covered by the other through nesting. A user who reaches each right
+    through a different group is found too, as long as at least one of the two groups is small enough to enumerate (a user in
+    two unrelated groups of a million members is not: such a right is granted to one of the supersets in practice).
+    Never expands a large group, so it stays linear in the number of holders."""
+    cache = {} if cache is None else cache
+    out = {p for p in a if _ancestors(graph, p, cache) & b} | {p for p in b if _ancestors(graph, p, cache) & a}
+    def small(holders):
+        key = ("down", frozenset(holders))
+        if key not in cache:
+            cache[key] = _members_bounded(graph, holders, _MAX_CROSS)
+        return cache[key]
+    small_a, small_b = small(a), small(b)
+    side = small_a if small_a is not None else small_b
+    if side is not None:
+        other = b if side is small_a else a
+        for x in side:
+            anc = _ancestors(graph, x, cache)
+            if anc & other and not (anc & out) and x not in out:
+                out.add(x)
     return out
 
 
@@ -102,6 +145,7 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
         counts[kind] += 1
 
     templates = {n.object_id: n for n in graph.nodes_by_type(NodeType.CERT_TEMPLATE)}
+    cache: dict = {}
     for ca in trusted_cas(graph):
         dom = domains.get(str(ca.domain).upper())
         if dom is None:
@@ -115,7 +159,7 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
         for t in enabled:
             p = t.properties
             enrollers = _holders(graph, t.object_id, _ENROLL)
-            can_enroll = _both(graph, enrollers, ca_enrollers)
+            can_enroll = _both(graph, enrollers, ca_enrollers, cache)
             if auth_template(p) and p.get("enrolleesuppliessubject"):
                 for src in can_enroll:
                     emit(src, dom, "ADCSESC1")
@@ -132,7 +176,7 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
             if san_open and auth_template(p):
                 for src in can_enroll:
                     emit(src, dom, "ADCSESC6")
-            for src in _both(graph, _holders(graph, t.object_id, _CONTROL), ca_enrollers):
+            for src in _both(graph, _holders(graph, t.object_id, _CONTROL), ca_enrollers, cache):
                 emit(src, dom, "ADCSESC4")
         # ESC3: an agent template plus a template that accepts an agent's co-signature, both enrollable on this CA
         if ca.properties.get("_agent_collected") and not ca.properties.get("_agent_restrictions"):
@@ -142,8 +186,8 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
                 for b in targets:
                     if a.object_id == b.object_id:
                         continue
-                    both = _both(graph, _holders(graph, a.object_id, _ENROLL), _holders(graph, b.object_id, _ENROLL))
-                    for src in _both(graph, both, ca_enrollers):
+                    both = _both(graph, _holders(graph, a.object_id, _ENROLL), _holders(graph, b.object_id, _ENROLL), cache)
+                    for src in _both(graph, both, ca_enrollers, cache):
                         emit(src, dom, "ADCSESC3")
         # golden certificate: the machine that holds the CA key can forge any certificate (BloodHound models it the same
         # way: host -> domain; whoever administers the host then reaches it through AdminTo)
@@ -155,10 +199,9 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
             for t in enabled:
                 p = t.properties
                 if p.get("nosecurityextension") and auth_template(p):
-                    victims = _down(graph, _holders(graph, t.object_id, _ENROLL))
-                    victims = {v for v in victims if graph.get_node(v) is not None and graph.get_node(v).node_type == NodeType.USER}
-                    for v in victims:
-                        for src in _holders(graph, v, {"GenericWrite", "GenericAll"}):
+                    enrollers = _holders(graph, t.object_id, _ENROLL)
+                    for src, v in _user_writes(graph):           # a victim is a user that can enroll, reached through the writes
+                        if _ancestors(graph, v, cache) & enrollers:
                             emit(src, dom, "ADCSESC9")
     # a published template is a Tier 0 object (BloodHound tags them too): changing one makes it an ESC1 template.
     # Done after the loop so the ESC edges above are still derived for the non-Tier-0 principals around it.
@@ -178,6 +221,22 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
         for src in _holders(graph, store.object_id, _PKI_CONTROL):
             emit(src, d, "ADCSESC5")
     return counts
+
+
+def _user_writes(graph: AttackGraph) -> list[tuple[str, str]]:
+    """(principal, user) for every GenericWrite / GenericAll a principal holds over a user; computed once per graph version."""
+    key = (graph.edge_count, graph.node_count)
+    cached = getattr(graph, "_user_writes_cache", None)
+    if cached and cached[0] == key:
+        return cached[1]
+    out = []
+    for u, v, d in graph.all_edges():
+        if d.get("edge_type") in ("GenericWrite", "GenericAll"):
+            n = graph.get_node(v)
+            if n is not None and n.node_type == NodeType.USER:
+                out.append((u, v))
+    graph._user_writes_cache = (key, out)
+    return out
 
 
 def _is_agent_template(p: dict) -> bool:

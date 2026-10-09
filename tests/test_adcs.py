@@ -384,3 +384,29 @@ def test_both_rights_found_even_when_someone_else_already_holds_both():
     g.add_edge(ADEdge("u-alice", "u-other", "MemberOf"))
     got = _both(g, {"u-grp", "u-both"}, {"u-other", "u-both"})
     assert "u-both" in got and "u-alice" in got
+
+
+@pytest.mark.parametrize("seed", range(400))
+def test_both_equals_the_unbounded_definition_on_random_graphs(seed):
+    """_both never expands a large group; on graphs small enough to enumerate it must equal the plain set-theoretic definition:
+    the principals in the closure of both holder sets that are not already covered by a higher principal in the result."""
+    import random
+    from pathcutter.adcs import _both, _down
+    rng = random.Random(seed)
+    g = AttackGraph()
+    n = rng.randint(4, 12)
+    for i in range(n):
+        g.add_node(ADNode(f"n{i}", f"N{i}@X", NodeType.GROUP if i < n // 2 else NodeType.USER, "X"))
+    for i in range(n):
+        for j in range(n // 2):
+            if i != j and rng.random() < 0.25:
+                g.add_edge(ADEdge(f"n{i}", f"n{j}", "MemberOf"))
+    a = {f"n{i}" for i in range(n) if rng.random() < 0.3}
+    b = {f"n{i}" for i in range(n) if rng.random() < 0.3}
+    da, db = _down(g, a), _down(g, b)
+    direct = {p for p in a if p in db} | {p for p in b if p in da}
+    expected = direct | ((da & db) - _down(g, direct))
+    got = _both(g, a, b)
+    # same principals, up to ones the reference lists redundantly because a cycle makes two groups mutual ancestors
+    assert _down(g, got) == _down(g, expected), f"seed {seed}"
+    assert got <= da | db and (da & db) <= _down(g, got), f"seed {seed}"
