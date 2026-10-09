@@ -1,6 +1,7 @@
 """The deny-ACE collector script: syntax and its offline self-test, run in real PowerShell (skipped if absent)."""
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ def test_collector_parses_without_errors():
     assert out.stdout.strip() == "0", out.stdout + out.stderr
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="System.DirectoryServices is Windows-only")
 def test_collector_self_test_maps_rights_and_reads_a_real_descriptor():
     out = subprocess.run([PWSH, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCRIPT), "-SelfTest"],
                          capture_output=True, text=True, timeout=120)
