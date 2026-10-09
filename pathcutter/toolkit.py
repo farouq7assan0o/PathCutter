@@ -193,6 +193,7 @@ def render_doctor(r: dict) -> str:
 # ------------------------------------------------------------------------------------------------ anonymize
 
 _GUID = re.compile(r"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b")
+_OID = re.compile(r"((?<![\w.])\d+(?:\.\d+){2,}(?![\w.]))")
 _DOM_SID = re.compile(r"S-1-5-21-(\d+)-(\d+)-(\d+)")
 _DROP = {"description", "email", "mail", "homedirectory", "scriptpath", "title", "department", "info", "telephonenumber",
          "userpassword", "unixpassword", "unicodepassword", "sfupassword", "gpcpath", "company", "streetaddress",
@@ -288,7 +289,11 @@ class Anonymizer:
         s = _DOM_SID.sub(lambda m: "S-1-5-21-" + self._dom_sid.get("-".join(m.groups()), "-".join(m.groups())), s)
         s = _GUID.sub(lambda m: self._guid(m.group(0)), s)
         if self._rx:
-            s = self._rx.sub(lambda m: self._alts[m.group(1).upper()], s)
+            # OIDs (1.3.6.1.5.5.7.3.2 ...) are public identifiers: a user called "1" must not rewrite them
+            parts = _OID.split(s)
+            for i in range(0, len(parts), 2):
+                parts[i] = self._rx.sub(lambda m: self._alts[m.group(1).upper()], parts[i])
+            s = "".join(parts)
         return s
 
     def _guid(self, g: str) -> str:

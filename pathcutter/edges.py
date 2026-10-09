@@ -471,6 +471,54 @@ ADCSESC7 = EdgeType(
     description="Derived from certificate template and CA data, not collected directly",
 )
 
+ADCSESC3 = EdgeType(
+    name="ADCSESC3",
+    category=EdgeCategory.SPECIAL,
+    abuse="Use an enrollment-agent certificate to request a client-authentication certificate on behalf of any user, then authenticate as them (ESC3)",
+    mitre="T1649",
+    exploitability=9,
+    fix_template="# Fix the certificate configuration that produces this edge (restrict the agent template and set enrollment agent restrictions on the CA). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template, CA and domain controller data, not collected directly",
+)
+
+ADCSESC5 = EdgeType(
+    name="ADCSESC5",
+    category=EdgeCategory.SPECIAL,
+    abuse="Control a PKI object (NTAuth store or enterprise CA object): trust a rogue CA or publish a vulnerable template, then obtain certificates for any principal (ESC5)",
+    mitre="T1649",
+    exploitability=9,
+    fix_template="# Fix the certificate configuration that produces this edge (remove write/owner rights on PKI objects from non-admin principals). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template, CA and domain controller data, not collected directly",
+)
+
+GoldenCert = EdgeType(
+    name="GoldenCert",
+    category=EdgeCategory.SPECIAL,
+    abuse="Administer the host of a trusted CA: extract the CA private key and forge a certificate for any principal (golden certificate)",
+    mitre="T1649",
+    exploitability=9,
+    fix_template="# Fix the certificate configuration that produces this edge (treat the CA host as Tier 0 and remove non-admin local administrators). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template, CA and domain controller data, not collected directly",
+)
+
+ADCSESC9 = EdgeType(
+    name="ADCSESC9",
+    category=EdgeCategory.SPECIAL,
+    abuse="Change a victim account's UPN and enroll in a template without the security extension while certificate binding is not enforced, then authenticate as any principal (ESC9)",
+    mitre="T1649",
+    exploitability=9,
+    fix_template="# Fix the certificate configuration that produces this edge (enforce StrongCertificateBindingEnforcement=2 on domain controllers). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template, CA and domain controller data, not collected directly",
+)
+
 # -------------------------------------------------------------------
 # Registry: name -> EdgeType lookup
 # -------------------------------------------------------------------

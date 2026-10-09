@@ -40,12 +40,12 @@ def lab(template=None, ca=None, enroll_t=("u-grp",), enroll_ca=("u-grp",), ntaut
 
 
 def kinds(g):
-    return {(u, d["edge_type"]) for u, v, d in g.all_edges() if d["edge_type"].startswith("ADCSESC") and v == "dom"}
+    return {(u, d["edge_type"]) for u, v, d in g.all_edges() if (d["edge_type"].startswith("ADCSESC") or d["edge_type"] == "GoldenCert") and v == "dom"}
 
 
 def test_esc1_edge_and_path_to_tier0():
     g = lab()
-    assert derive_adcs_edges(g) == {"ADCSESC1": 1, "ADCSESC4": 0, "ADCSESC6": 0, "ADCSESC7": 0}
+    assert {k: v for k, v in derive_adcs_edges(g).items() if v} == {"ADCSESC1": 1}
     assert kinds(g) == {("u-grp", "ADCSESC1")}
     exp = compute_exposure(g)
     assert exp.hops("u-alice") == 2 and "u-alice" in exp.exposed()
@@ -192,3 +192,93 @@ def test_an_ace_granted_to_authenticated_users_is_a_right_everyone_holds():
 def test_the_domain_object_is_tier0():
     g = load_sharphound(_ace_to_everyone())
     assert "S-1-5-21-1-2-3" in g.tier0_nodes
+
+
+# ------------------------------------------------------------ ESC3, ESC5, golden certificate, ESC9
+
+AGENT = "1.3.6.1.4.1.311.20.2.1"
+
+
+def lab3(agent=None, target=None, ca=None, enroll_a=("u-grp",), enroll_b=("u-grp",)):
+    g = lab(template={"enrolleesuppliessubject": False, "authenticationenabled": False}, ca=dict({"_enabled_templates": ["agent", "tgt"],
+            "_agent_collected": True, "_agent_restrictions": 0}, **(ca or {})), enroll_t=())
+    ap = {"ekus": [AGENT], "effectiveekus": [AGENT], "requiresmanagerapproval": False, "authorizedsignatures": 0, "authenticationenabled": False}
+    ap.update(agent or {})
+    tp = {"authenticationenabled": True, "requiresmanagerapproval": False, "enrolleesuppliessubject": False, "schemaversion": 1, "authorizedsignatures": 0}
+    tp.update(target or {})
+    g.add_node(ADNode("agent", "AGENT@X.LOCAL", NodeType.CERT_TEMPLATE, "X.LOCAL", properties=ap))
+    g.add_node(ADNode("tgt", "TGT@X.LOCAL", NodeType.CERT_TEMPLATE, "X.LOCAL", properties=tp))
+    for p in enroll_a:
+        g.add_edge(ADEdge(p, "agent", "Enroll"))
+    for p in enroll_b:
+        g.add_edge(ADEdge(p, "tgt", "Enroll"))
+    g.classify_tiers()
+    return g
+
+
+def test_esc3_enrollment_agent_chain():
+    g = lab3()
+    derive_adcs_edges(g)
+    assert ("u-grp", "ADCSESC3") in kinds(g)
+
+
+@pytest.mark.parametrize("what,kw", [
+    ("agent needs approval", {"agent": {"requiresmanagerapproval": True}}),
+    ("template is not an agent template", {"agent": {"ekus": ["1.3.6.1.5.5.7.3.2"], "effectiveekus": []}}),
+    ("target cannot authenticate", {"target": {"authenticationenabled": False}}),
+    ("target lets the requester name the subject (that is ESC1)", {"target": {"enrolleesuppliessubject": True}}),
+    ("v2 target without the agent policy", {"target": {"schemaversion": 2, "authorizedsignatures": 1, "applicationpolicies": []}}),
+    ("CA restricts enrollment agents", {"ca": {"_agent_restrictions": 2}}),
+    ("restrictions not collected", {"ca": {"_agent_collected": False}}),
+    ("nobody can enroll in the agent template", {"enroll_a": ()}),
+    ("nobody can enroll in the target", {"enroll_b": ()}),
+])
+def test_esc3_needs_every_condition(what, kw):
+    g = lab3(**kw)
+    derive_adcs_edges(g)
+    assert not [k for k in kinds(g) if k[1] == "ADCSESC3"], what
+
+
+def test_esc3_v2_target_with_agent_policy_counts():
+    g = lab3(target={"schemaversion": 2, "authorizedsignatures": 1, "applicationpolicies": [AGENT]})
+    derive_adcs_edges(g)
+    assert ("u-grp", "ADCSESC3") in kinds(g)
+
+
+def test_esc5_and_golden_cert():
+    g = lab(enroll_t=(), enroll_ca=())
+    g.add_edge(ADEdge("u-other", "nt", "WriteDacl"))
+    g.add_node(ADNode("host", "CA01.X.LOCAL", NodeType.COMPUTER, "X.LOCAL"))
+    g.nodes_by_type(NodeType.ENTERPRISE_CA)[0].properties["_host"] = "host"
+    g.add_edge(ADEdge("u-grp", "host", "AdminTo"))
+    g.classify_tiers()
+    derive_adcs_edges(g)
+    assert ("u-other", "ADCSESC5") in kinds(g) and ("u-grp", "GoldenCert") in kinds(g)
+    exp = compute_exposure(g)
+    assert exp.hops("u-alice") == 2
+
+
+def test_golden_cert_is_redundant_when_the_ca_runs_on_a_tier0_host():
+    g = lab(enroll_t=(), enroll_ca=())
+    g.add_node(ADNode("dc", "DC01.X.LOCAL", NodeType.COMPUTER, "X.LOCAL"))
+    g.add_edge(ADEdge("dc", "g-dc", "MemberOf")) if False else None
+    g.nodes_by_type(NodeType.ENTERPRISE_CA)[0].properties["_host"] = "dc"
+    g.add_edge(ADEdge("u-grp", "dc", "AdminTo"))
+    g.add_edge(ADEdge("dc", "u-da", "MemberOf"))
+    g.add_node(ADNode("u-da", "DOMAIN ADMINS@X.LOCAL", NodeType.GROUP, "X.LOCAL"))
+    g.classify_tiers()
+    derive_adcs_edges(g)
+    assert ("u-grp", "GoldenCert") not in kinds(g)
+
+
+def test_esc9_needs_weak_binding_data_and_a_victim():
+    def build(binding):
+        g = lab(template={"enrolleesuppliessubject": False, "nosecurityextension": True}, enroll_t=("u-alice",), enroll_ca=("u-alice",))
+        g.add_node(ADNode("dc", "DC01.X.LOCAL", NodeType.COMPUTER, "X.LOCAL", properties={"isdc": True, **({"_strong_binding": binding} if binding is not None else {})}))
+        g.add_edge(ADEdge("u-other", "u-alice", "GenericWrite"))
+        g.classify_tiers()
+        derive_adcs_edges(g)
+        return kinds(g)
+    assert ("u-other", "ADCSESC9") in build(0) and ("u-other", "ADCSESC9") in build(1)
+    assert ("u-other", "ADCSESC9") not in build(2), "full enforcement closes ESC9"
+    assert ("u-other", "ADCSESC9") not in build(None), "no registry data is not evidence"

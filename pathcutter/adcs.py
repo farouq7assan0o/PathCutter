@@ -8,10 +8,15 @@ collected data:
   ADCSESC4  control a published, enrollable template (it can be turned into an ESC1 template)
   ADCSESC6  enroll in an authentication template on a CA that accepts a requester-supplied SAN (EDITF_ATTRIBUTESUBJECTALTNAME2)
   ADCSESC7  ManageCA / ManageCertificates on a trusted CA
+  ADCSESC3  enrollment-agent template + an agent-enrollable authentication template on the same trusted CA
+  ADCSESC5  control of the NTAuth store or an enterprise CA object
+  GoldenCert  local administrator of the host of a trusted CA (the CA key can be extracted)
+  ADCSESC9  UPN-change attack: GenericWrite over an account that can enroll in a no-security-extension template,
+            while a domain controller does not enforce strong certificate binding (needs DC registry data)
 
 Each edge runs principal -> domain (the domain object is Tier 0), so the existing exposure search needs no special case.
-Not derived, and said so by `pathcutter syntax model`: ESC2/ESC3 (enrollment agents), ESC5, ESC8 (relay to HTTP
-enrollment, not visible in LDAP data), ESC9/10/16 (domain controller registry settings are not collected), ESC11, ESC13-15.
+Not derived, and said so by `pathcutter syntax model`: ESC2 (no direct edge: it feeds ESC3), ESC8 and ESC11 (relay to
+enrollment endpoints: not visible in LDAP data), ESC10/16 (certificate mapping settings), ESC13-15.
 
 A CA is trusted for authentication when its certificate is in the NTAuth store (BloodHound's rule). When no NTAuth
 store was collected the CA is assumed trusted, which can only over-report.
@@ -23,6 +28,8 @@ from .graph import ADEdge, AttackGraph, NodeType
 _ENROLL = {"Enroll", "GenericAll"}
 _CONTROL = {"GenericAll", "GenericWrite", "WriteDacl", "WriteOwner", "Owns", "WritePKINameFlag", "WritePKIEnrollmentFlag"}
 _MANAGE = {"ManageCA", "ManageCertificates", "GenericAll", "WriteDacl", "WriteOwner", "Owns"}
+_AGENT_EKU = "1.3.6.1.4.1.311.20.2.1"
+_PKI_CONTROL = {"GenericAll", "GenericWrite", "WriteDacl", "WriteOwner", "Owns"}
 _MAX_CROSS = 2000        # cap for the rare "member of group A and of group B" intersection
 
 
@@ -76,7 +83,8 @@ def auth_template(p: dict) -> bool:
 
 def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
     """Add ADCSESC* edges (principal -> its domain). Returns how many of each were added."""
-    counts = {"ADCSESC1": 0, "ADCSESC4": 0, "ADCSESC6": 0, "ADCSESC7": 0}
+    counts = {"ADCSESC1": 0, "ADCSESC3": 0, "ADCSESC4": 0, "ADCSESC5": 0, "ADCSESC6": 0, "ADCSESC7": 0, "ADCSESC9": 0,
+              "GoldenCert": 0}
     domains = {n.name.upper(): n.object_id for n in graph.nodes_by_type(NodeType.DOMAIN)}
     added: set[tuple[str, str, str]] = set()
 
@@ -110,4 +118,59 @@ def derive_adcs_edges(graph: AttackGraph) -> dict[str, int]:
                     emit(src, dom, "ADCSESC6")
             for src in _both(graph, _holders(graph, t.object_id, _CONTROL), ca_enrollers):
                 emit(src, dom, "ADCSESC4")
+        # ESC3: an agent template plus a template that accepts an agent's co-signature, both enrollable on this CA
+        if ca.properties.get("_agent_collected") and not ca.properties.get("_agent_restrictions"):
+            agents = [t for t in enabled if _is_agent_template(t.properties)]
+            targets = [t for t in enabled if _accepts_agent(t.properties)]
+            for a in agents:
+                for b in targets:
+                    if a.object_id == b.object_id:
+                        continue
+                    both = _both(graph, _holders(graph, a.object_id, _ENROLL), _holders(graph, b.object_id, _ENROLL))
+                    for src in _both(graph, both, ca_enrollers):
+                        emit(src, dom, "ADCSESC3")
+        # golden certificate: whoever administers the machine that holds the CA key
+        host = ca.properties.get("_host")
+        if host and host not in graph.tier0_nodes and graph.get_node(host) is not None:
+            for src in _holders(graph, host, {"AdminTo"}):
+                emit(src, dom, "GoldenCert")
+        # ESC9: needs the template flag AND a domain controller that does not enforce strong binding
+        if _weak_binding(graph, dom):
+            for t in enabled:
+                p = t.properties
+                if p.get("nosecurityextension") and auth_template(p):
+                    victims = _down(graph, _holders(graph, t.object_id, _ENROLL))
+                    victims = {v for v in victims if graph.get_node(v) is not None and graph.get_node(v).node_type == NodeType.USER}
+                    for v in victims:
+                        for src in _holders(graph, v, {"GenericWrite", "GenericAll"}):
+                            emit(src, dom, "ADCSESC9")
+    # ESC5: control of the objects the PKI trust hangs from
+    for store in graph.nodes_by_type(NodeType.NTAUTH_STORE) + graph.nodes_by_type(NodeType.ENTERPRISE_CA):
+        d = domains.get(str(store.domain).upper())
+        if d is None:
+            continue
+        for src in _holders(graph, store.object_id, _PKI_CONTROL):
+            emit(src, d, "ADCSESC5")
     return counts
+
+
+def _is_agent_template(p: dict) -> bool:
+    ekus = set(p.get("effectiveekus") or p.get("ekus") or [])
+    return _AGENT_EKU in ekus and not p.get("requiresmanagerapproval") and not (p.get("authorizedsignatures") or 0)
+
+
+def _accepts_agent(p: dict) -> bool:
+    if not (p.get("authenticationenabled") and not p.get("requiresmanagerapproval") and not p.get("enrolleesuppliessubject")):
+        return False
+    if (p.get("schemaversion") or 1) == 1:
+        return True
+    return (p.get("authorizedsignatures") or 0) == 1 and _AGENT_EKU in set(p.get("applicationpolicies") or [])
+
+
+def _weak_binding(graph: AttackGraph, dom: str) -> bool:
+    """True when a collected domain controller of this domain does not enforce strong certificate binding (value != 2)."""
+    for n in graph.nodes_by_type(NodeType.COMPUTER):
+        v = n.properties.get("_strong_binding")
+        if v is not None and n.properties.get("isdc") and v != 2:
+            return True
+    return False

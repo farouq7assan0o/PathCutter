@@ -595,6 +595,22 @@ def _capture_ca_extras(data: dict, graph: AttackGraph) -> None:
         san = ((obj.get("CARegistryData") or {}).get("IsUserSpecifiesSanEnabled") or {})
         node.properties["_san_enabled"] = bool(san.get("Value"))
         node.properties["_san_collected"] = bool(san.get("Collected"))
+        node.properties["_host"] = obj.get("HostingComputer")
+        ear = ((obj.get("CARegistryData") or {}).get("EnrollmentAgentRestrictions") or {})
+        node.properties["_agent_restrictions"] = len(ear.get("Restrictions") or [])
+        node.properties["_agent_collected"] = bool(ear.get("Collected"))
+
+
+def _capture_dc_registry(data: dict, graph: AttackGraph) -> None:
+    """StrongCertificateBindingEnforcement from domain controllers (only newer collectors gather it)."""
+    for obj in data.get("data", []):
+        reg = obj.get("DCRegistryData")
+        if not isinstance(reg, dict):
+            continue
+        node = graph.get_node(obj.get("ObjectIdentifier", ""))
+        sb = reg.get("StrongCertificateBindingEnforcement")
+        if node is not None and isinstance(sb, dict) and sb.get("Collected") and sb.get("Value") is not None:
+            node.properties["_strong_binding"] = sb.get("Value")
 
 
 def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
@@ -603,8 +619,11 @@ def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
         _parse_denies(data, graph)
         return 0
     n = _parse_known_file(data, graph, file_type)
-    if file_type == "enterprisecas" or str((data.get("meta") or {}).get("type", "")).lower() == "enterprisecas":
+    ftype = str((data.get("meta") or {}).get("type", "")).lower() or file_type
+    if ftype == "enterprisecas":
         _capture_ca_extras(data, graph)
+    elif ftype == "computers":
+        _capture_dc_registry(data, graph)
     return n
 
 
