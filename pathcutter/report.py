@@ -1043,8 +1043,39 @@ document.getElementById('path-search').addEventListener('input', e => renderPath
 function renderPathDetail(p) {{
   const panel = document.getElementById('path-detail');
   let html = '<h3 style="margin-bottom:12px;font-size:0.9rem">Attack Path: ' + p.length + ' hops</h3>';
-  html += '<div style="display:flex;flex-direction:column;gap:2px">';
 
+  // SVG path diagram
+  const nodeW = 140, nodeH = 28, gapY = 48, padX = 40, padY = 20;
+  const svgW = nodeW + padX * 2;
+  const svgH = (p.steps.length + 1) * (nodeH + gapY) - gapY + padY * 2;
+  html += `<svg width="100%" viewBox="0 0 ${{svgW}} ${{svgH}}" style="max-width:320px;display:block;margin:0 auto 16px">`;
+  html += '<defs><marker id="path-arrow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/></marker></defs>';
+
+  const allNodes = [...p.steps.map(s => ({{name: s.from, edge: s.edge}})), {{name: p.target, edge: null}}];
+  allNodes.forEach((n, i) => {{
+    const cx = svgW / 2;
+    const cy = padY + i * (nodeH + gapY) + nodeH / 2;
+    const isTarget = i === allNodes.length - 1;
+    const fill = isTarget ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.1)';
+    const stroke = isTarget ? '#ef4444' : '#3b82f6';
+    const textColor = isTarget ? '#fca5a5' : '#e2e8f0';
+
+    html += `<rect x="${{cx - nodeW/2}}" y="${{cy - nodeH/2}}" width="${{nodeW}}" height="${{nodeH}}" rx="6" fill="${{fill}}" stroke="${{stroke}}" stroke-width="1.5"/>`;
+    const label = n.name.length > 18 ? n.name.substring(0, 16) + '..' : n.name;
+    html += `<text x="${{cx}}" y="${{cy}}" text-anchor="middle" dominant-baseline="central" fill="${{textColor}}" font-size="11" font-weight="600">${{label}}</text>`;
+
+    if (i < allNodes.length - 1) {{
+      const y1 = cy + nodeH / 2;
+      const y2 = cy + nodeH / 2 + gapY;
+      const edgeColor = getEdgeColor(n.edge);
+      html += `<line x1="${{cx}}" y1="${{y1 + 2}}" x2="${{cx}}" y2="${{y2 - nodeH/2 - 4}}" stroke="${{edgeColor}}" stroke-width="2" marker-end="url(#path-arrow)"/>`;
+      html += `<text x="${{cx + 8}}" y="${{(y1 + y2 - nodeH/2) / 2}}" fill="${{edgeColor}}" font-size="9" font-weight="600" dominant-baseline="central">${{n.edge}}</text>`;
+    }}
+  }});
+  html += '</svg>';
+
+  // Text step list
+  html += '<div style="display:flex;flex-direction:column;gap:2px">';
   for (let i = 0; i < p.steps.length; i++) {{
     const s = p.steps[i];
     const edgeColor = getEdgeColor(s.edge);
@@ -1838,6 +1869,40 @@ function whatifApplyTopN(n) {{
 let whatifInit = false;
 document.querySelector('[data-tab="whatif"]').addEventListener('click', () => {{
   if (!whatifInit) {{ renderWhatIf(); whatifInit = true; }}
+}});
+
+// ---- KEYBOARD SHORTCUTS ----
+const TAB_ORDER = ['overview','risks','fixes','chains','defend','whatif','paths','graph'];
+document.addEventListener('keydown', (e) => {{
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const tabs = document.querySelectorAll('.tab');
+  const activeTab = document.querySelector('.tab.active');
+  const activeId = activeTab ? activeTab.dataset.tab : 'overview';
+  const idx = TAB_ORDER.indexOf(activeId);
+
+  if (e.key === 'ArrowRight' || e.key === 'l') {{
+    const next = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
+    document.querySelector(`[data-tab="${{next}}"]`).click();
+    e.preventDefault();
+  }} else if (e.key === 'ArrowLeft' || e.key === 'h') {{
+    const prev = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+    document.querySelector(`[data-tab="${{prev}}"]`).click();
+    e.preventDefault();
+  }} else if (e.key === '/' || (e.key === 'f' && !e.ctrlKey && !e.metaKey)) {{
+    const searchBoxes = {{'risks': 'risk-search', 'paths': 'path-search', 'defend': 'defend-search', 'graph': 'graph-search-input'}};
+    const box = searchBoxes[activeId];
+    if (box) {{ document.getElementById(box).focus(); e.preventDefault(); }}
+  }} else if (e.key === 'Escape') {{
+    document.activeElement.blur();
+  }} else if (e.key >= '1' && e.key <= '8') {{
+    const tabIdx = parseInt(e.key) - 1;
+    if (tabIdx < TAB_ORDER.length) {{
+      document.querySelector(`[data-tab="${{TAB_ORDER[tabIdx]}}"]`).click();
+      e.preventDefault();
+    }}
+  }} else if (e.key === '?') {{
+    showToast('Keys: 1-8 tabs | ← → navigate | / search | Esc blur');
+  }}
 }});
 </script>
 </body>
