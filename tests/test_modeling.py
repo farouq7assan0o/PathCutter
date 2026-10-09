@@ -201,3 +201,33 @@ Set-Acl "AD:\CN=Svc,OU=Svc,DC=corp,DC=local" $acl'''
 def test_hash_pc_directive_accepts_deny_and_ttl():
     specs, _ = ps("# pc: deny alice GenericAll svc_backup\n# pc: add-member bob HELPDESK ttl=2h")
     assert {(s.deny, s.ttl_minutes) for s in specs} == {(True, None), (False, 120)}
+
+
+# ---------------------------------------------------------------- operational reality
+
+def test_revocation_note_says_existing_sessions_survive(corp, run_check):
+    rep, _ = run_check(corp, ["remove-member bob 'IT ADMINS'"])
+    note = next(f for f in rep.findings if f.kind == "NOTE" and "Revocation" in f.title)
+    assert "Kerberos" in note.detail and rep.verdict == "pass"
+
+
+def test_sdprop_note_on_protected_objects(corp, run_check):
+    corp.get_node("u-svc").admin_count = True
+    rep, _ = run_check(corp, ["grant alice GenericAll svc_backup"])
+    note = next(f for f in rep.findings if f.kind == "NOTE" and "SDProp" in f.title)
+    assert "AdminSDHolder" in note.detail
+    rep2, _ = run_check(corp, ["grant alice GenericAll dave"])
+    assert not any("SDProp" in f.title for f in rep2.findings)
+
+
+def test_trust_properties_are_kept(tmp_path):
+    from pathcutter.ingest import load_sharphound
+    doms = {"meta": {"type": "domains", "version": 4}, "data": [{"ObjectIdentifier": "S-1-5-21-1-2-3", "Properties": {"name": "A.LOCAL", "domain": "A.LOCAL"},
+            "Trusts": [{"TargetDomainSid": "S-1-5-21-9-9-9", "TargetDomainName": "B.LOCAL", "IsTransitive": False,
+                        "SidFilteringEnabled": False, "TrustDirection": "Inbound", "TrustType": "External"}]}]}
+    z = tmp_path / "d.zip"
+    with zipfile.ZipFile(z, "w") as zf:
+        zf.writestr("1_domains.json", json.dumps(doms))
+    g = load_sharphound(z)
+    (_, _, d), = [e for e in g.all_edges() if e[2]["edge_type"] == "TrustedBy"]
+    assert d["sid_filtering"] is False and d["trust_direction"] == "Inbound" and d["trust_type"] == "External"

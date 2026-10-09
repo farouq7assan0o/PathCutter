@@ -7,7 +7,7 @@ from .graph import NodeType
 from .policy import ALL_KINDS, POLICY_SCHEMA
 from . import ps_rules
 
-TOPICS = ("changes", "powershell", "edges", "policy", "exit-codes")
+TOPICS = ("changes", "powershell", "edges", "policy", "model", "exit-codes")
 
 
 def _heading(title: str) -> str:
@@ -45,6 +45,9 @@ EXAMPLES
   add-member newhire HELPDESK
   move alice "Admins"                        # re-parent under an OU
   delete olduser
+  add-member alice HELPDESK ttl=4h           # a time-bound (JIT/PAM) grant: the window is still reported
+  deny interns GenericAll svc_backup         # a Deny ACE: blocks interns' token only, others keep the allow
+  undeny interns GenericAll svc_backup       # lifting a deny is treated as a grant
 
 JSON
   {{"changes": [{{"op": "add", "source": "alice", "edge": "MemberOf", "target": "HELPDESK", "note": "CHG-1"}},
@@ -112,13 +115,48 @@ Unknown keys are rejected so a typo cannot weaken the gate silently.
     "extra_tier0": ["SQL-PROD-ADMINS", "PKI-CA01"],     your crown jewels, beyond the built-in list
     "max_baseline_age_days": 14,
     "require_waiver_expiry": true,
+    "jit_max_minutes": 480,            grants with ttl= up to this long are lowered one severity step (never hidden)
+    "controls": [{{"id": "CA-7", "type": "conditional-access", "owner": "iam-team", "evidence": "CA policy 'Admins need compliant device'",
+                  "target": "HELPDESK", "edge": "MemberOf", "steps": 1, "expires": "2026-12-31"}}],
     "waivers": [{{"id": "CHG-1", "reason": "approved by CISO", "approver": "j.doe", "expires": "2026-12-31",
                  "source": "jsmith", "edge": "MemberOf", "target": "BACKUP OPERATORS", "kinds": ["TIER0_PROMOTION"]}}]
   }}
 
+  controls: DECLARED compensating controls (types: conditional-access, mfa, pim, vault, tiering, network, monitoring,
+  other). PathCutter cannot verify them. A control needs an owner and evidence, lowers matching findings by 1-2
+  severity steps (never below low; never below medium for a Tier 0 promotion or a combined effect), never removes
+  a finding, and every report says "declared, not verified". Expired controls stop applying and are flagged.
+
   Finding kinds: {", ".join(ALL_KINDS)}
   Waivers match by glob, apply only if EVERY change in a finding is covered, always show in the report, and
   stop applying the day after `expires`. Read policy and waivers from a protected branch in CI, never from the PR.
+"""
+
+
+def model() -> str:
+    return _heading("WHAT IS MODELED, AND WHAT IS NOT") + """\
+MODELED (exposure is computed exactly for these)
+  Allow ACLs, group nesting and primary group, local admin/RDP/PSRemote/DCOM, sessions (computer -> user),
+  GPO links and GPO-granted local rights, delegation (unconstrained, constrained, RBCD), SID history, AD CS
+  rights, DCSync, gMSA/LAPS reads, containment, trusts.
+  Deny ACEs, identity-sensitive: a deny binds the denied principal's token (members of a denied group included)
+  and only at the hop where that identity acts. Collect them with tools/Export-AdDenyAces.ps1 (SharpHound does
+  not), or state them with `deny` / `undeny`, `dsacls /D` and Deny access rules in scripts.
+
+MODELED AS REPORTING, NOT AS A GRAPH CHANGE
+  Time-bound grants (`ttl=`, -MemberTimeToLive): flagged "temporary"; the exposure window is still a finding.
+  Declared compensating controls (Conditional Access, PIM approval, vaulting, tiering): lower severity only.
+  SDProp: ACL edits on adminCount=1 objects are noted as likely to be reverted (or to return) within ~60 min.
+  Revocation lag: removals are noted as not ending live sessions or already-issued Kerberos tickets.
+  Trusts: direction, transitivity and SID filtering are recorded and `doctor` reports unfiltered external trusts,
+  but every trust is treated as traversable (conservative: it can over-report, not under-report).
+
+NOT MODELED (stated so nobody assumes otherwise)
+  Conditional Access / MFA / PIM actually being enforced, Protected Users and authentication silos, smart-card
+  required flags, fine-grained password policy, network reachability and firewalls, EDR, Entra ID / hybrid
+  paths, GPO content other than local-group membership, Kerberos ticket and token contents, the time dimension of
+  sessions (they are snapshots: collect them several times).
+  Exposure is a floor for anything the collection missed: run `pathcutter doctor` on the export first.
 """
 
 
@@ -134,9 +172,9 @@ def exit_codes() -> str:
 def render(topic: str | None = None) -> str:
     topic = (topic or "").lower()
     if topic in ("", "all"):
-        return (changes() + powershell() + edges() + policy() + exit_codes())
+        return (changes() + powershell() + edges() + policy() + model() + exit_codes())
     table = {"changes": changes, "powershell": powershell, "ps": powershell, "edges": edges, "policy": policy,
-             "exit-codes": exit_codes, "exit": exit_codes}
+             "model": model, "exit-codes": exit_codes, "exit": exit_codes}
     if topic not in table:
         return f"Unknown topic '{topic}'. Topics: {', '.join(TOPICS)}, all\n"
     return table[topic]()

@@ -259,12 +259,21 @@ def render_html(report: ImpactReport) -> str:
         ("Extra Tier 0 assets", ", ".join(pol.get("extra_tier0", [])) or "none"),
         ("Policy source", pol.get("source", "built-in default")),
     ]
-    prow = "".join(f"<tr><th>{e(k)}</th><td>{e(str(v))}</td></tr>" for k, v in policy_rows)
     waiver_html = ""
     for w in pol.get("waivers_applied", []):
         waiver_html += f'<li><strong>{e(w["id"])}</strong> applied: {e(w["reason"])}{" - " + e(w["approver"]) if w.get("approver") else ""}{", expires " + e(str(w["expires"])) if w.get("expires") else ""}</li>'
     for w in pol.get("waivers_expired", []):
         waiver_html += f'<li class="expired"><strong>{e(w["id"])}</strong> EXPIRED {e(str(w["expires"]))} - no longer applies</li>'
+    for c in pol.get("controls_applied", []):
+        waiver_html += (f'<li><strong>{e(c["id"])}</strong> declared control ({e(c["type"])}, owner {e(c["owner"])}) lowered severity: '
+                        f'{e(c["evidence"])}. Declared, not verified.</li>')
+    for c in pol.get("controls_expired", []):
+        waiver_html += f'<li class="expired"><strong>{e(c["id"])}</strong> declared control EXPIRED {e(str(c["expires"]))} - no longer applies</li>'
+    if pol.get("jit_max_minutes"):
+        policy_rows.append(("Time-bound grants relieved up to", f'{pol["jit_max_minutes"]} minutes (one severity step)'))
+    if pol.get("controls"):
+        policy_rows.append(("Declared controls", ", ".join(c["id"] for c in pol["controls"])))
+    prow = "".join(f"<tr><th>{e(k)}</th><td>{e(str(v))}</td></tr>" for k, v in policy_rows)
     viol = "".join(f'<li class="{"bad" if v["blocking"] else "warn"}">{e(v["message"])}</li>' for v in report.violations)
     warns = "".join(f"<li>{e(w)}</li>" for w in report.warnings)
     method = "".join(f"<li>{e(m)}</li>" for m in report.methodology)

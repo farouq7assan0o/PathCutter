@@ -70,6 +70,7 @@ def diagnose(path) -> dict:
     ace_objs = Counter()
     latest = 0
     unreadable, formats = [], Counter()
+    trusts: list[dict] = []
     for entry, data in iter_raw(path):
         if data is None or not isinstance(data, dict):
             unreadable.append(entry)
@@ -101,9 +102,13 @@ def diagnose(path) -> dict:
                     comp["localgroups"] += 1
             if ft == "users":
                 users["total"] += 1
+            if ft == "domains":
+                for tr in o.get("Trusts", []) or []:
+                    trusts.append({"to": tr.get("TargetDomainName"), "type": tr.get("TrustType"),
+                                   "direction": tr.get("TrustDirection"), "sid_filtering": tr.get("SidFilteringEnabled")})
     result = {"files": dict(files), "objects": dict(objs), "formats": dict(formats), "unreadable": unreadable,
               "unmapped_rights": dict(unmapped.most_common(15)), "rights_seen": sum(rights_seen.values()),
-              "computers": comp, "users": users, "latest_activity": latest}
+              "computers": comp, "users": users, "latest_activity": latest, "trusts": trusts}
     graph = load_sharphound(path)
     t0 = graph.tier0_nodes
     edge_types = Counter(d.get("edge_type") for _, _, d in graph.all_edges())
@@ -155,6 +160,11 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
         f.append(("WARN", "no GPO file: policy-driven local admin and GPO control paths are not modeled", "collect with `-c GPOLocalGroup,Container`"))
     if not g["adcs"]:
         f.append(("WARN", "no AD CS objects: ESC1-ESC8 style certificate paths cannot be seen", "use a SharpHound/BloodHound CE collector that gathers certificate templates"))
+    unfiltered = [t for t in r.get("trusts", []) if t["sid_filtering"] is False and t["type"] in ("External", "Forest")]
+    if unfiltered:
+        f.append(("WARN", f"{len(unfiltered)} external/forest trust(s) without SID filtering ("
+                          + ", ".join(str(t['to']) for t in unfiltered[:3]) + "): SID-history abuse across the trust is possible",
+                  "enable SID filtering (netdom trust ... /quarantine:yes); PathCutter treats every trust as traversable regardless"))
     if g["trusts"] == 0 and len(g["domains"]) > 1:
         f.append(("WARN", "several domains but no trust edges", "collect the Domains file from each domain"))
     return f

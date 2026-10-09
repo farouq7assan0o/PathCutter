@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.4.0
+
+### Added
+- **`pathcutter doctor`**: inspects a SharpHound/BloodHound export before you trust it. Reports what the collection
+  is missing (sessions, local groups, ACLs, GPOs, AD CS, trusts without SID filtering), names the collector flag that
+  fixes each gap, and gives a verdict (complete / usable with blind spots / not trustworthy). `--strict`, `--json`.
+- **`pathcutter anonymize`**: a shareable copy of your own export. Names, domains, domain SIDs and GUIDs become
+  salted pseudonyms; RIDs, memberships, rights and flags are kept, so exposure results are identical. Free text,
+  e-mail, paths and password-ish attributes are dropped; file names are replaced. Property-tested on real data.
+- **Deny ACEs**, identity-sensitive: a deny binds the denied principal's token and only at the hop where that
+  identity acts. Exposure runs over (node, attack-edge, deny-signature) and is proven equal to a brute-force
+  forward oracle on 1,500 random graphs with random denies. Sources: `deny` / `undeny` in the change language,
+  `dsacls /D` and Deny access rules in PowerShell, and `tools/Export-AdDenyAces.ps1` (read-only collector; SharpHound
+  does not collect denies). Denies persist in `.pcsnap` snapshots.
+- **Time-bound (JIT/PAM) grants**: `ttl=4h` in the change language, `-MemberTimeToLive` in PowerShell. Flagged as
+  temporary; with `jit_max_minutes` in the policy the severity drops one step. The exposure window is never hidden.
+- **Declared compensating controls** in the policy (Conditional Access, MFA, PIM, vaulting, tiering, ...): owner and
+  evidence required, optional expiry, lowers severity by 1-2 steps with floors, never suppresses, always labeled
+  "declared, not verified". Expired controls stop applying and are flagged.
+- **SDProp** and **revocation-lag** notes on the changes they affect; trust direction, type, transitivity and SID
+  filtering are recorded on trust edges.
+- `pathcutter syntax model`: what is modeled, what is reported only, and what is not modeled at all.
+- Real-data regression tests (`tests/data/real/`: three GOAD SharpHound collections, the SpecterOps sample) and a
+  cross-check of the PowerShell extractor against the real PowerShell parser (`tests/test_ps_ast.py`).
+
+### Fixed (found by running real collector output through the ingest)
+- `AddKeyCredentialLink` (shadow credentials) ACEs were dropped; local admin / RDP / PSRemote / DCOM data in
+  `LocalGroups` (keyed by RID) was ignored; session edges ran user -> computer instead of computer -> user;
+  domain controllers whose group membership comes only from `PrimaryGroupSID` / `IsDC` were not Tier 0;
+  AD CS objects (templates, CAs) were typed Unknown and their rights ignored; GPO links pointed the wrong way;
+  principals only referenced by ACEs were nameless.
+- A PowerShell call to a modeled cmdlet that has no modeled effect is now reported as a note instead of nothing.
+
 ## 0.3.0
 
 ### Added

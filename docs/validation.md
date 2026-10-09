@@ -66,14 +66,32 @@ the review page (verified by mutation: disabling the escaping makes the tests fa
 links, images and `@mentions` in PR comments, strict quoting in all generated detection languages, bounded
 input sizes, and that policy and waivers must come from a protected branch (see the CI example).
 
+## 6. Real collector output
+
+`tests/data/real/` holds output of real SharpHound runs against public labs (three GOAD domains, the SpecterOps
+BloodHound sample data; attribution in the README there). Running them through the ingest found and fixed seven
+real bugs that the synthetic generator could never have revealed (see CHANGELOG 0.4.0). They are now regression
+tests: nothing loads untyped, ADCS and shadow-credential rights survive, session and GPO-link directions are
+right, DCs are Tier 0, and the real SEVENKINGDOMS run agrees hop-for-hop with the independently hand-built lab
+model on every shared object.
+
+`tests/test_ps_ast.py` runs the PowerShell extractor next to the real PowerShell parser: nothing is reported
+where the real AST sees no call, and no real call to a cmdlet we claim to understand produces nothing.
+
+Deny ACEs are proven against a forward brute-force oracle with identity tracking
+(`tests/test_deny.py`, 1,500 random graphs).
+
 ## What is NOT validated
 
-* Real SharpHound/BloodHound CE exports from production AD: none were available here. The ingest handles the
-  v4 and CE shapes, but if your collector emits something unusual the safest check is
-  `pathcutter analyze` on it first.
-* A real running AD lab. The generated detections are tested for validity and consistency, not run against live
-  event streams: use each rule's `test_command` in your own lab.
-* Deny ACEs, conditional access, PAM/JIT elevation and replication delay are outside the model.
+* Production exports. Real collector output from public labs IS tested (section 6), but no export from a real
+  production directory was available: those are not public. Run `pathcutter doctor` on yours first, and use
+  `pathcutter anonymize` if you want to share one for a bug report.
+* A live running AD. The generated detections are tested for validity and consistency, not run against live
+  event streams (use each rule's `test_command` in your own lab), and `Export-AdDenyAces.ps1` is tested offline
+  (its right mapping and descriptor parsing in real PowerShell) but has not been pointed at a live domain.
+* Conditional Access, MFA and PIM enforcement are not modeled (they can be declared as controls, which only lower
+  severity); Protected Users, authentication silos and replication delay are not modeled. See
+  `pathcutter syntax model`.
 
 ## Performance (measured, one laptop)
 

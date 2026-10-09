@@ -56,6 +56,18 @@ pathcutter detect baseline.pcsnap --assume-fixed 5 -o detections/     # I will f
 
 See [docs/detections.md](docs/detections.md).
 
+### Trust the data, then share it safely
+
+```bash
+pathcutter doctor export.zip        # what is this collection missing? (sessions, local groups, ACLs, AD CS, unfiltered trusts)
+pathcutter anonymize export.zip -o shareable.zip   # pseudonyms, no free text, identical attack paths
+```
+
+`check` also understands what a plain graph cannot: **Deny ACEs** (identity-sensitive; collect them with
+`tools/Export-AdDenyAces.ps1`), **time-bound JIT/PAM grants** (`ttl=4h`, `-MemberTimeToLive`), **declared compensating
+controls** (Conditional Access, PIM, vaulting: lower severity, never hide, always labeled unverified), SDProp and
+revocation-lag notes. `pathcutter syntax model` lists what is modeled and what is not.
+
 ### Does it actually work?
 
 Validated against a rebuilt GOAD lab with hand-derived hop counts, an independent brute-force oracle on thousands
@@ -196,7 +208,7 @@ The export command outputs structured JSON with posture scores, top fixes, attac
 python -m pytest tests/ -v
 ```
 
-3,500+ tests (a large share randomized, against an independent oracle) covering ingestion, graph construction, pathfinding, scoring, chokepoint analysis, chain detection, remediation, diffing, the report generators, and the whole AD change gate (parsing, resolution, exposure, impact, policy and waivers, snapshots, every output format, CLI exit codes).
+5,100+ tests (a large share randomized, against an independent oracle and real SharpHound output, with the PowerShell extractor cross-checked against the real PowerShell parser) covering ingestion, graph construction, pathfinding, scoring, chokepoint analysis, chain detection, remediation, diffing, the report generators, and the whole AD change gate (parsing, resolution, exposure, impact, policy and waivers, snapshots, every output format, CLI exit codes).
 
 ## Architecture
 

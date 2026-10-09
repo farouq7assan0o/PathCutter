@@ -239,6 +239,56 @@ def _membership_chain(graph: AttackGraph, start: str, tier0: set[str]) -> list[d
     return out
 
 
+# ------------------------------------------------------------------ operational reality
+
+_ACL_EDGES = {"GenericAll", "GenericWrite", "WriteDacl", "WriteOwner", "Owns", "ForceChangePassword", "AddMember",
+              "WriteSPN", "AddAllowedToAct", "WriteKeyCredentialLink", "ReadLAPSPassword", "ReadGMSAPassword",
+              "WriteGPLink", "DCSync"}
+_REVOKABLE = {"MemberOf", "AdminTo", "CanRDP", "CanPSRemote", "ExecuteDCOM", "HasSession", "AllowedToDelegate", "AllowedToAct"}
+
+
+def _operational_notes(resolved: list, before: AttackGraph, new_finding) -> None:
+    """Facts about how AD behaves that the graph cannot show, attached to the changes they affect."""
+    revoked: list[int] = []
+    for rc in resolved:
+        spec = rc.spec
+        if rc.noop or spec.op in ("create", "move") or spec.deny:
+            continue
+        # SDProp: ACL edits on protected (adminCount=1) objects are rewritten from AdminSDHolder about hourly
+        if spec.edge_type in _ACL_EDGES or spec.edge_type == "*":
+            protected = []
+            for _, t in rc.edge_pairs():
+                n = before.get_node(t)
+                if n and (n.admin_count or n.display_name.upper() == "ADMINSDHOLDER"):
+                    protected.append(n.display_name)
+            if protected and spec.op == "add":
+                names = ", ".join(sorted(set(protected))[:3])
+                new_finding(kind="NOTE", severity="low", changes=[spec.index],
+                            title=f"SDProp: {names} is a protected object, so this grant may be reverted within about an hour",
+                            detail=(f"{spec.describe()} targets an object with adminCount=1. SDProp rewrites the ACL of protected "
+                                    "objects from AdminSDHolder roughly every 60 minutes, so the ACE will usually disappear again "
+                                    "unless it is ALSO set on AdminSDHolder, which would grant it on every protected object. "
+                                    "Treat it as a short-lived exposure, not as none."))
+            elif protected and spec.op == "remove" and rc.removed_edges:
+                names = ", ".join(sorted(set(protected))[:3])
+                new_finding(kind="NOTE", severity="low", changes=[spec.index],
+                            title=f"SDProp: the same ACE may return on {names}",
+                            detail=(f"{spec.describe()} edits a protected object (adminCount=1). If the ACE also exists on "
+                                    "AdminSDHolder, SDProp restores it within about 60 minutes. Check and fix AdminSDHolder too."))
+        if spec.op == "remove" and rc.removed_edges and (spec.edge_type in _REVOKABLE or spec.edge_type in ("*", "")):
+            revoked.append(spec.index)
+        if spec.op == "delete" and rc.removed_edges:
+            revoked.append(spec.index)
+    if revoked:
+        new_finding(kind="NOTE", severity="low", changes=revoked,
+                    title=f"Revocation is not instant ({len(revoked)} change{'s' if len(revoked) != 1 else ''})",
+                    detail=("Removing a membership or right does not end sessions that already exist: a user who is logged on keeps "
+                            "the access in their current token and Kerberos tickets (TGT lifetime defaults to 10 hours, renewable "
+                            "7 days) until they sign out or the tickets expire, and changes take time to replicate between domain "
+                            "controllers. To cut off a compromised account now, also reset its password twice (and krbtgt for a "
+                            "domain-wide compromise), and end its sessions."))
+
+
 # ------------------------------------------------------------------ main entry
 
 def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
@@ -477,6 +527,8 @@ def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
                     detail=("This part of the script was NOT analyzed, so its effect on attack paths is unknown. "
                             "Express it as an explicit change line (grant/revoke/add-member) or review it by hand."),
                     origin=w.origin)
+
+    _operational_notes(resolved, before, new_finding)
 
     # ---- judge the FINAL state: drop or trim effects that other changes in the set cancel
     final_for = {"NEW_EXPOSURE": exposed_a | promoted, "PATH_SHORTENED": shortened,

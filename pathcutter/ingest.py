@@ -298,7 +298,8 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
         for trust in obj.get("Trusts", []):
             target_id = trust.get("TargetDomainSid", "")
             if target_id:
-                graph.add_edge(ADEdge(source_id=oid, target_id=target_id, edge_type="TrustedBy"))
+                graph.add_edge(ADEdge(source_id=oid, target_id=target_id, edge_type="TrustedBy",
+                                      properties=_trust_props(trust)))
 
     return count
 
@@ -393,7 +394,8 @@ def _parse_v5_file(data: dict, graph: AttackGraph) -> int:
         for trust in obj.get("Trusts", []):
             target_id = trust.get("TargetDomainSid", "")
             if target_id:
-                graph.add_edge(ADEdge(source_id=oid, target_id=target_id, edge_type="TrustedBy"))
+                graph.add_edge(ADEdge(source_id=oid, target_id=target_id, edge_type="TrustedBy",
+                                      properties=_trust_props(trust)))
 
     return count
 
@@ -600,6 +602,13 @@ def _load_from_directory(dir_path: Path, graph: AttackGraph) -> int:
         if isinstance(data, dict) and "data" in data:
             total += _parse_one_file(data, graph, file_type)
     return total
+
+
+def _trust_props(trust: dict) -> dict:
+    """Keep what the collector knows about a trust. Exposure still treats every trust as traversable (conservative);
+    direction, transitivity and SID filtering are recorded so reports and `doctor` can say what they imply."""
+    return {"trust_type": trust.get("TrustType"), "trust_direction": trust.get("TrustDirection"),
+            "transitive": trust.get("IsTransitive"), "sid_filtering": trust.get("SidFilteringEnabled")}
 
 
 def _parse_denies(data: dict, graph: AttackGraph) -> int:

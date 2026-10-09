@@ -925,7 +925,10 @@ def run_segment(seg: str, block: str | None, block_line: int, pipe, first: bool,
             return None
         A = Args(ctx, env, line, s, toks[0], named, positional, pipe)
         # `net` and friends take slash switches as plain arguments
+        before = (len(ctx.items), len(ctx.warns))
         handler(ctx, A)
+        if (len(ctx.items), len(ctx.warns)) == before and name != "set-acl":
+            ctx.warn(line, f"{toks[0]} was recognised but has no effect that PathCutter models", s, "note")
         return None
     if name in NOTES:
         ctx.warn(line, f"{toks[0]}: {NOTES[name]}", s, "note")
