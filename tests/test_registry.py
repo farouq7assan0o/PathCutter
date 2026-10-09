@@ -13,7 +13,7 @@ from pathcutter.pathfinder import _ATTACK_EDGES
 NAMES = sorted({e.name for e in EDGE_REGISTRY.values()})
 
 # Edges that are not attack steps by themselves (plumbing)
-STRUCTURAL = {"MemberOf", "Contains"}
+STRUCTURAL = {"MemberOf", "Contains", "AZContains"}
 # Known gap: AD CS rights are ingested and typed but only become attack steps once the ESC conditions are modeled.
 PENDING_ADCS = {"Enroll", "AutoEnroll", "ManageCA", "ManageCertificates", "WritePKIEnrollmentFlag", "WritePKINameFlag"}
 

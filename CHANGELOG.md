@@ -13,6 +13,9 @@
   condition tested on its own and an independent re-derivation from the raw JSON of a real collection.
 - **Implicit membership** of Everyone and Authenticated Users: ACEs granted to them are now rights everyone holds
   (previously invisible). The domain object itself is Tier 0.
+- **Azure resource RBAC** (subscriptions, resource groups, VMs, key vaults; Owner / Contributor / User Access Administrator /
+  VM login; scope hierarchy; VM managed identities) and **Entra Conditional Access evaluation** in `audit`; **`--also`** merges
+  several collections (sessions record how often they were seen); AD CS ESC15.
 - **Decremental exposure update** for removed edges (only the states whose route used them are re-attached): a `check` with removals
   costs no more than one with additions. Fuzzed against full recomputation (300,000 clean).
 - **`pathcutter audit`**: hygiene findings from collected attributes (Kerberoastable and AS-REP roastable accounts,

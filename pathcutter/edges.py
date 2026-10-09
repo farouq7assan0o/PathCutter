@@ -603,6 +603,78 @@ ADCSESC15 = EdgeType(
     description="Derived from certificate template data; assumes the CA is unpatched because the patch level is not collected",
 )
 
+AZOwner = EdgeType(
+    name="AZOwner",
+    category=EdgeCategory.SPECIAL,
+    abuse="Owner of an Azure scope: full control of everything beneath it, including granting access to anyone",
+    mitre="T1078.004",
+    exploitability=9,
+    fix_template="# Remove the Owner assignment or make it eligible through PIM with approval",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Azure resource RBAC edge",
+)
+
+AZContributor = EdgeType(
+    name="AZContributor",
+    category=EdgeCategory.SPECIAL,
+    abuse="Contributor on an Azure scope: create and change everything beneath it (run commands on VMs, read secrets, change networking)",
+    mitre="T1078.004",
+    exploitability=8,
+    fix_template="# Replace Contributor with the narrowest role that fits the task",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Azure resource RBAC edge",
+)
+
+AZUserAccessAdmin = EdgeType(
+    name="AZUserAccessAdmin",
+    category=EdgeCategory.SPECIAL,
+    abuse="User Access Administrator on an Azure scope: grant yourself or anyone Owner there",
+    mitre="T1098",
+    exploitability=9,
+    fix_template="# Remove the assignment; use PIM for the rare cases it is needed",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Azure resource RBAC edge",
+)
+
+AZVMAdminLogin = EdgeType(
+    name="AZVMAdminLogin",
+    category=EdgeCategory.SPECIAL,
+    abuse="Sign in to the virtual machine as a local administrator with an Entra identity",
+    mitre="T1021",
+    exploitability=7,
+    fix_template="# Use Virtual Machine User Login unless administration is required",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Azure resource RBAC edge",
+)
+
+AZContains = EdgeType(
+    name="AZContains",
+    category=EdgeCategory.DOMAIN,
+    abuse="Azure hierarchy: rights on the parent scope apply to this child resource",
+    mitre="",
+    exploitability=0,
+    fix_template="# Structural: reduce rights on the parent scope instead",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Azure resource RBAC edge",
+)
+
+AZManagedIdentity = EdgeType(
+    name="AZManagedIdentity",
+    category=EdgeCategory.SPECIAL,
+    abuse="Code running on the resource can request tokens as its managed identity and use every role that identity holds",
+    mitre="T1552.005",
+    exploitability=8,
+    fix_template="# Remove roles from the managed identity or stop using it on this resource",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Azure resource RBAC edge",
+)
+
 # -------------------------------------------------------------------
 # Registry: name -> EdgeType lookup
 # -------------------------------------------------------------------

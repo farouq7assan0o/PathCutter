@@ -153,3 +153,61 @@ def test_doctor_understands_azure_files(tmp_path):
         zf.writestr("1_azure.json", json.dumps(azure_file(user("A1", "a@x.com"), assignment(GA, "A1"))))
     r = diagnose(z)
     assert r["files"] == {"azure": 1} and not [f for f in r["findings"] if "no users file" in f[1]]
+
+
+# ---------------------------------------------------------------- Azure resource RBAC
+
+SUB = "SUB-0001"
+RG = f"/SUBSCRIPTIONS/{SUB}/RESOURCEGROUPS/RG1"
+VM = f"{RG}/PROVIDERS/MICROSOFT.COMPUTE/VIRTUALMACHINES/VM1"
+
+
+def arm(*extra):
+    return [{"kind": "AZSubscription", "data": {"id": f"/subscriptions/{SUB}", "subscriptionId": SUB, "displayName": "Prod", "tenantId": TENANT}},
+            {"kind": "AZResourceGroup", "data": {"id": RG.lower(), "name": "rg1", "subscriptionId": f"/subscriptions/{SUB}".lower(), "tenantId": TENANT}},
+            {"kind": "AZVM", "data": {"id": VM.lower(), "name": "vm1", "resourceGroupId": RG.lower(), "subscriptionId": SUB, "tenantId": TENANT,
+                                      "identity": {"type": "SystemAssigned", "principalId": "sp-vm", "tenantId": TENANT}}},
+            {"kind": "AZServicePrincipal", "data": {"id": "sp-vm", "appId": "vvvv", "displayName": "vm1 identity"}}, *extra]
+
+
+def wrap(key, principal, role_def=""):
+    return {key: {"id": "x", "properties": {"principalId": principal, "roleDefinitionId": role_def, "scope": "/s"}}}
+
+
+def test_vm_contributor_reaches_tier0_through_the_managed_identity(tmp_path):
+    g = build(tmp_path, arm(user("C3", "cy@x.com"), assignment(GA, "SP-VM"),
+                            {"kind": "AZVMContributor", "data": {"virtualMachineId": VM.lower(), "contributors": [dict(wrap("contributor", "c3"), virtualMachineId=VM.lower())]}}))
+    e = compute_exposure(g)
+    assert [s.edge_type for s in e.path("C3")] == ["AZContributor", "AZManagedIdentity", None]
+
+
+def test_subscription_owner_flows_down_the_hierarchy(tmp_path):
+    g = build(tmp_path, arm(user("C3", "cy@x.com"), assignment(GA, "SP-VM"),
+                            {"kind": "AZSubscriptionOwner", "data": {"subscriptionId": SUB, "owners": [dict(wrap("owner", "c3"), subscriptionId=SUB)]}}))
+    e = compute_exposure(g)
+    assert [s.edge_type for s in e.path("C3")] == ["AZOwner", "AZContains", "AZContains", "AZManagedIdentity", None]
+
+
+def test_generic_role_assignment_uses_the_builtin_role_ids(tmp_path):
+    contributor = "/subscriptions/x/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+    reader = "/subscriptions/x/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7"
+    g = build(tmp_path, arm(user("C3", "cy@x.com"), user("D4", "dee@x.com"), assignment(GA, "SP-VM"),
+                            {"kind": "AZResourceGroupRoleAssignment", "data": {"resourceGroupId": RG.lower(), "roleAssignments": [
+                                dict(wrap("roleAssignment", "c3", contributor), resourceGroupId=RG.lower()),
+                                dict(wrap("roleAssignment", "d4", reader), resourceGroupId=RG.lower())]}}))
+    e = compute_exposure(g)
+    assert "C3" in e.exposed() and "D4" not in e.exposed(), "Reader must not count"
+
+
+def test_a_vm_without_a_managed_identity_leads_nowhere(tmp_path):
+    items = arm(user("C3", "cy@x.com"), {"kind": "AZVMOwner", "data": {"virtualMachineId": VM.lower(), "owners": [dict(wrap("owner", "c3"), virtualMachineId=VM.lower())]}})
+    items[2]["data"]["identity"] = None
+    assert "C3" not in compute_exposure(build(tmp_path, items + [assignment(GA, "SP-VM")])).exposed()
+
+
+def test_subscriptions_become_targets_through_policy_extra_tier0(tmp_path):
+    g = build(tmp_path, arm(user("C3", "cy@x.com"), {"kind": "AZSubscriptionOwner", "data": {"subscriptionId": SUB, "owners": [dict(wrap("owner", "c3"), subscriptionId=SUB)]}}))
+    assert "C3" not in compute_exposure(g).exposed()
+    sub = next(n for n in g.nodes_by_type(NodeType.AZ_SUBSCRIPTION))
+    g.retier({sub.object_id})
+    assert "C3" in compute_exposure(g).exposed()

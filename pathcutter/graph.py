@@ -29,6 +29,11 @@ class NodeType(Enum):
     AZ_SP = "AZServicePrincipal"
     AZ_ROLE = "AZRole"
     AZ_TENANT = "AZTenant"
+    AZ_SUBSCRIPTION = "AZSubscription"
+    AZ_RG = "AZResourceGroup"
+    AZ_VM = "AZVM"
+    AZ_KEYVAULT = "AZKeyVault"
+    AZ_MGMTGROUP = "AZManagementGroup"
     UNKNOWN = "Unknown"
 
 

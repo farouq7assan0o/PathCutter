@@ -144,7 +144,9 @@ MODELED (exposure is computed exactly for these)
   requester SAN), ESC7 (ManageCA/ManageCertificates), ESC9 (needs domain controller registry data), golden certificate.
   Microsoft Entra ID and hybrid identity from AzureHound output: users, groups, applications, service principals,
   directory roles, ownership, active and PIM-eligible role assignments, password-reset and add-secret roles, and the
-  on-premises -> cloud sync link, so one search follows a path across the boundary. Tier 0 roles: Global Administrator,
+  on-premises -> cloud sync link, so one search follows a path across the boundary. Azure resource RBAC: subscriptions,
+  resource groups, VMs and key vaults with Owner / Contributor / User Access Administrator / VM login assignments, the
+  scope hierarchy, and VM managed identities (name a subscription in policy extra_tier0 to make it a target). Tier 0 roles: Global Administrator,
   Privileged Role Administrator, Privileged Authentication Administrator, Partner Tier2 Support.
   Deny ACEs, identity-sensitive: a deny binds the denied principal's token (members of a denied group included)
   and only at the hop where that identity acts. Collect them with tools/Export-AdDenyAces.ps1 (SharpHound does
@@ -164,8 +166,8 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
 
 NOT MODELED (stated so nobody assumes otherwise)
   AD CS ESC2 (feeds ESC3), ESC8 and ESC11 (relay to enrollment endpoints), ESC10/16, ESC13/14; AD CS paths are only as
-  good as the template, CA and NTAuth data collected. Azure resource RBAC (subscriptions, VMs, key vaults),
-  administrative units, application API permissions.
+  good as the template, CA and NTAuth data collected. Entra administrative units, application API permissions
+  (Graph app roles), custom Azure roles, deny assignments and key vault data-plane access policies.
   Whether MFA / PIM approval is really enforced at sign-in (Conditional Access is evaluated and reported, not turned
   into graph edges), Protected Users and authentication silos as graph restrictions (reported by `audit`), smart-card
   required flags, fine-grained password policy, network reachability and firewalls, SMB/LDAP signing and NTLM relay,
