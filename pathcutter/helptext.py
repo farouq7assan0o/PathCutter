@@ -20,6 +20,10 @@ COMMANDS
     diff       compare two collections: did the fixes work, did anything regress?
     export     JSON + exit code for CI gating on score / exposure thresholds
 
+  Trust the data / share it
+    doctor     is this export complete enough to trust? lists blind spots and the collector flags that fix them
+    anonymize  a shareable copy of your export: pseudonyms, no free text, identical attack paths
+
   Gate changes BEFORE they ship
     snapshot   save a reusable baseline (.pcsnap) from a SharpHound collection
     check      will these proposed AD changes open a path to Tier 0?   exit 2 = blocked
@@ -130,6 +134,23 @@ Output: sigma/*.yml  splunk/*.spl  sentinel/*.kql  elastic/*.kql  coverage.md  c
 Read prerequisites.md first: a rule only fires if the matching Advanced Audit Policy is enabled.
 """
 
+DOCTOR = """Examples:
+  pathcutter doctor export.zip                 # verdict + what is missing + the SharpHound flag that fixes each gap
+  pathcutter doctor export.zip --strict        # exit 1 on warnings too (CI: refuse to gate on a thin collection)
+  pathcutter doctor export.zip --json
+
+Exit: 0 usable, 1 errors (results would mislead) or unreadable input.
+"""
+
+ANONYMIZE = """Examples:
+  pathcutter anonymize export.zip -o shareable.zip
+  pathcutter anonymize export.zip -o shareable.zip --salt myteam --map private-map.json
+
+Names, domains, domain SIDs and GUIDs become salted pseudonyms; RIDs, memberships, ACE rights and flags are kept,
+so `pathcutter analyze shareable.zip` finds the same paths. Descriptions, emails, paths and password-ish attributes
+are dropped. Always review before sharing: unusual free-text attributes are not guaranteed to be covered.
+"""
+
 DESCRIPTIONS = {
     "analyze": "Full analysis of a SharpHound export: risk score, attack paths, prioritised fixes with commands, HTML report.",
     "score": "Quick risk score for a SharpHound export.",
@@ -140,7 +161,10 @@ DESCRIPTIONS = {
     "snapshot": "Save a reusable baseline (.pcsnap) from a SharpHound export so `check` runs in seconds.",
     "check": "Check proposed Active Directory changes for new attack paths to Tier 0 BEFORE they are applied.",
     "demo": "Generate a realistic lab environment, with a ready-made baseline, to try PathCutter without real data.",
+    "doctor": "Inspect a SharpHound export for missing data (sessions, local groups, ACLs, ADCS) before you trust its results.",
+    "anonymize": "Write a pseudonymized copy of an export that gives the same attack paths and can be shared safely.",
     "detect": "Generate detections scoped to the exact objects on the attack paths you have not fixed.",
 }
 EPILOGS = {"analyze": ANALYZE, "score": SCORE, "fix": FIX, "graph": GRAPH, "diff": DIFF, "export": EXPORT,
-           "snapshot": SNAPSHOT, "demo": DEMO, "check": CHECK, "detect": DETECT}
+           "snapshot": SNAPSHOT, "demo": DEMO, "check": CHECK, "detect": DETECT,
+           "doctor": DOCTOR, "anonymize": ANONYMIZE}

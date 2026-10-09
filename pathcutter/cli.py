@@ -92,6 +92,8 @@ def main(argv: list[str] | None = None) -> int:
     _add_check_parsers(sub)
     from .detect_cli import add_parser as _add_detect_parser
     _add_detect_parser(sub)
+    from .toolkit import add_parsers as _add_toolkit_parsers
+    _add_toolkit_parsers(sub)
 
     # demo
     p_demo = sub.add_parser("demo", help="Generate a realistic demo AD environment and run full analysis")
@@ -160,6 +162,12 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "check":
         from .check_cli import cmd_check
         return cmd_check(args)
+    elif args.command == "doctor":
+        from .toolkit import cmd_doctor
+        return cmd_doctor(args)
+    elif args.command == "anonymize":
+        from .toolkit import cmd_anonymize
+        return cmd_anonymize(args)
     elif args.command == "detect":
         from .detect_cli import cmd_detect
         return cmd_detect(args)
