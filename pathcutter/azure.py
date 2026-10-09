@@ -27,8 +27,9 @@ whose unit was not collected adds nothing and is reported by `audit`).
 
 Not modeled (said so by `pathcutter syntax model`): other Graph application permissions, the contents of custom roles,
 deny assignments, key vault data-plane access policies.
-The schema is taken from the AzureHound source models; it has been exercised on synthetic data shaped from them, not on
-a real tenant export.
+The schema was taken from the AzureHound source models and then checked against one real collection (SpecterOps' PhantomCorp demo
+tenant, tests/data/real/entra_sampledata.zip). Role capabilities (reset passwords, add secrets, create role assignments) are read from
+each role's allowedResourceActions, so custom roles and unlisted built-in roles count.
 """
 from __future__ import annotations
 
@@ -57,6 +58,8 @@ KNOWN_ROLES = {**TIER0_ROLES, **RESET_ROLES, **SECRET_ROLES}
 _KIND_TYPE = {"AZSubscription": NodeType.AZ_SUBSCRIPTION, "AZResourceGroup": NodeType.AZ_RG, "AZVM": NodeType.AZ_VM,
               "AZKeyVault": NodeType.AZ_KEYVAULT, "AZManagementGroup": NodeType.AZ_MGMTGROUP,
               "AZUser": NodeType.AZ_USER, "AZGroup": NodeType.AZ_GROUP, "AZApp": NodeType.AZ_APP,
+              **{k: NodeType.AZ_RESOURCE for k in ("AZFunctionApp", "AZWebApp", "AZAutomationAccount", "AZLogicApp", "AZVMScaleSet",
+                                                   "AZManagedCluster", "AZContainerRegistry")},
               "AZServicePrincipal": NodeType.AZ_SP, "AZTenant": NodeType.AZ_TENANT, "AZRole": NodeType.AZ_ROLE}
 GRANT_ROLE_PERMS = {"9E3F62CF-CA93-4989-B6CE-BF83C28F9FE8": "RoleManagement.ReadWrite.Directory",
                     "06B708A9-E830-4DB3-A914-8E69DA51D44F": "AppRoleAssignment.ReadWrite.All"}
@@ -65,6 +68,31 @@ ADD_MEMBER_PERMS = {"62A82D76-70EA-41E2-9197-370581804D09": "Group.ReadWrite.All
                     "19DBC75E-C2E2-444C-A770-EC69D8559FC7": "Directory.ReadWrite.All"}
 RESET_PW_PERMS = {"741F803B-C850-494E-B5DF-CDE7C675A1CA": "User.ReadWrite.All", "50483E42-D915-4231-9639-7FDB7FD190E5": "UserAuthenticationMethod.ReadWrite.All"}
 _ATTACK_KINDS = {"AZMGGrantRole", "AZMGAddSecret", "AZMGAddMember", "AZMGResetPassword", "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo"}
+
+
+_DEFAULT_ROLES = {"USER", "GUEST USER", "RESTRICTED GUEST USER"}       # default permissions, not assignable roles
+_RESET_ACTIONS = {"microsoft.directory/users/password/update"}
+_SECRET_ACTIONS = {"microsoft.directory/applications/credentials/update", "microsoft.directory/serviceprincipals/credentials/update"}
+
+
+def _capabilities(d: dict) -> list[str]:
+    """What an Entra role definition lets its holder do, read from its allowedResourceActions (so custom roles count)."""
+    acts = {str(a).lower() for p in d.get("rolePermissions") or [] if isinstance(p, dict) for a in p.get("allowedResourceActions") or []}
+    caps = []
+    if acts & _RESET_ACTIONS:
+        caps.append("reset")
+    if acts & _SECRET_ACTIONS:
+        caps.append("secret")
+    if any(a.startswith("microsoft.directory/roleassignments/") and (a.endswith("/alltasks") or a.endswith("/create")) for a in acts):
+        caps.append("grant")
+    return caps
+
+
+def _can(graph: AttackGraph, rid: str, cap: str) -> bool:
+    n = graph.get_node(rid)
+    if n is None or n.display_name.upper() in _DEFAULT_ROLES or rid in TIER0_ROLES:
+        return False
+    return cap in (n.properties.get("_caps") or ())
 
 
 def _id(x) -> str:
@@ -110,8 +138,10 @@ def parse_azure_file(data: dict, graph: AttackGraph) -> int:
         oid = _sub(d.get("id") or d.get("subscriptionId")) if kind == "AZSubscription" else             _id(d.get("id") or d.get("tenantId") or d.get("objectId"))
         if not oid:
             continue
-        name = (d.get("userPrincipalName") if nt == NodeType.AZ_USER else None) or d.get("displayName") or d.get("defaultDomain") or oid
+        name = (d.get("userPrincipalName") if nt == NodeType.AZ_USER else None) or d.get("displayName") or d.get("defaultDomain") or (d.get("name") if nt == NodeType.AZ_RESOURCE else None) or oid
         props = {k: v for k, v in d.items() if isinstance(v, (str, int, float, bool)) or v is None}
+        if kind == "AZRole":
+            props["_caps"] = _capabilities(d)
         node = ADNode(oid, str(name).upper(), nt, _id(d.get("tenantId")),
                       enabled=d.get("accountEnabled", True) is not False, properties=props)
         graph.add_node(node)
@@ -136,7 +166,7 @@ def _grant(graph: AttackGraph, who: str, rid: str, scope, edge_kind: str) -> Non
     application role scoped to an administrative unit or to one object only reaches that scope, so it is kept aside and
     turned into edges to exactly those objects once every file is loaded (`_scoped_roles`)."""
     sc = str(scope or "/").strip().upper()
-    if sc in ("/", "") or rid not in RESET_ROLES and rid not in SECRET_ROLES:
+    if sc in ("/", "") or not (rid in RESET_ROLES or rid in SECRET_ROLES or _can(graph, rid, "reset") or _can(graph, rid, "secret")):
         _edge(graph, who, rid, edge_kind)
     elif who:
         graph.meta.setdefault("scoped_roles", []).append({"who": who, "role": rid, "scope": sc, "eligible": edge_kind != "MemberOf"})
@@ -176,8 +206,10 @@ def _relationships(kind: str, d, graph: AttackGraph) -> None:
             perms = node.properties.setdefault("_graph_perms", [])
             if role in GRANT_ROLE_PERMS or role in ADD_SECRET_PERMS or role in ADD_MEMBER_PERMS or role in RESET_PW_PERMS:
                 perms.append(role)
-    elif kind in ("AZSubscription", "AZResourceGroup", "AZVM", "AZKeyVault") and isinstance(d, dict):
+    elif kind in ("AZSubscription", "AZResourceGroup", "AZVM", "AZKeyVault") + _RESOURCE_KINDS and isinstance(d, dict):
         _resource(kind, d, graph)
+    elif kind.endswith("RoleAssignment") and kind[:-len("RoleAssignment")] in _RESOURCE_KINDS and isinstance(d, dict):
+        _resource_assignments(d, graph)
     else:
         m = _RBAC_KIND.match(kind)
         if m and isinstance(d, dict):
@@ -232,13 +264,31 @@ def _rbac(scope_kind: str, role: str, d: dict, graph: AttackGraph) -> None:
             _edge(graph, who, scope, edge)
 
 
+_RESOURCE_KINDS = ("AZFunctionApp", "AZWebApp", "AZAutomationAccount", "AZLogicApp", "AZVMScaleSet", "AZManagedCluster", "AZContainerRegistry")
+
+
+def _resource_assignments(d: dict, graph: AttackGraph) -> None:
+    """Role assignments on a compute resource: {assignees: [{assignee: {properties: {principalId}}, objectId, roleDefinitionId}]}."""
+    for e in d.get("assignees") or []:
+        if not isinstance(e, dict):
+            continue
+        who, scope = _principal_of(e), _id(e.get("objectId"))
+        rid = _id(e.get("roleDefinitionId")).rsplit("/", 1)[-1]
+        edge = _ROLE_DEF_EDGE.get(rid)
+        if edge is None and rid:
+            graph.meta.setdefault("azure_unevaluated_roles", []).append(rid)
+        if who and scope and edge:
+            _ensure(graph, scope, NodeType.AZ_RESOURCE)
+            _edge(graph, who, scope, edge)
+
+
 def _resource(kind: str, d: dict, graph: AttackGraph) -> None:
     oid = _sub(d.get("id") or d.get("subscriptionId")) if kind == "AZSubscription" else _id(d.get("id"))
     if kind == "AZResourceGroup":
         _edge(graph, _sub(d.get("subscriptionId")), oid, "AZContains")
-    elif kind in ("AZVM", "AZKeyVault"):
+    elif kind in ("AZVM", "AZKeyVault") + _RESOURCE_KINDS:
         _edge(graph, _id(d.get("resourceGroupId")), oid, "AZContains")
-    if kind == "AZVM":
+    if kind == "AZVM" or kind in _RESOURCE_KINDS:
         ident = d.get("identity") or {}
         principals = [ident.get("principalId")] + [(u or {}).get("principalId") for u in (ident.get("userAssignedIdentities") or {}).values()]
         for p in principals:
@@ -266,9 +316,15 @@ def finalize_azure(graph: AttackGraph) -> None:
         sid = u.properties.get("onPremisesSecurityIdentifier")
         if sid and graph.get_node(str(sid)) is not None and u.properties.get("onPremisesSyncEnabled") is not False:
             _edge(graph, str(sid), u.object_id, "SyncedTo")
-    _graph_permissions(graph)
-    _fan_out(graph)
-    _scoped_roles(graph)
+    # an SP holding a dangerous Graph permission is about to get an outgoing edge, so it already leads somewhere
+    graph._onward_memo = {n.object_id: True for n in graph.nodes_by_type(NodeType.AZ_SP) if n.properties.get("_graph_perms")}
+    # (the memo also keeps this linear: the question is asked for every holder-victim pair)
+    try:
+        _graph_permissions(graph)
+        _fan_out(graph)
+        _scoped_roles(graph)
+    finally:
+        graph._onward_memo = None
 
 
 def _graph_permissions(graph: AttackGraph) -> None:
@@ -300,6 +356,16 @@ def _graph_permissions(graph: AttackGraph) -> None:
 
 
 def _has_onward(graph: AttackGraph, node_id: str) -> bool:
+    memo = getattr(graph, "_onward_memo", None)
+    if memo is not None:
+        got = memo.get(node_id)
+        if got is None:
+            got = memo[node_id] = _has_onward_scan(graph, node_id)
+        return got
+    return _has_onward_scan(graph, node_id)
+
+
+def _has_onward_scan(graph: AttackGraph, node_id: str) -> bool:
     return any(d.get("edge_type") in _ATTACK_KINDS or d.get("edge_type") == "MemberOf" for _, _, d in graph.out_edges(node_id))
 
 
@@ -311,11 +377,11 @@ def _fan_out(graph: AttackGraph) -> None:
             privileged |= {u for u, _, d in graph.in_edges(rid) if d.get("edge_type") == "MemberOf"}
     users = [u for u in graph.nodes_by_type(NodeType.AZ_USER) if u.object_id not in privileged and _has_onward(graph, u.object_id)]
     objects = [n for n in graph.nodes_by_type(NodeType.AZ_APP) + graph.nodes_by_type(NodeType.AZ_SP) if _has_onward(graph, n.object_id)]
-    for rid in RESET_ROLES:
+    for rid in [r.object_id for r in graph.nodes_by_type(NodeType.AZ_ROLE) if r.object_id in RESET_ROLES or _can(graph, r.object_id, "reset")]:
         if graph.get_node(rid) is not None:
             for u in users:
                 _edge(graph, rid, u.object_id, "AZResetPassword")
-    for rid in SECRET_ROLES:
+    for rid in [r.object_id for r in graph.nodes_by_type(NodeType.AZ_ROLE) if r.object_id in SECRET_ROLES or _can(graph, r.object_id, "secret")]:
         if graph.get_node(rid) is not None:
             for n in objects:
                 _edge(graph, rid, n.object_id, "AZAddSecret")
@@ -333,7 +399,7 @@ def _scoped_roles(graph: AttackGraph) -> None:
             privileged |= {u for u, _, d in graph.in_edges(rid) if d.get("edge_type") == "MemberOf"}
     unresolved = 0
     for s in scoped:
-        reset = s["role"] in RESET_ROLES
+        reset = s["role"] in RESET_ROLES or _can(graph, s["role"], "reset")
         kind = "AZResetPassword" if reset else "AZAddSecret"
         scope = s["scope"]
         if scope.startswith("/ADMINISTRATIVEUNITS/"):

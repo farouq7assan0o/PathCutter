@@ -126,7 +126,7 @@ def diagnose(path) -> dict:
         "domains": sorted({n.name for n in graph.nodes_by_type(NodeType.DOMAIN)}),
         "has_krbtgt": any(n.display_name.upper() == "KRBTGT" for n in graph.nodes_by_type(NodeType.USER)),
         "adcs": len(graph.nodes_by_type(NodeType.CERT_TEMPLATE)) + len(graph.nodes_by_type(NodeType.ENTERPRISE_CA)),
-        "trusts": edge_types.get("TrustedBy", 0), "synced": edge_types.get("SyncedTo", 0),
+        "ca_policies": len(graph.meta.get("conditional_access", [])), "trusts": edge_types.get("TrustedBy", 0), "synced": edge_types.get("SyncedTo", 0),
     }
     result["findings"] = _findings(result)
     return result
@@ -147,16 +147,25 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
     for need in (() if azure_only else ("users", "groups", "computers", "domains")):
         if not r["files"].get(need):
             f.append(("ERROR", f"no {need} file", "collect with `-c Default,ACL,Container,GPOLocalGroup` at least"))
+    if r["files"].get("azure"):
+        et = g["edge_types"]
+        if not et.get("MemberOf"):
+            f.append(("ERROR", "Entra data has no group, membership or role-assignment relationships", "collect with `azurehound list` (all objects), not just users"))
+        if not et.get("AZOwner") and not et.get("AZContributor") and not et.get("AZUserAccessAdmin"):
+            f.append(("WARN", "no Azure resource role assignments (subscriptions / resource groups)", "run AzureHound with an account that has Reader on the subscriptions"))
+        f.append(("INFO", ("Entra data does not include administrative-unit membership or Azure deny assignments" if g.get("ca_policies") else
+                  "Entra data does not include Conditional Access policies, administrative-unit membership or Azure deny assignments"),
+                  "export Conditional Access with Get-MgIdentityConditionalAccessPolicy and add it with the collection"))
     if g["unknown_nodes"]:
         f.append(("WARN", f"{g['unknown_nodes']} principal(s) referenced but not collected (typed Unknown)", "collect from a DC with full LDAP access, or include the other domains in scope"))
-    if not r["rights_seen"]:
+    if not azure_only and not r["rights_seen"]:
         f.append(("ERROR", "no ACL data at all: attack paths through permissions are invisible", "re-collect with `-c ACL` (or `All`)"))
-    if r["unmapped_rights"]:
+    if not azure_only and r["unmapped_rights"]:
         top = ", ".join(f"{k} x{v}" for k, v in list(r["unmapped_rights"].items())[:5])
         f.append(("WARN", f"ACE rights this tool does not model: {top}", "harmless unless one of them is an attack right for you; report it"))
-    if g["dcs"] == 0:
+    if not azure_only and g["dcs"] == 0:
         f.append(("ERROR", "no domain controller identified (IsDC / Domain Controllers membership)", "Tier 0 would be incomplete; collect computers with LDAP"))
-    if not g["has_krbtgt"]:
+    if not azure_only and not g["has_krbtgt"]:
         f.append(("WARN", "krbtgt account not present", "Tier 0 anchor missing; collect the Users container"))
     if r.get("collections", 1) == 1 and r.get("sessions", {}).get("edges"):
         f.append(("WARN", f"all {r['sessions']['edges']} session edges come from a single collection (a snapshot of one moment)",
@@ -170,7 +179,7 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
             f.append(("WARN", "no local group data: AdminTo/CanRDP paths are not modeled", "re-collect with `-c LocalGroup` using an account with remote SAM access"))
         elif c["localgroups"] < c["total"] * 0.5:
             f.append(("WARN", f"local groups collected on only {c['localgroups']}/{c['total']} computers", "unreachable hosts hide their admins; exposure is a floor, not a ceiling"))
-    if not r["files"].get("gpos"):
+    if not azure_only and not r["files"].get("gpos"):
         f.append(("WARN", "no GPO file: policy-driven local admin and GPO control paths are not modeled", "collect with `-c GPOLocalGroup,Container`"))
     if r["files"].get("gpos") and not r["files"].get("gporights"):
         f.append(("INFO", "GPO user-rights assignments (SeBackupPrivilege, SeDebugPrivilege ...) are not in this data",
@@ -178,7 +187,7 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
     if g["adcs"] and not r["files"].get("adcsrelay"):
         f.append(("INFO", "AD CS ESC8 and ESC11 (NTLM relay to the CA's enrollment endpoints) cannot be assessed from this data",
                   "run tools/Export-AdCsRelay.ps1 and add its *_adcsrelay.json to the collection"))
-    if not g["adcs"]:
+    if not azure_only and not g["adcs"]:
         f.append(("WARN", "no AD CS objects: ESC1-ESC8 style certificate paths cannot be seen", "use a SharpHound/BloodHound CE collector that gathers certificate templates"))
     unfiltered = [t for t in r.get("trusts", []) if t["sid_filtering"] is False and t["type"] in ("External", "Forest")]
     if unfiltered:
@@ -230,7 +239,7 @@ _DROP_AZ = {"mail", "givenname", "surname", "jobtitle", "department", "mobilepho
             "description", "notes", "info", "homepage", "loginurl", "logouturl", "replyurls", "tags", "employeeorgdata"}
 _PROTECTED_KEYS = {"RightName", "ObjectType", "PrincipalType", "type", "kind", "Type", "LocalGroupType", "ObjectClass",
                    "version", "methods", "collected", "Collected"}
-_KEEP_WORDS = (set(TIER0_GROUPS) | {"USERS", "COMPUTERS", "DOMAIN CONTROLLERS", "BUILTIN", "NT AUTHORITY", "SYSTEM", "EVERYONE",
+_KEEP_WORDS = (set(TIER0_GROUPS) | {"MICROSOFT GRAPH", "USERS", "COMPUTERS", "DOMAIN CONTROLLERS", "BUILTIN", "NT AUTHORITY", "SYSTEM", "EVERYONE",
                "AUTHENTICATED USERS", "ADMINISTRATOR", "GUEST", "KRBTGT", "DOMAIN USERS", "DOMAIN GUESTS", "DOMAIN COMPUTERS",
                "PROTECTED USERS", "CLONEABLE DOMAIN CONTROLLERS", "GROUP POLICY CREATOR OWNERS", "RAS AND IAS SERVERS",
                "DNSADMINS", "DNSUPDATEPROXY", "DEFAULT DOMAIN POLICY", "DEFAULT DOMAIN CONTROLLERS POLICY", "USER", "GROUP",
@@ -272,6 +281,9 @@ class Anonymizer:
             if not isinstance(d, dict):
                 continue
             kind = it.get("kind", "")
+            if kind == "AZRole" and d.get("isBuiltIn") and d.get("id"):
+                self.__dict__.setdefault("_builtin_roles", set()).add(str(d["id"]).upper())     # a role template id is public
+                self._public = None
             prefix = {"AZUser": "AZU", "AZGroup": "AZG", "AZApp": "AZA", "AZServicePrincipal": "AZS", "AZRole": "AZR"}.get(kind, "AZO")
             upn = str(d.get("userPrincipalName") or "")
             if "@" in upn:
@@ -393,11 +405,18 @@ class Anonymizer:
         return "".join(out)
 
     def _guid(self, g: str) -> str:
-        from .azure import KNOWN_ROLES
-        if g.upper() in KNOWN_ROLES:                       # built-in Entra role ids are public and carry meaning (Tier 0)
+        if g.upper() in self._public_guids():             # built-in role ids and Graph permission ids are public and carry meaning
             return g
         h = hashlib.sha256(f"{self.salt}|{g.upper()}".encode()).hexdigest().upper()
         return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
+
+    def _public_guids(self) -> set:
+        got = getattr(self, "_public", None)
+        if got is None:
+            from .azure import ADD_MEMBER_PERMS, ADD_SECRET_PERMS, GRANT_ROLE_PERMS, KNOWN_ROLES, RESET_PW_PERMS, _ROLE_DEF_EDGE
+            got = self._public = (set(KNOWN_ROLES) | set(ADD_MEMBER_PERMS) | set(ADD_SECRET_PERMS) | set(GRANT_ROLE_PERMS)
+                                  | set(RESET_PW_PERMS) | set(_ROLE_DEF_EDGE) | getattr(self, "_builtin_roles", set()))
+        return got
 
     def _thumb(self, t: str) -> str:
         return hashlib.sha256(f"{self.salt}|{t.upper()}".encode()).hexdigest()[:40].upper()

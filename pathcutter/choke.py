@@ -99,7 +99,7 @@ def find_chokepoints(graph: AttackGraph, path_report: PathReport,
         return ChokeReport(fixes=[], total_paths=0, paths_after_fixes=0)
 
     # Non-cuttable edges (structural, not attack)
-    STRUCTURAL = frozenset({"MemberOf", "Contains"})
+    STRUCTURAL = frozenset({"MemberOf", "Contains", "AZContains", "AZRunsAs"})
 
     # Service account prefixes for safety tie-breaking
     SVC_PREFIXES = ("SVC_", "SA_", "MSOL_", "EXCHANGE", "SCCM", "KRBTGT")
@@ -221,7 +221,7 @@ def find_node_chokepoints(graph: AttackGraph, path_report: PathReport,
     if not path_report.paths:
         return []
 
-    STRUCTURAL = frozenset({"MemberOf", "Contains"})
+    STRUCTURAL = frozenset({"MemberOf", "Contains", "AZContains", "AZRunsAs"})
     node_to_paths: dict[str, set[int]] = {}
 
     for i, path in enumerate(path_report.paths):

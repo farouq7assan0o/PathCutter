@@ -95,8 +95,13 @@ Deny ACEs are proven against a forward brute-force oracle with identity tracking
 
 * AD CS (ESC1, 3, 4, 5, 6, 7, 9, 15, golden certificate): every condition has a test that removes it and expects no edge; the real
   SpecterOps collection, which contains deliberately vulnerable templates, is re-derived independently from the raw JSON.
-* Entra ID / Azure RBAC / Graph application permissions: built from the AzureHound source models, exercised on synthetic data in
-  that shape. **Not yet checked against a real tenant export.**
+* Entra ID / Azure RBAC / Graph application permissions: built from the AzureHound source models, then run against a real AzureHound
+  collection (SpecterOps' PhantomCorp demo tenant: 230 users, 6,000+ applications, 116 roles, 3 subscriptions, VMs, function / web apps)
+  and, with their AD sample, the 9 hybrid sync links. Running it found: compute resources with managed identities were missing,
+  role capabilities were hard-coded instead of read from the role definition, the Overview asked an Entra export for domain
+  controllers, "remove AZRunsAs" was offered as a fix, and the anonymizer broke Graph permission and built-in role ids. All fixed and
+  pinned in `tests/test_entra_real.py`. There is no independent oracle for Entra the way there is for AD, so those tests assert known
+  facts about the tenant (for example a role scoped to one service principal reaches only that object), not BloodHound's edge set.
 * Conditional Access: evaluated per identity (users, groups, roles, nesting, MFA, authentication strength, state); conditions that are
   not evaluated make a policy count as *not* covering, so coverage is never over-stated.
 * Infrastructure-as-code extractors (Terraform HCL and plan JSON, Ansible, DSC): fixtures in `tests/data/iac/` and end-to-end `check`
@@ -113,7 +118,8 @@ Deny ACEs are proven against a forward brute-force oracle with identity tracking
 * Whether MFA / PIM approval is really enforced at sign-in is not known to PathCutter (Conditional Access is evaluated and reported by
   `audit`; declared controls only lower severity); Protected Users and authentication silos are reported, not modeled as graph
   restrictions; replication delay and network reachability are not modeled. See `pathcutter syntax model`.
-* Entra ID, Azure RBAC and Graph application permissions have not been run against a real tenant export (none is public).
+* Entra ID, Azure RBAC and Graph application permissions have been run on one public demo tenant only: no real production tenant, no
+  Conditional Access export, no administrative-unit data (the sample has none).
 
 ## Performance (measured, one laptop)
 

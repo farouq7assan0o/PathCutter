@@ -80,7 +80,7 @@ CI examples: [examples/github-actions](examples/github-actions).
 
 Not modeled, stated so nobody assumes otherwise: ESC14, the contents of custom Azure roles and Azure deny assignments (reported by `audit`
 as unevaluated), whether MFA or PIM approval is really enforced at sign-in, network reachability, GPO content other than local groups and user rights.
-Entra and Azure support was built from AzureHound's source models and has not been run against a real tenant export.
+Entra and Azure support is checked against one real AzureHound collection (SpecterOps' PhantomCorp demo tenant, 12,879 objects) and, joined to their AD sample, the hybrid sync links. There is no independent oracle for it the way there is for AD: the tests assert known facts about that tenant, not BloodHound's own edge set.
 
 ## Trusting the data
 

@@ -6,12 +6,12 @@
 
 const NODE_COLORS = { User: '#3b82f6', Computer: '#10b981', Group: '#f59e0b', Domain: '#ef4444', GPO: '#8b5cf6', OU: '#6366f1', Container: '#64748b', CertTemplate: '#ec4899', EnterpriseCA: '#ec4899', RootCA: '#ec4899', AIACA: '#ec4899', NTAuthStore: '#ec4899', IssuancePolicy: '#f472b6',
   AZUser: '#38bdf8', AZGroup: '#fbbf24', AZServicePrincipal: '#a78bfa', AZApp: '#a78bfa', AZRole: '#f43f5e', AZTenant: '#ef4444',
-  AZSubscription: '#0ea5e9', AZResourceGroup: '#64748b', AZVM: '#22c55e', AZKeyVault: '#eab308', AZManagementGroup: '#0ea5e9',
+  AZSubscription: '#0ea5e9', AZResourceGroup: '#64748b', AZVM: '#22c55e', AZKeyVault: '#eab308', AZResource: '#22c55e', AZManagementGroup: '#0ea5e9',
   Cluster: '#94a3b8', Unknown: '#64748b' };
 // which drawing a type uses: identities and machines in the cloud look like their on-premises relatives, with a cloud tint in the colour
 const BASE_SHAPE = { AZUser: 'User', AZGroup: 'Group', AZVM: 'Computer', AZTenant: 'Domain', CertTemplate: 'GPO', IssuancePolicy: 'GPO',
   EnterpriseCA: 'Shield', RootCA: 'Shield', AIACA: 'Shield', NTAuthStore: 'Shield', AZRole: 'Shield',
-  AZServicePrincipal: 'Hex', AZApp: 'Hex', AZKeyVault: 'Hex', AZSubscription: 'Hex', AZResourceGroup: 'Hex', AZManagementGroup: 'Hex' };
+  AZServicePrincipal: 'Hex', AZApp: 'Hex', AZKeyVault: 'Hex', AZResource: 'Hex', AZSubscription: 'Hex', AZResourceGroup: 'Hex', AZManagementGroup: 'Hex' };
 const NODE_SIZES = { 0: 18, 1: 12, 2: 8 };
 const EDGE_COLORS = {
   GenericAll: '#ef4444', GenericWrite: '#f97316', WriteDacl: '#f97316', WriteOwner: '#f97316', Owns: '#f97316',

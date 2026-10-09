@@ -34,6 +34,7 @@ class NodeType(Enum):
     AZ_RG = "AZResourceGroup"
     AZ_VM = "AZVM"
     AZ_KEYVAULT = "AZKeyVault"
+    AZ_RESOURCE = "AZResource"
     AZ_MGMTGROUP = "AZManagementGroup"
     UNKNOWN = "Unknown"
 
@@ -467,6 +468,14 @@ class AttackGraph:
                         self._tier0.add(tid)
                         self._seed_t0.add(tid)
                         self._tiered.add(tid)
+        # an Entra role that can create role assignments lets its holder become Global Administrator (custom roles too)
+        for n in self._nodes.values():
+            if n.node_type == NodeType.AZ_ROLE and "grant" in (n.properties.get("_caps") or ()) and n.display_name.upper() not in (
+                    "USER", "GUEST USER", "RESTRICTED GUEST USER") and n.tier != 0:
+                n.tier = 0
+                self._tier0.add(n.object_id)
+                self._seed_t0.add(n.object_id)
+                self._tiered.add(n.object_id)
         # GPOs linked to the domain root or to the Domain Controllers OU apply to every domain controller: Tier 0
         for u, v, d in self.graph.edges(data="edge_type"):
             if d == "GPOControlsObject":

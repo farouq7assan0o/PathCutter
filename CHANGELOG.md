@@ -12,6 +12,11 @@
 - **Entra**: role assignments scoped to an administrative unit or one object reach only that scope instead of the whole
   tenant; unresolved units and unevaluated Azure role definitions are reported by `audit`.
 - **`check` review page**: findings collapse (the worst start open), a "Fix first" line on each, Expand all, deferred rendering.
+- **Validated on real Entra data** (SpecterOps' PhantomCorp AzureHound sample, added as a fixture). Fixes it drove: Azure compute resources
+  (function / web apps, automation accounts, scale sets, AKS, logic apps) and their managed identities; role capabilities read from
+  `allowedResourceActions` (custom roles, Partner Tier1 Support ...); `doctor` no longer asks an Entra-only export for domain controllers;
+  structural links (`AZRunsAs`, `AZContains`) are never offered as fixes; the anonymizer keeps built-in role ids, Graph permission ids and
+  "Microsoft Graph"; Entra ingest 3x faster.
 - Engine: 20,000 differential fuzz seeds clean after these changes; ingest at 200k objects unchanged (4.9 s).
 
 ## 0.5.0
