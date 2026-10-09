@@ -134,7 +134,7 @@ def find_all_paths(graph: AttackGraph, targets: set[str],
     sources: set[str] = set()
 
     for target_id in targets:
-        found = _bfs_paths_to(graph, target_id, max_depth, max_paths - len(paths), _get_preds)
+        found = _bfs_paths_to(graph, target_id, max_depth, max_paths - len(paths), _get_preds, targets)
         for p in found:
             paths.append(p)
             sources.add(p.source)
@@ -148,7 +148,7 @@ def find_all_paths(graph: AttackGraph, targets: set[str],
 
 def _bfs_paths_to(graph: AttackGraph, target_id: str, max_depth: int,
                   max_paths: int,
-                  get_preds) -> list[AttackPath]:
+                  get_preds, targets: frozenset | set = frozenset()) -> list[AttackPath]:
     """BFS from target backwards to find all paths reaching it.
 
     Optimizations vs naive BFS:
@@ -189,7 +189,8 @@ def _bfs_paths_to(graph: AttackGraph, target_id: str, max_depth: int,
                     if len(paths) >= max_paths:
                         return paths
 
-                if len(new_nodes) - 1 < max_depth:
+                # a route that already passed through another target has arrived: nothing before that matters
+                if len(new_nodes) - 1 < max_depth and source_id not in targets:
                     queue.append((source_id, new_nodes, new_edges, new_visited, new_has_attack, new_weight))
 
     return paths
