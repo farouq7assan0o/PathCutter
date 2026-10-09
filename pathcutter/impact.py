@@ -291,11 +291,17 @@ def _operational_notes(resolved: list, before: AttackGraph, new_finding) -> None
 
 # ------------------------------------------------------------------ main entry
 
-def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
-                   extra_tier0: set[str] | None = None,
-                   unmodeled: list | None = None,
-                   max_depth: int = 20, max_paths: int = 10000,
-                   max_marginal: int = 150) -> ImpactReport:
+def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], **kw) -> ImpactReport:
+    from contextlib import ExitStack
+    with ExitStack() as stack:                        # the in-place probe on the working copy is undone on the way out
+        return _analyze_impact(baseline, resolved, stack, **kw)
+
+
+def _analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], stack, *,
+                    extra_tier0: set[str] | None = None,
+                    unmodeled: list | None = None,
+                    max_depth: int = 20, max_paths: int = 10000,
+                    max_marginal: int = 150) -> ImpactReport:
     t_start = time.time()
     rep = ImpactReport(generated=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
 
@@ -392,7 +398,7 @@ def analyze_impact(baseline: AttackGraph, resolved: list[ResolvedChange], *,
                             "totals are exact but effects are not attributed to individual changes.")
 
     if do_marginal:
-        scratch = before.clone()
+        scratch = stack.enter_context(before.probe(extra_tier0))      # in place: no copy of the graph per trial
         for rc in resolved:
             for node in rc.new_nodes:
                 if scratch.get_node(node.object_id) is None:

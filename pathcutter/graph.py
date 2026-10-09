@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 
 import networkx as nx
+from contextlib import contextmanager
 
 from .edges import EdgeType, get_edge_type, exploitability_weight, is_tier0, EDGE_REGISTRY
 
@@ -70,6 +71,25 @@ class ADEdge:
         return get_edge_type(self.edge_type)
 
 
+def _copy_nx(G):
+    """Structural copy of a MultiDiGraph (about 1.5x faster than G.copy(): no per-edge Python call chain)."""
+    new = nx.MultiDiGraph()
+    new.graph.update(G.graph)
+    new._node = {n: dict(a) for n, a in G._node.items()}
+    succ = {n: {} for n in G._node}
+    pred = {n: {} for n in G._node}
+    for u, nbrs in G._succ.items():
+        su = succ[u]
+        for v, keys in nbrs.items():
+            nk = {k: dict(a) for k, a in keys.items()}
+            su[v] = nk
+            pred[v][u] = nk
+    new._succ = succ
+    new._adj = succ
+    new._pred = pred
+    return new
+
+
 class AttackGraph:
     """Directed multigraph of AD attack relationships."""
 
@@ -82,14 +102,74 @@ class AttackGraph:
         self.denies: set[Deny] = set()                    # Deny ACEs (identity-sensitive, see Deny)
         self._fx = None                                   # FastIndex cache, see fastindex.py
         self._shared = False                              # self.graph is shared with a clone: copy before writing
+        self._journal: list | None = None                 # set inside probe(): every write is undoable
         self._seed_t0: set[str] = set()                   # Tier 0 by name/SID alone (what retier starts from)
         self._tiered: set[str] = set()                    # ids whose tier is below 2 (what retier must reset)
 
     def _own(self) -> None:
         """Copy-on-write: clone() shares the networkx graph; the first writer on either side takes its own copy."""
-        if self._shared:
-            self.graph = self.graph.copy()
+        if self._shared and self._journal is None:
+            self.graph = _copy_nx(self.graph)
             self._shared = False
+
+    @contextmanager
+    def probe(self, extra_tier0=None):
+        """Try changes in place, even on storage shared with a clone, and undo ALL of them on exit.
+
+        Trial changes then cost O(change) instead of a full graph copy. Every node/edge write is journaled and replayed
+        backwards on exit (also on an exception), tiers are recomputed, and the integer index is truncated back.
+        Bulk loads are not allowed inside a probe.
+        """
+        if self._journal is not None:
+            raise RuntimeError("probe() cannot be nested")
+        fx_size = len(self._fx.ids) if self._fx is not None else None
+        denies = set(self.denies)
+        self._journal = journal = []
+        try:
+            yield self
+        finally:
+            self._journal = None
+            self._rollback(journal)
+            self.denies = denies
+            if self._fx is not None and fx_size is not None:
+                self._fx.truncate(fx_size)
+            self._transitive_cache.clear()
+            self.retier(extra_tier0)
+
+    def _rollback(self, journal: list) -> None:
+        g = self.graph
+        for entry in reversed(journal):
+            kind = entry[0]
+            if kind == "e+":
+                _, u, v, key, et = entry
+                if g.has_edge(u, v, key):
+                    g.remove_edge(u, v, key)
+                    if self._fx is not None:
+                        self._fx.remove_one(u, v, et)
+                    if et == "MemberOf" and not self.has_edge_type(u, v, "MemberOf"):
+                        self._group_members.get(v, set()).discard(u)
+            elif kind == "e-":
+                _, u, v, removed, et = entry
+                for key, attrs in removed:
+                    if not g.has_edge(u, v, key):
+                        g.add_edge(u, v, key, **attrs)
+                        if self._fx is not None:
+                            self._fx.add_edge(u, v, et)
+                if et == "MemberOf" and removed:
+                    self._group_members.setdefault(v, set()).add(u)
+            elif kind == "n":
+                _, nid, prev, attrs = entry
+                if prev is None:
+                    if nid in g:
+                        g.remove_node(nid)
+                    self._nodes.pop(nid, None)
+                    self._seed_t0.discard(nid)
+                    self._tier0.discard(nid)
+                    self._tiered.discard(nid)
+                else:
+                    self._nodes[nid] = prev
+                    if attrs is not None:
+                        g.add_node(nid, **attrs)
 
     def fast(self):
         """Integer-indexed reverse adjacency (built on first use, kept in sync by add_edge/remove_edge)."""
@@ -113,6 +193,9 @@ class AttackGraph:
     def add_node(self, node: ADNode) -> None:
         """Add an AD node to the graph."""
         self._own()
+        if self._journal is not None:
+            nid = node.object_id
+            self._journal.append(("n", nid, self._nodes.get(nid), dict(self.graph.nodes[nid]) if nid in self.graph else None))
         self._nodes[node.object_id] = node
         self.graph.add_node(
             node.object_id,
@@ -139,7 +222,7 @@ class AttackGraph:
         if self._fx is not None:
             self._fx.add_edge(edge.source_id, edge.target_id, edge.edge_type)
         weight = exploitability_weight(edge.edge_type)
-        self.graph.add_edge(
+        key = self.graph.add_edge(
             edge.source_id,
             edge.target_id,
             edge_type=edge.edge_type,
@@ -147,6 +230,8 @@ class AttackGraph:
             weight=weight,
             **edge.properties,
         )
+        if self._journal is not None:
+            self._journal.append(("e+", edge.source_id, edge.target_id, key, edge.edge_type))
         if edge.edge_type == "MemberOf":
             self._group_members.setdefault(edge.target_id, set()).add(edge.source_id)
             if self._transitive_cache:
@@ -154,6 +239,8 @@ class AttackGraph:
 
     def add_edges_bulk(self, edges: list[ADEdge]) -> None:
         """Add multiple edges efficiently (defers cache invalidation)."""
+        if self._journal is not None:
+            raise RuntimeError("bulk loads are not allowed inside probe()")
         self._own()
         self._fx = None
         for edge in edges:
@@ -171,6 +258,8 @@ class AttackGraph:
         self._transitive_cache.clear()
 
     def add_nodes_bulk(self, nodes: list[ADNode]) -> None:
+        if self._journal is not None:
+            raise RuntimeError("bulk loads are not allowed inside probe()")
         self._own()
         self._fx = None
         """Add multiple nodes efficiently."""
@@ -236,6 +325,8 @@ class AttackGraph:
         keys = [k for k, d in data.items() if d.get("edge_type") == edge_type]
         if keys:
             self._own()
+        if keys and self._journal is not None:
+            self._journal.append(("e-", source_id, target_id, [(k, dict(data[k])) for k in keys], edge_type))
         for k in keys:
             self.graph.remove_edge(source_id, target_id, k)
         if keys and self._fx is not None:

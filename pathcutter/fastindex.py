@@ -30,6 +30,24 @@ class FastIndex:
         fx.rev = rev
         return fx
 
+    def remove_one(self, u: str, v: str, edge_type: str) -> None:
+        """Remove a single (u, edge_type) entry from v's predecessors (undo of one add_edge)."""
+        iu, iv = self.pos.get(u), self.pos.get(v)
+        if iu is None or iv is None:
+            return
+        lst = self.rev[iv]
+        for k in range(len(lst) - 1, -1, -1):
+            if lst[k] == (iu, edge_type):
+                del lst[k]
+                break
+        self.version += 1
+
+    def truncate(self, size: int) -> None:
+        """Drop nodes appended after the index had `size` nodes (their edges are rolled back first)."""
+        while len(self.ids) > size:
+            self.pos.pop(self.ids.pop(), None)
+            self.rev.pop()
+
     def copy(self) -> "FastIndex":
         c = FastIndex()
         c.ids, c.pos, c.rev, c.version = list(self.ids), dict(self.pos), [list(r) for r in self.rev], self.version
