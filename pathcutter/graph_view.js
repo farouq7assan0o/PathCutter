@@ -4,7 +4,14 @@
  * detail, shortest-path search and on-graph fix simulation.
  * Inlined into the report; depends on d3 (force, zoom, drag, quadtree). */
 
-const NODE_COLORS = { User: '#3b82f6', Computer: '#10b981', Group: '#f59e0b', Domain: '#ef4444', GPO: '#8b5cf6', OU: '#6366f1', Container: '#64748b', CertTemplate: '#ec4899', EnterpriseCA: '#ec4899', RootCA: '#ec4899', AIACA: '#ec4899', NTAuthStore: '#ec4899', Cluster: '#94a3b8', Unknown: '#64748b' };
+const NODE_COLORS = { User: '#3b82f6', Computer: '#10b981', Group: '#f59e0b', Domain: '#ef4444', GPO: '#8b5cf6', OU: '#6366f1', Container: '#64748b', CertTemplate: '#ec4899', EnterpriseCA: '#ec4899', RootCA: '#ec4899', AIACA: '#ec4899', NTAuthStore: '#ec4899', IssuancePolicy: '#f472b6',
+  AZUser: '#38bdf8', AZGroup: '#fbbf24', AZServicePrincipal: '#a78bfa', AZApp: '#a78bfa', AZRole: '#f43f5e', AZTenant: '#ef4444',
+  AZSubscription: '#0ea5e9', AZResourceGroup: '#64748b', AZVM: '#22c55e', AZKeyVault: '#eab308', AZManagementGroup: '#0ea5e9',
+  Cluster: '#94a3b8', Unknown: '#64748b' };
+// which drawing a type uses: identities and machines in the cloud look like their on-premises relatives, with a cloud tint in the colour
+const BASE_SHAPE = { AZUser: 'User', AZGroup: 'Group', AZVM: 'Computer', AZTenant: 'Domain', CertTemplate: 'GPO', IssuancePolicy: 'GPO',
+  EnterpriseCA: 'Shield', RootCA: 'Shield', AIACA: 'Shield', NTAuthStore: 'Shield', AZRole: 'Shield',
+  AZServicePrincipal: 'Hex', AZApp: 'Hex', AZKeyVault: 'Hex', AZSubscription: 'Hex', AZResourceGroup: 'Hex', AZManagementGroup: 'Hex' };
 const NODE_SIZES = { 0: 18, 1: 12, 2: 8 };
 const EDGE_COLORS = {
   GenericAll: '#ef4444', GenericWrite: '#f97316', WriteDacl: '#f97316', WriteOwner: '#f97316', Owns: '#f97316',
@@ -13,9 +20,14 @@ const EDGE_COLORS = {
   WriteKeyCredentialLink: '#ef4444', ReadLAPSPassword: '#eab308', ReadGMSAPassword: '#eab308',
   AdminTo: '#a855f7', HasSession: '#8b5cf6', CanRDP: '#8b5cf6', CanPSRemote: '#8b5cf6', ExecuteDCOM: '#8b5cf6', SQLAdmin: '#a855f7',
   GPOControlsObject: '#f97316', Enroll: '#ec4899', ManageCA: '#ec4899',
-  MemberOf: '#334155', Contains: '#334155', TrustedBy: '#64748b',
+  ADCSESC1: '#ec4899', ADCSESC3: '#ec4899', ADCSESC4: '#ec4899', ADCSESC5: '#ec4899', ADCSESC6: '#ec4899', ADCSESC7: '#ec4899',
+  ADCSESC9: '#ec4899', ADCSESC13: '#ec4899', ADCSESC15: '#ec4899', GoldenCert: '#ec4899',
+  AZOwns: '#38bdf8', AZRunsAs: '#38bdf8', AZEligibleRole: '#38bdf8', AZResetPassword: '#38bdf8', AZAddSecret: '#38bdf8', AZMGGrantRole: '#f43f5e',
+  AZMGAddSecret: '#f43f5e', AZOwner: '#0ea5e9', AZContributor: '#0ea5e9', AZUserAccessAdmin: '#0ea5e9', AZVMAdminLogin: '#0ea5e9',
+  AZManagedIdentity: '#22c55e', SyncedTo: '#22d3ee',
+  MemberOf: '#334155', Contains: '#334155', TrustedBy: '#64748b', AZContains: '#334155',
 };
-const STRUCTURAL = new Set(['MemberOf', 'Contains', 'TrustedBy']);
+const STRUCTURAL = new Set(['MemberOf', 'Contains', 'TrustedBy', 'AZContains']);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 const dec = s => String(s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&');
 
@@ -53,19 +65,26 @@ function getSprite(n, px) {
   const r = SPR_R;
   const col = n.type === 'Cluster' ? (NODE_COLORS[n.kind] || NODE_COLORS.Cluster) : (NODE_COLORS[n.type] || '#64748b');
   x.fillStyle = col; x.strokeStyle = col; x.lineCap = 'round';
-  if (n.type === 'User') {
+  const shape = BASE_SHAPE[n.type] || n.type;
+  if (shape === 'User') {
     x.beginPath(); x.arc(0, -r * 0.2, r * 0.55, 0, 6.2832); x.fill();
     x.globalAlpha = 0.55; x.beginPath(); x.moveTo(-r * 0.8, r); x.quadraticCurveTo(-r * 0.8, r * 0.15, 0, r * 0.15); x.quadraticCurveTo(r * 0.8, r * 0.15, r * 0.8, r); x.fill(); x.globalAlpha = 1;
-  } else if (n.type === 'Computer') {
+  } else if (shape === 'Computer') {
     x.fillRect(-r, -r * 0.7, r * 2, r * 1.2);
     x.globalAlpha = 0.5; x.fillRect(-r * 0.3, r * 0.5, r * 0.6, r * 0.35);
     x.globalAlpha = 0.35; x.fillRect(-r * 0.55, r * 0.85, r * 1.1, r * 0.15); x.globalAlpha = 1;
-  } else if (n.type === 'Group') {
+  } else if (shape === 'Group') {
     [[-0.35, -0.15], [0.35, -0.15], [0, 0.35]].forEach(p => { x.beginPath(); x.arc(r * p[0], r * p[1], r * 0.42, 0, 6.2832); x.fill(); });
-  } else if (n.type === 'Domain') {
+  } else if (shape === 'Shield') {
+    x.beginPath(); x.moveTo(0, -r); x.lineTo(r * 0.85, -r * 0.55); x.lineTo(r * 0.85, r * 0.1); x.quadraticCurveTo(r * 0.85, r * 0.75, 0, r); x.quadraticCurveTo(-r * 0.85, r * 0.75, -r * 0.85, r * 0.1); x.lineTo(-r * 0.85, -r * 0.55); x.closePath(); x.fill();
+    x.globalAlpha = 0.45; x.fillStyle = '#0f172a'; x.beginPath(); x.moveTo(-r * 0.3, 0); x.lineTo(-r * 0.05, r * 0.3); x.lineTo(r * 0.38, -r * 0.3); x.lineWidth = 2; x.strokeStyle = '#0f172a'; x.stroke(); x.globalAlpha = 1;
+  } else if (shape === 'Hex') {
+    x.beginPath(); for (let i = 0; i < 6; i++) { const a = i * 1.0472 + 0.5236; x.lineTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath(); x.fill();
+    x.globalAlpha = 0.4; x.fillStyle = '#0f172a'; x.beginPath(); x.arc(0, 0, r * 0.3, 0, 6.2832); x.fill(); x.globalAlpha = 1;
+  } else if (shape === 'Domain') {
     x.lineWidth = 2.4; x.beginPath(); x.arc(0, 0, r, 0, 6.2832); x.stroke();
     x.lineWidth = 1.1; x.globalAlpha = 0.5; x.beginPath(); x.moveTo(-r, 0); x.lineTo(r, 0); x.moveTo(0, -r); x.quadraticCurveTo(r * 0.4, 0, 0, r); x.moveTo(0, -r); x.quadraticCurveTo(-r * 0.4, 0, 0, r); x.stroke(); x.globalAlpha = 1;
-  } else if (n.type === 'GPO') {
+  } else if (shape === 'GPO') {
     x.lineWidth = 2; x.strokeRect(-r * 0.65, -r, r * 1.3, r * 2);
     x.lineWidth = 1.1; x.globalAlpha = 0.4; x.beginPath(); [-0.4, 0, 0.4].forEach(y => { x.moveTo(-r * 0.35, r * y); x.lineTo(r * 0.35, r * y); }); x.stroke(); x.globalAlpha = 1;
   } else if (n.type === 'Cluster') {

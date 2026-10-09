@@ -50,6 +50,7 @@
   ignored; trusts followed one direction regardless of `TrustDirection` and the partner domains were nameless. Built-in groups are
   now Tier 0 by SID as well as by name (renamed or localized groups, domain-prefixed ids). The anonymizer also leaked partner
   domain names that appear only inside a trust; fixed.
+- The attack graph viewer draws the new objects (certificate authorities and templates, Entra identities, applications, roles, Azure resources) and edges (ADCSESC*, Entra, RBAC) with their own shapes, colours and legend entries.
 - AD CS / DCSync derivations never expand a large group (1,000,000 objects, 300 templates: 0.4 s, was minutes).
 - The real-data fixtures had been excluded from git by `*.zip` in `.gitignore`, so CI skipped those tests; they are tracked now.
 - `tests/test_registry.py` fails when edge-type knowledge drifts between modules (ingest, PowerShell rules, collector).
