@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.0
+
+### Added
+- **AD CS**: ESC8 and ESC11 (NTLM relay to CA web enrollment / RPC), ESC16 (CA without the security extension) from an
+  optional `*_adcsrelay.json` written by `tools/Export-AdCsRelay.ps1`; ESC2 as a feeder of ESC3.
+- **GPO user rights**: SeBackup / SeRestore / SeTakeOwnership / SeDebug / SeLoadDriver / SeTcb / SeCreateToken / SeSyncAgent
+  from SYSVOL (`tools/Export-AdGpoRights.ps1`) become `GPOUserRight` edges to the computers the GPO applies to.
+- **Restrictions** (`restrictions.py`): Protected Users and "sensitive" accounts remove delegation edges into hosts whose
+  administrators are all protected. Recorded in the graph, listed by `audit`, noted by `check`.
+- **Entra**: role assignments scoped to an administrative unit or one object reach only that scope instead of the whole
+  tenant; unresolved units and unevaluated Azure role definitions are reported by `audit`.
+- **`check` review page**: findings collapse (the worst start open), a "Fix first" line on each, Expand all, deferred rendering.
+- Engine: 20,000 differential fuzz seeds clean after these changes; ingest at 200k objects unchanged (4.9 s).
+
 ## 0.5.0
 
 ### Added
