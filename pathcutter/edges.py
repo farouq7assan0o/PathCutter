@@ -423,6 +423,54 @@ ADCSAbuse = EdgeType(
     reversible=True,
 )
 
+ADCSESC1 = EdgeType(
+    name="ADCSESC1",
+    category=EdgeCategory.SPECIAL,
+    abuse="Enroll in a template that lets the requester name any subject and allows client authentication, then authenticate as any domain principal, including Domain Admins (ESC1)",
+    mitre="T1649",
+    exploitability=9,
+    fix_template="# Fix the certificate template / CA configuration that produces this edge (disable ENROLLEE_SUPPLIES_SUBJECT, require manager approval or authorized signatures, or restrict who can enroll). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template and CA data, not collected directly",
+)
+
+ADCSESC4 = EdgeType(
+    name="ADCSESC4",
+    category=EdgeCategory.SPECIAL,
+    abuse="Control a published certificate template, turn it into an ESC1 template, enroll, and authenticate as any domain principal (ESC4)",
+    mitre="T1649",
+    exploitability=9,
+    fix_template="# Fix the certificate template / CA configuration that produces this edge (remove write/owner rights on the template from non-admin principals). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template and CA data, not collected directly",
+)
+
+ADCSESC6 = EdgeType(
+    name="ADCSESC6",
+    category=EdgeCategory.SPECIAL,
+    abuse="Enroll in any client-authentication template on a CA that accepts a requester-supplied subject alternative name (EDITF_ATTRIBUTESUBJECTALTNAME2), and authenticate as any domain principal (ESC6)",
+    mitre="T1649",
+    exploitability=9,
+    fix_template="# Fix the certificate template / CA configuration that produces this edge (clear EDITF_ATTRIBUTESUBJECTALTNAME2 on the CA). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template and CA data, not collected directly",
+)
+
+ADCSESC7 = EdgeType(
+    name="ADCSESC7",
+    category=EdgeCategory.SPECIAL,
+    abuse="Hold ManageCA or ManageCertificates on a trusted CA: enable the SAN flag or approve pending requests, then obtain a certificate for any domain principal (ESC7)",
+    mitre="T1649",
+    exploitability=9,
+    fix_template="# Fix the certificate template / CA configuration that produces this edge (remove ManageCA / ManageCertificates from non-admin principals). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from certificate template and CA data, not collected directly",
+)
+
 # -------------------------------------------------------------------
 # Registry: name -> EdgeType lookup
 # -------------------------------------------------------------------
@@ -489,6 +537,8 @@ TIER0_SIDS_SUFFIXES = frozenset({
 
 def is_tier0(node_name: str, node_sid: str = "", node_type: str = "") -> bool:
     """Determine if a node is Tier 0 (high-value target)."""
+    if node_type.lower() == "domain":
+        return True                       # the domain object is the crown jewel: DCSync, WriteDacl or GPO control on it is a takeover
     upper = node_name.upper()
     # Check name against known Tier 0 groups
     # Strip domain prefix if present (DOMAIN\\Group -> Group)

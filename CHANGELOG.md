@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.0 (in progress)
+
+### Added
+- **Scale**: integer-indexed exposure engine (1M objects: 10.3s -> about 4s), copy-on-write `clone()` (17s -> 1s at 1M),
+  in-place `probe()` with exact rollback for per-change trials, incremental exposure for added edges. A 10-change
+  `check` on 200k objects went 38s -> 3.8s, on 1M objects 58s -> 21s. `benchmarks/` holds the scripts.
+- The original engine is kept as `exposure_ref.py`, an executable specification. `tests/fuzz.py` runs parallel
+  differential fuzzing (engine vs reference vs brute-force oracle, incremental vs full, deny oracle, probe rollback):
+  3,000 graphs/s per machine, 400,000 clean; it found two real bugs in the incremental engine on its first run.
+- **AD CS escalation edges** ADCSESC1, ESC4, ESC6, ESC7 derived from template, CA and NTAuth data, with every
+  condition tested on its own and an independent re-derivation from the raw JSON of a real collection.
+- **Implicit membership** of Everyone and Authenticated Users: ACEs granted to them are now rights everyone holds
+  (previously invisible). The domain object itself is Tier 0.
+- CI workflow (Linux and Windows, Python 3.11 and 3.13) and a nightly 1M-seed fuzz job.
+- `tests/test_registry.py` fails when edge-type knowledge drifts between modules (ingest, PowerShell rules, collector).
+
 ## 0.4.0
 
 ### Added

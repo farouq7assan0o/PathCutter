@@ -61,7 +61,8 @@ def test_lab_loads_through_the_real_ingest(lab):
 def test_tier0_matches_the_lab(lab):
     t0 = {lab.get_node_name(i).split("@")[0] for i in lab.tier0_nodes}
     assert t0 == {"ADMINISTRATOR", "ADMINSDHOLDER", "CERSEI.LANNISTER", "DOMAIN ADMINS", "DOMAIN CONTROLLERS",
-                  "KINGSLANDING.SEVENKINGDOMS.LOCAL", "ROBERT.BARATHEON"}
+                  "KINGSLANDING.SEVENKINGDOMS.LOCAL", "ROBERT.BARATHEON",
+                  "SEVENKINGDOMS.LOCAL"}                         # the domain object itself is Tier 0
 
 
 def test_the_documented_acl_chain_is_present(lab):

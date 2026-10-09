@@ -507,6 +507,23 @@ def _name_uncollected_principals(graph: AttackGraph) -> None:
                               domain=domain))
 
 
+def _add_implicit_memberships(graph: AttackGraph) -> None:
+    """Every user and computer is implicitly a member of Everyone and Authenticated Users, so an ACE granted to either is
+    a right held by everyone. Domain Users / Domain Computers already contain every principal (primary group), so linking
+    just those two keeps this to a handful of edges per domain instead of one per object."""
+    domains = {n.name.upper(): n.object_id for n in graph.nodes_by_type(NodeType.DOMAIN)}
+    for oid in list(graph.graph.nodes):
+        if not isinstance(oid, str) or not (oid.endswith("-S-1-1-0") or oid.endswith("-S-1-5-11") or oid in ("S-1-1-0", "S-1-5-11")):
+            continue
+        prefix = oid.rpartition("-S-1-")[0].upper()
+        sids = [domains[prefix]] if prefix in domains else (list(domains.values()) if not prefix else [])
+        for dsid in sids:
+            for rid in ("513", "515"):
+                member = f"{dsid}-{rid}"
+                if graph.get_node(member) is not None and not graph.has_edge_type(member, oid, "MemberOf"):
+                    graph.add_edge(ADEdge(source_id=member, target_id=oid, edge_type="MemberOf"))
+
+
 def find_dc_sids(graph: AttackGraph) -> list[str]:
     """Domain controller computers: computers that are members of a Domain Controllers group.
 
@@ -569,8 +586,11 @@ def load_sharphound(path: str | Path) -> AttackGraph:
             ))
 
     _name_uncollected_principals(graph)
+    _add_implicit_memberships(graph)
     _link_unconstrained_delegation(graph)
     graph.classify_tiers()
+    from .adcs import derive_adcs_edges
+    derive_adcs_edges(graph)
     return graph
 
 
@@ -627,11 +647,33 @@ def _parse_denies(data: dict, graph: AttackGraph) -> int:
     return n
 
 
+def _capture_ca_extras(data: dict, graph: AttackGraph) -> None:
+    """Enterprise CA fields that are not Properties: the templates it publishes and its SAN-flag registry value."""
+    for obj in data.get("data", []):
+        if "EnabledCertTemplates" not in obj and "CARegistryData" not in obj:
+            continue
+        node = graph.get_node(obj.get("ObjectIdentifier", ""))
+        if node is None:
+            continue
+        node.properties["_enabled_templates"] = [t.get("ObjectIdentifier") for t in (obj.get("EnabledCertTemplates") or [])
+                                                 if isinstance(t, dict)]
+        san = ((obj.get("CARegistryData") or {}).get("IsUserSpecifiesSanEnabled") or {})
+        node.properties["_san_enabled"] = bool(san.get("Value"))
+        node.properties["_san_collected"] = bool(san.get("Collected"))
+
+
 def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
     """Route to v4 or v5 parser based on format detection."""
     if str((data.get("meta") or {}).get("type", "")).lower() == "denies" or file_type == "denies":
         _parse_denies(data, graph)
         return 0
+    n = _parse_known_file(data, graph, file_type)
+    if file_type == "enterprisecas" or str((data.get("meta") or {}).get("type", "")).lower() == "enterprisecas":
+        _capture_ca_extras(data, graph)
+    return n
+
+
+def _parse_known_file(data: dict, graph: AttackGraph, file_type: str) -> int:
     fmt = _detect_format(data)
     if fmt == "v5":
         meta = data.get("meta", {})

@@ -281,7 +281,7 @@ class Anonymizer:
         keys = sorted(alts, key=len, reverse=True)
         self._alts = alts
         if keys:
-            self._rx = re.compile(r"(?<![A-Za-z0-9_-])(" + "|".join(re.escape(k) for k in keys) + r")(?![A-Za-z0-9_-])", re.I)
+            self._rx = re.compile(r"(?<![A-Za-z0-9_-])(" + "|".join(re.escape(k) for k in keys) + r")(?!(?:[A-Za-z0-9_]|-(?!S-1-)))", re.I)
 
     # ---- pass 2: rewrite
     def text(self, s: str) -> str:
@@ -295,7 +295,12 @@ class Anonymizer:
         h = hashlib.sha256(f"{self.salt}|{g.upper()}".encode()).hexdigest().upper()
         return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
 
+    def _thumb(self, t: str) -> str:
+        return hashlib.sha256(f"{self.salt}|{t.upper()}".encode()).hexdigest()[:40].upper()
+
     def walk(self, v, key=""):
+        if key.lower() in ("certthumbprint", "certthumbprints", "certchain") and isinstance(v, (str, list)):
+            return self._thumb(v) if isinstance(v, str) else [self._thumb(str(x)) for x in v]     # equal stays equal
         if isinstance(v, dict):
             out = {}
             for k, x in v.items():

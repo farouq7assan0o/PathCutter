@@ -138,7 +138,9 @@ def model() -> str:
 MODELED (exposure is computed exactly for these)
   Allow ACLs, group nesting and primary group, local admin/RDP/PSRemote/DCOM, sessions (computer -> user),
   GPO links and GPO-granted local rights, delegation (unconstrained, constrained, RBCD), SID history, AD CS
-  rights, DCSync, gMSA/LAPS reads, containment, trusts.
+  rights, DCSync, gMSA/LAPS reads, containment, trusts, implicit membership of Everyone and Authenticated Users.
+  AD CS escalation, derived from collected template and CA data: ESC1 (enrollee-supplied subject), ESC4 (template
+  control), ESC6 (CA accepts a requester SAN), ESC7 (ManageCA/ManageCertificates), on CAs trusted via NTAuth.
   Deny ACEs, identity-sensitive: a deny binds the denied principal's token (members of a denied group included)
   and only at the hop where that identity acts. Collect them with tools/Export-AdDenyAces.ps1 (SharpHound does
   not), or state them with `deny` / `undeny`, `dsacls /D` and Deny access rules in scripts.
@@ -152,6 +154,8 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
   but every trust is treated as traversable (conservative: it can over-report, not under-report).
 
 NOT MODELED (stated so nobody assumes otherwise)
+  AD CS ESC2/ESC3 (enrollment agents), ESC5, ESC8 (relay to web enrollment), ESC9/10/16 (domain controller registry),
+  ESC11, ESC13-15; AD CS paths are only as good as the template, CA and NTAuth data collected.
   Conditional Access / MFA / PIM actually being enforced, Protected Users and authentication silos, smart-card
   required flags, fine-grained password policy, network reachability and firewalls, EDR, Entra ID / hybrid
   paths, GPO content other than local-group membership, Kerberos ticket and token contents, the time dimension of
