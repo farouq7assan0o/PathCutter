@@ -40,7 +40,7 @@ def iter_raw(path):
 def file_type(entry: str, data) -> str:
     meta = (data or {}).get("meta", {}) if isinstance(data, dict) else {}
     t = str(meta.get("type", "")).lower()
-    if t in _TYPE_MAP:
+    if t in _TYPE_MAP or t == "azure":
         return t
     low = entry.lower()
     return next((k for k in _TYPE_MAP if k in low), "unknown")
@@ -119,7 +119,7 @@ def diagnose(path) -> dict:
         "domains": sorted({n.name for n in graph.nodes_by_type(NodeType.DOMAIN)}),
         "has_krbtgt": any(n.display_name.upper() == "KRBTGT" for n in graph.nodes_by_type(NodeType.USER)),
         "adcs": len(graph.nodes_by_type(NodeType.CERT_TEMPLATE)) + len(graph.nodes_by_type(NodeType.ENTERPRISE_CA)),
-        "trusts": edge_types.get("TrustedBy", 0),
+        "trusts": edge_types.get("TrustedBy", 0), "synced": edge_types.get("SyncedTo", 0),
     }
     result["findings"] = _findings(result)
     return result
@@ -133,7 +133,11 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
         return f
     if r["unreadable"]:
         f.append(("WARN", f"{len(r['unreadable'])} file(s) could not be parsed: {', '.join(r['unreadable'][:3])}", "re-run the collection; a truncated ZIP is the usual cause"))
-    for need in ("users", "groups", "computers", "domains"):
+    azure_only = set(r["files"]) == {"azure"}
+    if r["files"].get("azure") and not azure_only and not r["graph"].get("synced"):
+        f.append(("WARN", "Entra ID data is present but no on-premises user is linked to an Entra user (no sync links)",
+                  "check onPremisesSecurityIdentifier in the AzureHound output and that the AD collection covers the synced domain"))
+    for need in (() if azure_only else ("users", "groups", "computers", "domains")):
         if not r["files"].get(need):
             f.append(("ERROR", f"no {need} file", "collect with `-c Default,ACL,Container,GPOLocalGroup` at least"))
     if g["unknown_nodes"]:
@@ -198,6 +202,11 @@ _DOM_SID = re.compile(r"S-1-5-21-(\d+)-(\d+)-(\d+)")
 _DROP = {"description", "email", "mail", "homedirectory", "scriptpath", "title", "department", "info", "telephonenumber",
          "userpassword", "unixpassword", "unicodepassword", "sfupassword", "gpcpath", "company", "streetaddress",
          "homephone", "mobile", "manager", "comment", "logonscript", "profilepath", "displayname", "givenname", "sn"}
+_DROP_AZ = {"mail", "givenname", "surname", "jobtitle", "department", "mobilephone", "businessphones", "othermails",
+            "proxyaddresses", "streetaddress", "city", "postalcode", "state", "country", "officelocation", "employeeid",
+            "aboutme", "imaddresses", "identities", "faxnumber", "companyname", "mailnickname", "preferredname",
+            "onpremisesimmutableid", "onpremisesdistinguishedname", "onpremisessamaccountname", "onpremisesuserprincipalname",
+            "description", "notes", "info", "homepage", "loginurl", "logouturl", "replyurls", "tags", "employeeorgdata"}
 _PROTECTED_KEYS = {"RightName", "ObjectType", "PrincipalType", "type", "kind", "Type", "LocalGroupType", "ObjectClass",
                    "version", "methods", "collected", "Collected"}
 _KEEP_WORDS = (set(TIER0_GROUPS) | {"USERS", "COMPUTERS", "DOMAIN CONTROLLERS", "BUILTIN", "NT AUTHORITY", "SYSTEM", "EVERYONE",
@@ -236,7 +245,34 @@ class Anonymizer:
         return self.domains[dom.upper()]
 
     # ---- pass 1: learn what to replace
+    def learn_azure(self, data) -> None:
+        for it in data.get("data", []):
+            d = it.get("data") if isinstance(it, dict) else None
+            if not isinstance(d, dict):
+                continue
+            kind = it.get("kind", "")
+            prefix = {"AZUser": "AZU", "AZGroup": "AZG", "AZApp": "AZA", "AZServicePrincipal": "AZS", "AZRole": "AZR"}.get(kind, "AZO")
+            upn = str(d.get("userPrincipalName") or "")
+            if "@" in upn:
+                local, dom = upn.split("@", 1)
+                self._dom_label(dom)
+                if local.upper() not in _KEEP_WORDS:
+                    self.tokens.setdefault(local.upper(), f"{prefix}{self._h(local)}")
+            for key in ("displayName",):
+                v = str(d.get(key) or "")
+                if v and kind != "AZRole" and v.upper() not in _KEEP_WORDS:
+                    self.tokens.setdefault(v.upper(), f"{prefix}{self._h(v)}")
+            for key in ("defaultDomain",):
+                if d.get(key):
+                    self._dom_label(str(d[key]))
+        for m in _DOM_SID.finditer(json.dumps(data)):
+            self._dom_sid_for(m)
+
     def learn(self, entry: str, data) -> None:
+        from .azure import is_azure_file
+        if is_azure_file(data):
+            self.learn_azure(data)
+            return
         ft = file_type(entry, data)
         prefix = {"users": "USER", "computers": "HOST", "groups": "GRP"}.get(ft, "OBJ")
         for o in _objects(data):
@@ -297,24 +333,30 @@ class Anonymizer:
         return s
 
     def _guid(self, g: str) -> str:
+        from .azure import KNOWN_ROLES
+        if g.upper() in KNOWN_ROLES:                       # built-in Entra role ids are public and carry meaning (Tier 0)
+            return g
         h = hashlib.sha256(f"{self.salt}|{g.upper()}".encode()).hexdigest().upper()
         return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
 
     def _thumb(self, t: str) -> str:
         return hashlib.sha256(f"{self.salt}|{t.upper()}".encode()).hexdigest()[:40].upper()
 
-    def walk(self, v, key=""):
+    def walk(self, v, key="", az=False):
         if key.lower() in ("certthumbprint", "certthumbprints", "certchain") and isinstance(v, (str, list)):
             return self._thumb(v) if isinstance(v, str) else [self._thumb(str(x)) for x in v]     # equal stays equal
         if isinstance(v, dict):
             out = {}
             for k, x in v.items():
-                if k.lower() in _DROP and not isinstance(x, (dict, list)):
+                if az:
+                    if k.lower() in _DROP_AZ:
+                        continue
+                elif k.lower() in _DROP and not isinstance(x, (dict, list)):
                     continue
-                out[k] = self.walk(x, k)
+                out[k] = self.walk(x, k, az)
             return out
         if isinstance(v, list):
-            return [self.walk(x, key) for x in v]
+            return [self.walk(x, key, az) for x in v]
         if isinstance(v, str) and key not in _PROTECTED_KEYS:
             return self.text(v)
         return v
@@ -331,7 +373,9 @@ def anonymize(src, dst, salt: str | None = None):
     dst.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zf:
         for i, (e, d) in enumerate(items):          # file names carry the domain and a timestamp: replace them
-            zf.writestr(f"anon_{file_type(e, d)}_{i:02d}.json", json.dumps(an.walk(d)))
+            from .azure import is_azure_file
+            az = is_azure_file(d)
+            zf.writestr(f"anon_{'azure' if az else file_type(e, d)}_{i:02d}.json", json.dumps(an.walk(d, az=az)))
     return an, len(items)
 
 

@@ -519,6 +519,78 @@ ADCSESC9 = EdgeType(
     description="Derived from certificate template, CA and domain controller data, not collected directly",
 )
 
+AZOwns = EdgeType(
+    name="AZOwns",
+    category=EdgeCategory.SPECIAL,
+    abuse="Owner of an Entra group, application or service principal: add members or add a credential and authenticate as it",
+    mitre="T1098.001",
+    exploitability=8,
+    fix_template="# Remove the owner (Entra admin center > Owners) or replace with a managed, reviewed owner group",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Entra ID / hybrid identity edge",
+)
+
+AZRunsAs = EdgeType(
+    name="AZRunsAs",
+    category=EdgeCategory.SPECIAL,
+    abuse="Authenticating as the application's service principal grants every permission and role the service principal holds",
+    mitre="T1078.004",
+    exploitability=7,
+    fix_template="# Remove unneeded roles and permissions from the service principal",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Entra ID / hybrid identity edge",
+)
+
+AZEligibleRole = EdgeType(
+    name="AZEligibleRole",
+    category=EdgeCategory.SPECIAL,
+    abuse="PIM-eligible for a directory role: the holder can activate it (subject to MFA / approval) and gain its permissions",
+    mitre="T1078.004",
+    exploitability=6,
+    fix_template="# Require approval and MFA for activation, shorten the activation window, or remove the eligibility",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Entra ID / hybrid identity edge",
+)
+
+AZResetPassword = EdgeType(
+    name="AZResetPassword",
+    category=EdgeCategory.SPECIAL,
+    abuse="Reset the password of a non-privileged Entra user and sign in as them",
+    mitre="T1098",
+    exploitability=8,
+    fix_template="# Scope the administrator role with administrative units or remove it from broad groups",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Entra ID / hybrid identity edge",
+)
+
+AZAddSecret = EdgeType(
+    name="AZAddSecret",
+    category=EdgeCategory.SPECIAL,
+    abuse="Add a client secret or certificate to an application or service principal and authenticate as it",
+    mitre="T1098.001",
+    exploitability=8,
+    fix_template="# Remove Application / Cloud Application Administrator from non-admin principals",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Entra ID / hybrid identity edge",
+)
+
+SyncedTo = EdgeType(
+    name="SyncedTo",
+    category=EdgeCategory.SPECIAL,
+    abuse="The on-premises account is synchronized to this Entra user: whoever controls the on-premises object controls the cloud identity (password hash sync / writeback)",
+    mitre="T1098",
+    exploitability=8,
+    fix_template="# Do not synchronize privileged cloud accounts; keep Entra admins cloud-only",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Microsoft Entra ID / hybrid identity edge",
+)
+
 # -------------------------------------------------------------------
 # Registry: name -> EdgeType lookup
 # -------------------------------------------------------------------
@@ -583,8 +655,14 @@ TIER0_SIDS_SUFFIXES = frozenset({
 })
 
 
+TIER0_AZ_ROLE_IDS = frozenset({"62E90394-69F5-4237-9190-012177145E10", "E8611AB8-C189-46E8-94E1-60213AB1F814",
+                               "7BE44C8A-ADAF-4E2A-84D6-AB2649E08A13", "E00E864A-17C5-4A4B-9C06-F5B95A8D5BD8"})
+
+
 def is_tier0(node_name: str, node_sid: str = "", node_type: str = "") -> bool:
     """Determine if a node is Tier 0 (high-value target)."""
+    if node_type == "AZRole" and node_sid.upper() in TIER0_AZ_ROLE_IDS:
+        return True
     if node_type.lower() == "domain":
         return True                       # the domain object is the crown jewel: DCSync, WriteDacl or GPO control on it is a takeover
     upper = node_name.upper()

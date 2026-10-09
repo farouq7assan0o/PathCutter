@@ -23,6 +23,12 @@ class NodeType(Enum):
     ROOT_CA = "RootCA"
     AIACA = "AIACA"
     NTAUTH_STORE = "NTAuthStore"
+    AZ_USER = "AZUser"
+    AZ_GROUP = "AZGroup"
+    AZ_APP = "AZApp"
+    AZ_SP = "AZServicePrincipal"
+    AZ_ROLE = "AZRole"
+    AZ_TENANT = "AZTenant"
     UNKNOWN = "Unknown"
 
 
@@ -446,7 +452,7 @@ class AttackGraph:
         # Also mark members of Tier 0 groups as Tier 0
         for t0_id in list(self._tier0):
             node = self._nodes.get(t0_id)
-            if node and node.node_type == NodeType.GROUP:
+            if node and node.node_type in (NodeType.GROUP, NodeType.AZ_ROLE, NodeType.AZ_GROUP):
                 members = self._recursive_members(t0_id)
                 for member_id in members:
                     member = self._nodes.get(member_id)

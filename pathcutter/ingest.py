@@ -520,6 +520,8 @@ def load_sharphound(path: str | Path) -> AttackGraph:
                 node_type=NodeType.GROUP,
             ))
 
+    from . import azure
+    azure.finalize_azure(graph)
     _name_uncollected_principals(graph)
     _add_implicit_memberships(graph)
     _link_unconstrained_delegation(graph)
@@ -618,6 +620,9 @@ def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
     if str((data.get("meta") or {}).get("type", "")).lower() == "denies" or file_type == "denies":
         _parse_denies(data, graph)
         return 0
+    from . import azure
+    if azure.is_azure_file(data):
+        return azure.parse_azure_file(data, graph)
     n = _parse_known_file(data, graph, file_type)
     ftype = str((data.get("meta") or {}).get("type", "")).lower() or file_type
     if ftype == "enterprisecas":

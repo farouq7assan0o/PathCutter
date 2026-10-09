@@ -13,6 +13,14 @@
   condition tested on its own and an independent re-derivation from the raw JSON of a real collection.
 - **Implicit membership** of Everyone and Authenticated Users: ACEs granted to them are now rights everyone holds
   (previously invisible). The domain object itself is Tier 0.
+- **`pathcutter audit`**: hygiene findings from collected attributes (Kerberoastable and AS-REP roastable accounts,
+  passwords in descriptions and attributes, no-password accounts, stale privileged accounts, old krbtgt, unprotected
+  Tier 0 accounts, SID history, orphaned adminCount, unconstrained delegation, protocol transition, unsupported OS,
+  no LAPS, stale computers, old functional level, unfiltered trusts, AD CS and Everyone-like groups with dangerous rights).
+- **Microsoft Entra ID and hybrid identity** from AzureHound output (`pathcutter/azure.py`).
+- **AD CS**: ESC3, ESC5, golden certificate, ESC9 added to ESC1/4/6/7.
+- `data/rights.json`: the single declarative source for collector rights, PowerShell GUIDs and dsacls letters; the
+  collector script's GUID table is generated from it (`tools/gen_collector_table.py`).
 - CI workflow (Linux and Windows, Python 3.11 and 3.13) and a nightly 1M-seed fuzz job.
 - `tests/test_registry.py` fails when edge-type knowledge drifts between modules (ingest, PowerShell rules, collector).
 

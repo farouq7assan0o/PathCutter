@@ -25,7 +25,7 @@ from .scoring import score_posture
 
 SCHEMA = "pathcutter.check/1"
 SEVERITIES = ["info", "low", "medium", "high", "critical"]
-ACTOR_TYPES = {NodeType.USER.value, NodeType.COMPUTER.value}
+ACTOR_TYPES = {NodeType.USER.value, NodeType.COMPUTER.value, NodeType.AZ_USER.value, NodeType.AZ_SP.value}
 MAX_PRINCIPALS_LISTED = 25
 MAX_PATHS_CAPTURED = 5
 
