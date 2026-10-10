@@ -56,6 +56,36 @@ def test_no_admins_known_keeps_the_edge():
     assert g.has_edge_type("web", "srv", "AllowedToDelegate")
 
 
+def test_harness_protect_admin_groups():
+    """Validate BloodHound's ProtectAdminGroups harness models SDProp protection we recognize."""
+    import json
+    from pathlib import Path
+    harness = json.loads((Path(__file__).parent / "data" / "harnesses" / "ProtectAdminGroupsHarness.json").read_text())
+    nodes = {n["id"]: n for n in harness["nodes"]}
+    rels = harness["relationships"]
+
+    protect_rels = [r for r in rels if r["type"] == "ProtectAdminGroups"]
+    assert len(protect_rels) >= 2, "Harness should have ProtectAdminGroups relationships"
+
+    protected_targets = set()
+    for r in protect_rels:
+        target = nodes[r["toId"]]
+        protected_targets.add(target["id"])
+        assert target["properties"].get("adminsdholderprotected", "").upper() in ("TRUE", "BOOL:TRUE"), \
+            f"Protected target {target['caption']} should have adminsdholderprotected=True"
+
+    unprotected = [n for n in harness["nodes"]
+                   if n["properties"].get("adminsdholderprotected", "").upper() in ("FALSE", "BOOL:FALSE")]
+    assert len(unprotected) >= 1, "Harness should have at least one unprotected user"
+    assert not any(u["id"] in protected_targets for u in unprotected), \
+        "Unprotected users should not be ProtectAdminGroups targets"
+
+    # The harness models cross-domain AdminSDHolder containers
+    containers = [n for n in harness["nodes"] if "Container" in n.get("labels", [])]
+    domain_sids = {n["properties"].get("domainsid") for n in containers}
+    assert len(domain_sids) >= 2, "Harness should have AdminSDHolder containers in multiple domains"
+
+
 def test_audit_and_snapshot_carry_it(tmp_path):
     g = _g()
     apply_restrictions(g)
