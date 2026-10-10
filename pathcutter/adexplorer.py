@@ -257,8 +257,10 @@ def _build(objs: list[dict]) -> list[dict]:
             "pwdlastset": _one(o.get("pwdLastSet")),
             "lastlogontimestamp": _one(o.get("lastLogonTimestamp")),
         }
-        if ft == "computers" and ("CN=DOMAIN CONTROLLERS" in dn.upper() or (isinstance(uac, int) and uac & 0x2000)):
-            props["isdc"] = True                                              # SERVER_TRUST_ACCOUNT
+        if ft == "computers":
+            props["dnshostname"] = _one(o.get("dNSHostName")) or _one(o.get("dnsHostName"))
+            if "CN=DOMAIN CONTROLLERS" in dn.upper() or (isinstance(uac, int) and uac & 0x2000):
+                props["isdc"] = True                                          # SERVER_TRUST_ACCOUNT
 
         record = {"ObjectIdentifier": oid, "Properties": {k: v for k, v in props.items() if v is not None}}
 
@@ -322,3 +324,45 @@ def _parse_gplink(gplink: str, dn2id: dict) -> list[dict]:
 
 def _dn_to_domain(dn: str) -> str:
     return ".".join(p[3:] for p in dn.split(",") if p.upper().startswith("DC=")).upper()
+
+
+_LS_EDGE = {"LocalAdmins": "AdminTo", "RemoteDesktopUsers": "CanRDP", "DcomUsers": "ExecuteDCOM", "PSRemoteUsers": "CanPSRemote"}
+
+
+def apply_local_sessions(graph, folder) -> int:
+    """Read any *_localsessions.json (tools/Export-AdLocalSessions.ps1) in `folder` and add host-side edges:
+    local-group membership (principal -> computer) and sessions (computer -> user). Hosts are matched by FQDN or name."""
+    from pathlib import Path as _P
+    from .graph import ADEdge, NodeType
+    folder = _P(folder)
+    files = [folder] if folder.is_file() else list(folder.glob("*_localsessions.json")) + list(folder.glob("*localsessions*.json"))
+    files = [f for f in files if f.is_file() and f.name.lower().endswith(".json")]
+    if not files:
+        return 0
+    by_host: dict[str, str] = {}
+    for n in graph.nodes_by_type(NodeType.COMPUTER):
+        dns = str(n.properties.get("dnshostname") or "").upper()
+        short = n.display_name.split("@")[0].rstrip("$").upper()
+        if dns:
+            by_host[dns] = n.object_id
+        by_host.setdefault(short, n.object_id)
+    added = 0
+    for f in files:
+        try:
+            doc = json.loads(f.read_text(encoding="utf-8-sig"))
+        except (ValueError, OSError):
+            continue
+        for rec in doc.get("data", []):
+            cid = by_host.get(str(rec.get("FQDN") or "").upper()) or by_host.get(str(rec.get("Computer") or "").upper())
+            if not cid:
+                continue
+            for key, edge in _LS_EDGE.items():
+                for sid in rec.get(key, []) or []:
+                    if sid and graph.get_node(sid) is not None:
+                        graph.add_edge(ADEdge(source_id=sid, target_id=cid, edge_type=edge))
+                        added += 1
+            for sid in rec.get("Sessions", []) or []:
+                if sid and graph.get_node(sid) is not None:
+                    graph.add_edge(ADEdge(source_id=cid, target_id=sid, edge_type="HasSession"))
+                    added += 1
+    return added

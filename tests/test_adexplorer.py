@@ -88,3 +88,19 @@ def test_noise_trustees_are_dropped(tmp_path):
     ]
     g = load_sharphound(_write(tmp_path, objs))
     assert not any(d["edge_type"] in ("GenericAll", "Owns") for _, _, d in g.all_edges())
+
+
+def test_local_sessions_sidecar_adds_host_edges(tmp_path):
+    objs = [
+        _obj(distinguishedName="DC=corp,DC=local", objectClass=["domainDNS"], objectSid=DOM, objectGUID="11111111-1111-1111-1111-111111111111"),
+        _obj(distinguishedName="CN=WS1,CN=Computers,DC=corp,DC=local", objectClass=["top", "computer"], objectSid=f"{DOM}-1200",
+             sAMAccountName="WS1$", objectGUID="55555555-5555-5555-5555-555555555555", dNSHostName="ws1.corp.local", userAccountControl=4096),
+        _obj(distinguishedName="CN=alice,CN=Users,DC=corp,DC=local", objectClass=["top", "user"], objectSid=f"{DOM}-1105",
+             sAMAccountName="alice", objectGUID="33333333-3333-3333-3333-333333333333", userAccountControl=512),
+    ]
+    d = _write(tmp_path, objs)
+    (d / "x_localsessions.json").write_text(json.dumps({"meta": {"type": "localsessions"}, "data": [
+        {"Computer": "WS1", "FQDN": "ws1.corp.local", "LocalAdmins": [f"{DOM}-1105"], "RemoteDesktopUsers": [], "DcomUsers": [], "PSRemoteUsers": [], "Sessions": [f"{DOM}-1105"]}]}))
+    g = load_sharphound(d)
+    assert g.has_edge_type(f"{DOM}-1105", f"{DOM}-1200", "AdminTo")
+    assert g.has_edge_type(f"{DOM}-1200", f"{DOM}-1105", "HasSession")
