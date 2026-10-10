@@ -105,6 +105,8 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
             link_set[(path.nodes[i], path.nodes[i + 1], edge.get("edge_type", ""))] = None
 
     total_in_paths = len(participation)
+    path_nodes = set(participation)               # before the surrounding environment is added: these are on an attack path
+    path_links = set(link_set)
 
     # Show the surrounding environment, not only the attack-path nodes: add every Tier 0 object and the most-connected
     # objects (with their edges) up to the node cap, so the graph is the whole domain/tenant with the attack paths
@@ -180,6 +182,7 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
         nodes.append({
             "id": nid, "name": _e(node.display_name), "type": node.node_type.value,
             "tier": node.tier, "score": score_map.get(nid, 0), "enabled": node.enabled,
+            "p": 1 if nid in path_nodes else 0,
         })
 
     cluster_idx: dict[tuple, int] = {}
@@ -199,6 +202,7 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
             "type": "Cluster", "tier": 2,
             "score": max((score_map.get(m, 0) for m in members), default=0),
             "enabled": True, "count": len(members), "kind": kind,
+            "p": 1 if any(m in path_nodes for m in members) else 0,
             "target": _e(tgt.display_name if tgt else key[0]), "via": key[1],
             "members": [_e(mn.display_name) for mn in member_nodes[:150] if mn],
         })
@@ -225,11 +229,13 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
             et_idx[ty] = len(edge_types)
             edge_types.append(ty)
         edge_index[(s, t, ty)] = len(out_links)
-        out_links.append([si, index[t], et_idx[ty]])
+        out_links.append([si, index[t], et_idx[ty], 1 if (s, t, ty) in path_links else 0])
 
     meta = {
         "graph_total": graph.node_count,
         "in_paths": total_in_paths,
+        "path_nodes": sum(1 for n in nodes if n.get("p")),
+        "path_links": sum(1 for lk in out_links if lk[3]),
         "shown": len(nodes),
         "hidden_in_clusters": hidden_in_clusters,
         "truncated": truncated,
@@ -687,7 +693,14 @@ tr {{ cursor: pointer; }}
 .search-box::placeholder {{ color: var(--text-dimmer); }}
 
 #graph-container {{ width: 100%; height: 78vh; min-height: 600px; max-height: 980px; background: #0a0f1e; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: relative; }}
-#graph-controls {{ position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 5; }}
+#graph-controls {{ position: absolute; top: 10px; left: 340px; right: 10px; display: flex; gap: 6px; z-index: 5; flex-wrap: wrap; justify-content: flex-end; }}
+#graph-legend.collapsed .item {{ display: none; }}
+#graph-legend .lg-title {{ cursor: pointer; user-select: none; }}
+#graph-controls .seg {{ display: inline-flex; margin-right: 6px; }}
+#graph-controls .seg .btn {{ border-radius: 0; }}
+#graph-controls .seg .btn:first-child {{ border-radius: 6px 0 0 6px; }}
+#graph-controls .seg .btn:last-child {{ border-radius: 0 6px 6px 0; }}
+#graph-controls .seg .btn.active {{ background: var(--accent); border-color: var(--accent); color: #fff; }}
 #graph-search {{ position: absolute; top: 10px; left: 10px; z-index: 15; width: 260px; }}
 #graph-search input {{ width: 100%; background: rgba(15,23,42,0.95); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px 7px 30px; color: var(--text); font-size: 0.8rem; outline: none; }}
 #graph-search input:focus {{ border-color: var(--accent); }}
@@ -1044,17 +1057,24 @@ tr {{ cursor: pointer; }}
           <div id="graph-search-results"></div>
         </div>
         <div id="graph-controls">
+          <span class="seg" id="view-seg" title="What to draw">
+            <button class="btn btn-sm btn-outline" data-mode="paths" onclick="setViewMode('paths')" title="Only the objects and edges that lie on an attack path to Tier 0">Attack paths</button>
+            <button class="btn btn-sm btn-outline" data-mode="context" onclick="setViewMode('context')" title="Attack paths, Tier 0 and everything directly connected to them">+ Context</button>
+            <button class="btn btn-sm btn-outline" data-mode="all" onclick="setViewMode('all')" title="Every object that fits in the graph">Everything</button>
+          </span>
           <button class="btn btn-sm btn-outline" onclick="resetGraph()" title="Clear selection and fit to view">Fit</button>
           <button class="btn btn-sm btn-outline" onclick="toggleLabels()">Labels</button>
           <button class="btn btn-sm btn-outline" onclick="toggleEdgeLabels()">Edge Labels</button>
           <button class="btn btn-sm btn-outline" onclick="toggleStructural()" title="Hide MemberOf / Contains edges">Structural</button>
           <button class="btn btn-sm btn-outline" onclick="toggleEdgeFilter()">Filter</button>
-          <button class="btn btn-sm btn-outline" onclick="toggleLayout()">Layout</button>
+          <button class="btn btn-sm btn-outline" onclick="toggleLayout()" title="Switch between a free layout and one that puts Tier 0 at the bottom">Layout</button>
+          <button class="btn btn-sm btn-outline" id="btn-lock" onclick="toggleLock()" title="Lock: dragging pans the view instead of moving nodes. Unlocked: a node you drag stays where you drop it (double-click it to release).">Move nodes: on</button>
+          <button class="btn btn-sm btn-outline" onclick="relayout()" title="Forget moved nodes and lay the graph out again">Re-layout</button>
           <button class="btn btn-sm btn-outline" onclick="exportGraphPNG()">PNG</button>
         </div>
         <div id="edge-filter"></div>
         <div id="graph-legend">
-          <div style="font-weight:600;margin-bottom:4px;color:var(--text-dim)">NODES</div>
+          <div class="lg-title" style="font-weight:600;margin-bottom:4px;color:var(--text-dim)" onclick="this.parentNode.classList.toggle('collapsed')" title="Click to collapse the legend">NODES &#9662;</div>
           <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="7" r="4" fill="#3b82f6"/><path d="M3 18 Q3 12 10 12 Q17 12 17 18" fill="#3b82f6" opacity="0.5"/></svg></div> User</div>
           <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><rect x="2" y="4" width="16" height="10" rx="1" fill="#10b981"/><rect x="7" y="14" width="6" height="2" fill="#10b981" opacity="0.6"/><rect x="5" y="16" width="10" height="1" rx="0.5" fill="#10b981" opacity="0.4"/></svg></div> Computer</div>
           <div class="item"><div class="icon"><svg viewBox="0 0 20 20" width="16" height="16"><circle cx="7" cy="7" r="3" fill="#f59e0b"/><circle cx="13" cy="7" r="3" fill="#f59e0b"/><circle cx="10" cy="13" r="3" fill="#f59e0b"/></svg></div> Group</div>

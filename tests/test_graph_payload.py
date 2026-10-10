@@ -36,7 +36,7 @@ def test_identical_leaf_users_collapse_into_one_cluster():
     assert len(payload["nodes"]) == 3
     # every link index must point at a real node
     n = len(payload["nodes"])
-    for s, t, ti in payload["links"]:
+    for s, t, ti, _p in payload["links"]:
         assert 0 <= s < n and 0 <= t < n
         assert 0 <= ti < len(payload["edgeTypes"])
 
@@ -73,7 +73,7 @@ def test_node_cap_keeps_tier0_and_flags_truncation():
     assert payload["meta"]["truncated"] is True
     assert any(n["tier"] == 0 for n in payload["nodes"])
     n = len(payload["nodes"])
-    assert all(0 <= s < n and 0 <= t < n for s, t, _ in payload["links"])
+    assert all(0 <= s < n and 0 <= t < n for s, t, _, _p in payload["links"])
 
 
 def test_names_are_html_escaped_in_payload():
@@ -111,3 +111,19 @@ def test_report_ships_canvas_engine_and_fix_links():
     assert "{graph_js}" not in html
     m = re.search(r"const fixesData = (\[.*?\]);\n", html, re.S)
     assert m and "graph_link" in m.group(1)
+
+
+def test_nodes_and_links_say_whether_they_are_on_an_attack_path():
+    """The viewer's "attack paths only" mode relies on these flags; context added around the paths must not be flagged."""
+    g, report, scores = _fan_in_graph(3)
+    from pathcutter.graph import ADEdge, ADNode, NodeType
+    g.add_node(ADNode("bystander", "BYSTANDER@C.L", NodeType.USER, "C.L"))
+    g.add_node(ADNode("other", "OTHER@C.L", NodeType.GROUP, "C.L"))
+    g.add_edge(ADEdge("bystander", "other", "MemberOf"))
+    payload, _ = _build_graph_json(g, report, scores)
+    by_id = {n["id"]: n for n in payload["nodes"]}
+    assert by_id["bystander"]["p"] == 0 and by_id["other"]["p"] == 0
+    assert any(n["p"] for n in payload["nodes"] if n["type"] != "Cluster") or any(n["p"] for n in payload["nodes"])
+    assert payload["meta"]["path_nodes"] == sum(1 for n in payload["nodes"] if n["p"])
+    assert payload["meta"]["path_links"] == sum(1 for lk in payload["links"] if lk[3])
+    assert all(lk[3] in (0, 1) for lk in payload["links"])

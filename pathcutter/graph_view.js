@@ -40,6 +40,7 @@ const G = {
   removed: new Set(), applied: new Set(), reach0: null, reach1: null,
   sim: null, layoutRunning: false, progress: 0, alpha0: 1, frameNo: 0, userMoved: false,
   quad: null, vis: null, fps: 0, lastHud: 0, locate: -1,
+  mode: null, off: null, loff: null, lock: false, active: 0, activeLinks: 0, pendingZoomNode: null,
 };
 
 function edgeColor(l) { return EDGE_COLORS[l.type] || '#475569'; }
@@ -114,7 +115,7 @@ function gInit() {
     n.i = i; n.label = dec(n.name); n.lc = n.label.toLowerCase(); n.r = nodeRadius(n);
     n.x = 0; n.y = 0; G.idIndex.set(n.id, i);
   });
-  G.links = graphData.links.map((l, i) => ({ source: l[0], target: l[1], s: l[0], t: l[1], type: ET[l[2]], i, struct: STRUCTURAL.has(ET[l[2]]), curve: 0 }));
+  G.links = graphData.links.map((l, i) => ({ source: l[0], target: l[1], s: l[0], t: l[1], type: ET[l[2]], i, struct: STRUCTURAL.has(ET[l[2]]), curve: 0, p: l[3] ? 1 : 0 }));
   G.out = N.map(() => []); G.inn = N.map(() => []);
   const pairs = {};
   G.links.forEach(l => {
@@ -125,6 +126,61 @@ function gInit() {
   Object.values(pairs).forEach(arr => { if (arr.length > 1) arr.forEach((l, j) => { l.curve = (j - (arr.length - 1) / 2) * 16; }); });
   G.vis = new Uint8Array(N.length);
   G.reach0 = reverseReach(null);
+  const pathCount = N.filter(n => n.p).length;
+  let saved = null; try { saved = localStorage.getItem('pc-graph-mode'); } catch (e) {}
+  G.mode = (saved === 'all' || saved === 'context' || (saved === 'paths' && pathCount)) ? saved : (pathCount ? 'paths' : 'context');
+  applyMode(G.mode);
+}
+
+/* ---------- what is drawn: attack paths only, with context, or everything ---------- */
+function applyMode(mode) {
+  const N = G.nodes, L = G.links, n = N.length;
+  const off = new Uint8Array(n).fill(1), loff = new Uint8Array(L.length).fill(1);
+  const pathCount = N.reduce((c, x) => c + (x.p ? 1 : 0), 0);
+  G.pathCount = pathCount;
+  if (mode === 'all') { off.fill(0); loff.fill(0); }
+  else {
+    const on = new Uint8Array(n);
+    N.forEach(x => { if (x.p) on[x.i] = 1; });
+    const withContext = mode === 'context' || !pathCount;
+    if (withContext) {
+      N.forEach(x => { if (x.tier === 0) on[x.i] = 1; });
+      const base = on.slice();
+      L.forEach(l => { if (base[l.s] || base[l.t]) { on[l.s] = 1; on[l.t] = 1; } });
+    }
+    for (let i = 0; i < n; i++) off[i] = on[i] ? 0 : 1;
+    L.forEach(l => { if (!off[l.s] && !off[l.t] && (withContext || l.p)) loff[l.i] = 0; });
+  }
+  G.off = off; G.loff = loff;
+  G.active = n - off.reduce((c, v) => c + v, 0);
+  G.activeLinks = L.length - loff.reduce((c, v) => c + v, 0);
+}
+
+function setViewMode(mode, quiet) {
+  if (!G.inited) drawGraph();
+  if (mode === 'paths' && !G.pathCount) { showToast('No attack path reaches Tier 0, so there is nothing to show on its own. Showing Tier 0 with its context.'); mode = 'context'; }
+  G.mode = mode;
+  try { localStorage.setItem('pc-graph-mode', mode); } catch (e) {}
+  applyMode(mode);
+  clearSelection();
+  G.userMoved = false;
+  syncViewButtons();
+  if (!quiet) showToast(mode === 'paths' ? 'Attack paths only: ' + G.active.toLocaleString() + ' objects' : mode === 'context' ? 'Paths with context: ' + G.active.toLocaleString() + ' objects' : 'Everything: ' + G.active.toLocaleString() + ' objects');
+  relayout(false);
+}
+
+function syncViewButtons() {
+  document.querySelectorAll('#view-seg button').forEach(b => b.classList.toggle('active', b.dataset.mode === G.mode));
+  const lb = document.getElementById('btn-lock');
+  if (lb) lb.textContent = G.lock ? 'Move nodes: off' : 'Move nodes: on';
+}
+
+function toggleLock() { G.lock = !G.lock; syncViewButtons(); showToast(G.lock ? 'Layout locked: drag to pan' : 'Drag a node to move it; double-click to release it'); }
+
+function relayout(reseed) {
+  if (reseed) G.nodes.forEach(n => { n.fx = null; n.fy = null; n.placed = false; });
+  if (G.sim) G.sim.stop();
+  startLayout();
 }
 
 function reverseReach(removed) {
@@ -164,11 +220,15 @@ function drawGraph() {
   });
   const sel = d3.select(canvas);
   sel.call(d3.drag().container(canvas)
-    .subject(ev => { const n = findNode(ev.x, ev.y); return n ? { x: ev.x, y: ev.y, n } : null; })
+    .subject(ev => { if (G.lock) return null; const n = findNode(ev.x, ev.y); return n ? { x: ev.x, y: ev.y, n } : null; })
     .on('start', ev => { G.dragging = true; if (!ev.active) G.sim.alphaTarget(0.18); G.layoutRunning = true; ev.subject.n.fx = ev.subject.n.x; ev.subject.n.fy = ev.subject.n.y; requestDraw(); })
     .on('drag', ev => { const n = ev.subject.n; n.fx = (ev.x - G.tx) / G.k; n.fy = (ev.y - G.ty) / G.k; markInteracting(); })
-    .on('end', ev => { G.dragging = false; if (!ev.active) G.sim.alphaTarget(0); ev.subject.n.fx = null; ev.subject.n.fy = null; }));
+    .on('end', ev => { G.dragging = false; if (!ev.active) G.sim.alphaTarget(0); const n = ev.subject.n; n.pinned = true; }));   // stays where it was dropped
   sel.call(G.zoom).on('dblclick.zoom', null);
+  canvas.addEventListener('dblclick', e => {
+    const [x, y] = d3.pointer(e, canvas), n = findNode(x, y);
+    if (n && n.pinned) { n.pinned = false; n.fx = null; n.fy = null; G.sim.alpha(0.3); G.layoutRunning = true; requestDraw(); showToast('Released ' + n.label); }
+  });
 
   canvas.addEventListener('mousemove', e => {
     if (G.dragging) return;
@@ -198,6 +258,7 @@ function drawGraph() {
   initMinimap();
   initSimPanel();
   initSearch();
+  syncViewButtons();
   startLayout();
 }
 
@@ -211,13 +272,17 @@ function resizeCanvas() {
 
 /* ---------- layout (time-sliced so the UI never freezes) ---------- */
 function startLayout() {
-  const nodes = G.nodes, n = nodes.length, big = n > 1500;
+  const nodes = G.nodes.filter(d => !G.off[d.i]), links = G.links.filter(l => !G.loff[l.i]);
+  const n = nodes.length, big = n > 1500;
   const spread = Math.sqrt(n + 1) * 34;
   const rng = mulberry32(7);
-  nodes.forEach(d => { d.x = (rng() - 0.5) * spread * 2; d.y = tierY(d.tier, spread) + (rng() - 0.5) * spread * 0.5; });
-  G.spread = spread;
+  nodes.forEach(d => {
+    if (!d.placed) { d.x = (rng() - 0.5) * spread * 2; d.y = tierY(d.tier, spread) + (rng() - 0.5) * spread * 0.5; d.placed = true; }
+    if (d.pinned) { d.fx = d.x; d.fy = d.y; }
+  });
+  G.spread = spread; G.simNodes = nodes;
   G.sim = d3.forceSimulation(nodes).alphaDecay(big ? 0.05 : 0.025).alphaMin(0.004).velocityDecay(0.4)
-    .force('link', d3.forceLink(G.links).distance(l => l.struct ? 30 : (big ? 55 : 75)).strength(l => l.struct ? 0.6 : 0.3))
+    .force('link', d3.forceLink(links).id(d => d.i).distance(l => l.struct ? 30 : (big ? 55 : 75)).strength(l => l.struct ? 0.6 : 0.3))
     .force('charge', d3.forceManyBody().strength(d => d.tier === 0 ? -300 : (d.type === 'Cluster' ? -90 : -45)).theta(0.9).distanceMax(500))
     .force('x', d3.forceX(0).strength(0.015))
     .force('y', d3.forceY(d => tierY(d.tier, spread)).strength(0.04));
@@ -235,9 +300,10 @@ function onLayoutDone() {
   rebuildQuad(); miniRebuild();
   if (!G.userMoved) fitGraph(true);
   if (G.pendingLocate != null) { const i = G.pendingLocate; G.pendingLocate = null; locateFix(i); }
+  if (G.pendingZoomNode != null) { const i = G.pendingZoomNode; G.pendingZoomNode = null; zoomToNode(i); }
 }
 
-function rebuildQuad() { G.quad = d3.quadtree(G.nodes, d => d.x, d => d.y); }
+function rebuildQuad() { G.quad = d3.quadtree(G.simNodes || G.nodes, d => d.x, d => d.y); }
 
 function findNode(sx, sy) {
   if (!G.quad) return null;
@@ -268,7 +334,7 @@ function frame(ts) {
     const a = G.sim.alpha(), am = G.sim.alphaMin();
     G.progress = Math.max(0, Math.min(1, Math.log(Math.max(a, am) / G.alpha0) / Math.log(am / G.alpha0)));
     document.getElementById('gl-fill').style.width = (G.progress * 100).toFixed(0) + '%';
-    document.getElementById('gl-text').textContent = 'Laying out ' + G.nodes.length.toLocaleString() + ' nodes... ' + (G.progress * 100).toFixed(0) + '%';
+    document.getElementById('gl-text').textContent = 'Laying out ' + G.active.toLocaleString() + ' nodes... ' + (G.progress * 100).toFixed(0) + '%';
     if (G.frameNo % 6 === 0) rebuildQuad();
     if (G.frameNo % 24 === 0) { miniRebuild(); if (!G.userMoved) fitGraph(false); }
     if (a <= am && !G.dragging) { G.layoutRunning = false; onLayoutDone(); }
@@ -297,7 +363,7 @@ function clipLine(ax, ay, bx, by, x0, y0, x1, y1) {
   SEG[0] = ax + t0 * dx; SEG[1] = ay + t0 * dy; SEG[2] = ax + t1 * dx; SEG[3] = ay + t1 * dy;
   return true;
 }
-function isLinkHidden(l) { return G.hiddenTypes.has(l.type) || (G.hideStruct && l.struct); }
+function isLinkHidden(l) { return (G.loff && G.loff[l.i]) || G.hiddenTypes.has(l.type) || (G.hideStruct && l.struct); }
 
 function draw() {
   G.dirty = false;
@@ -309,7 +375,7 @@ function draw() {
   const vis = G.vis; let visCount = 0;
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i], m = n.r + 6;
-    const v = n.x + m >= x0 && n.x - m <= x1 && n.y + m >= y0 && n.y - m <= y1 ? 1 : 0;
+    const v = !G.off[i] && n.x + m >= x0 && n.x - m <= x1 && n.y + m >= y0 && n.y - m <= y1 ? 1 : 0;
     vis[i] = v; visCount += v;
   }
   const heavy = nodes.length > 2500 || links.length > 6000;
@@ -507,15 +573,16 @@ function draw() {
 /* ---------- HUD / minimap ---------- */
 function updateHud() {
   const m = graphData.meta || {}, el = document.getElementById('graph-hud');
-  let t = G.nodes.length.toLocaleString() + ' nodes | ' + G.links.length.toLocaleString() + ' edges | ' + Math.round(G.fps) + ' fps';
+  const modeName = G.mode === 'paths' ? 'Attack paths only' : G.mode === 'context' ? 'Paths with context' : 'Everything';
+  let t = '<b>' + modeName + '</b>: ' + G.active.toLocaleString() + ' of ' + G.nodes.length.toLocaleString() + ' objects | ' + G.activeLinks.toLocaleString() + ' edges | ' + Math.round(G.fps) + ' fps';
   if (m.hidden_in_clusters) t += '<br>' + m.hidden_in_clusters.toLocaleString() + ' leaf objects collapsed into clusters';
   if (m.truncated) t += '<br>Top ' + m.shown.toLocaleString() + ' of ' + m.in_paths.toLocaleString() + ' path-relevant nodes shown (use --graph-nodes to raise)';
-  t += '<br>' + (m.graph_total || 0).toLocaleString() + ' objects in the AD graph | zoom ' + G.k.toFixed(2) + 'x';
+  t += '<br>' + (G.pathCount || 0).toLocaleString() + ' objects lie on attack paths | ' + (m.graph_total || 0).toLocaleString() + ' objects in the environment | zoom ' + G.k.toFixed(2) + 'x';
   el.innerHTML = t;
 }
 
 function miniRebuild() {
-  const mw = G.mini.width, mh = G.mini.height, nodes = G.nodes;
+  const mw = G.mini.width, mh = G.mini.height, nodes = G.nodes.filter(x => !G.off[x.i]);
   if (!nodes.length) return;
   let ax = Infinity, bx = -Infinity, ay = Infinity, by = -Infinity;
   nodes.forEach(n => { if (n.x < ax) ax = n.x; if (n.x > bx) bx = n.x; if (n.y < ay) ay = n.y; if (n.y > by) by = n.y; });
@@ -552,13 +619,15 @@ function initMinimap() {
 
 /* ---------- viewport helpers ---------- */
 function fitGraph(animate) {
-  if (!G.nodes.length) return;
-  const xs = G.nodes.map(n => n.x).sort((a, b) => a - b), ys = G.nodes.map(n => n.y).sort((a, b) => a - b);
+  const vn = G.nodes.filter(x => !G.off[x.i]);
+  if (!vn.length) return;
+  const xs = vn.map(n => n.x).sort((a, b) => a - b), ys = vn.map(n => n.y).sort((a, b) => a - b);
   const lo = Math.floor(xs.length * 0.01), hi = Math.max(lo, Math.ceil(xs.length * 0.99) - 1);
   const ax = xs[lo], bx = xs[hi], ay = ys[lo], by = ys[hi];
   const bw = Math.max(80, bx - ax), bh = Math.max(80, by - ay);
-  const k = Math.min(G.w / (bw * 1.15), G.h / (bh * 1.2), 3);
-  const tr = d3.zoomIdentity.translate(G.w / 2 - ((ax + bx) / 2) * k, G.h / 2 - ((ay + by) / 2) * k).scale(k);
+  const padT = 56, padB = 130, usableH = Math.max(120, G.h - padT - padB);      // keep clear of the toolbar and the fix-simulation panel
+  const k = Math.min(G.w / (bw * 1.25), usableH / (bh * 1.3), 1.6);
+  const tr = d3.zoomIdentity.translate(G.w / 2 - ((ax + bx) / 2) * k, padT + usableH / 2 - ((ay + by) / 2) * k).scale(k);
   const s = d3.select(G.canvas);
   if (animate) s.transition().duration(450).call(G.zoom.transform, tr); else s.call(G.zoom.transform, tr);
 }
@@ -622,7 +691,7 @@ function shortestPath(src, goalFn) {
     }
     for (const li of G.out[u]) {
       const l = G.links[li];
-      if (G.removed.has(li) || G.hiddenTypes.has(l.type)) continue;
+      if (G.removed.has(li) || G.hiddenTypes.has(l.type) || G.loff[li]) continue;
       if (prev[l.t] !== -2) continue;
       prev[l.t] = u; pl[l.t] = li; q.push(l.t);
     }
@@ -635,8 +704,8 @@ function neighborhood(i, hops) {
   for (let h = 0; h < hops; h++) {
     const next = [];
     frontier.forEach(u => {
-      G.out[u].forEach(li => { const v = G.links[li].t; if (!nodes.has(v)) { nodes.add(v); next.push(v); } });
-      G.inn[u].forEach(li => { const v = G.links[li].s; if (!nodes.has(v)) { nodes.add(v); next.push(v); } });
+      G.out[u].forEach(li => { if (G.loff[li]) return; const v = G.links[li].t; if (!nodes.has(v)) { nodes.add(v); next.push(v); } });
+      G.inn[u].forEach(li => { if (G.loff[li]) return; const v = G.links[li].s; if (!nodes.has(v)) { nodes.add(v); next.push(v); } });
     });
     frontier = next;
   }
@@ -845,7 +914,10 @@ function initSearch() {
     found.forEach(([n, member], i) => {
       const div = document.createElement('div'); div.className = 'sr';
       div.innerHTML = '<span>' + (member ? member + ' <span class="sr-type">in ' + n.name + '</span>' : n.name) + '</span><span class="sr-type">' + esc(n.type) + ' T' + n.tier + '</span>';
-      div.addEventListener('click', () => { results.style.display = 'none'; input.value = member ? dec(member) : n.label; zoomToNode(n.i); });
+      div.addEventListener('click', () => {
+        results.style.display = 'none'; input.value = member ? dec(member) : n.label;
+        if (G.off[n.i]) { G.pendingZoomNode = n.i; setViewMode('all', true); showToast(n.label + ' is outside the current view: showing everything'); } else zoomToNode(n.i);
+      });
       div.addEventListener('mouseenter', () => { results.querySelectorAll('.sr').forEach(s => s.classList.remove('active')); div.classList.add('active'); activeIdx = i; });
       results.appendChild(div);
     });

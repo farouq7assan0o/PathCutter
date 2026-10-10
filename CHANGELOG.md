@@ -34,6 +34,9 @@
   harness JSON and were removed; the relay tests now build the harness graph, run the code and compare.
 - **Workload identity federation** (`AZFederatedIdentityCredential` -> `AZAuthenticatesTo` edges, audit rules for wildcard subjects and
   external issuers), found missing on the first real tenant export and validated edge for edge against BloodHound's own fixture.
+- **Attack graph**: a view switch (Attack paths only / + Context / Everything, remembered), a Move-nodes lock with pinned nodes
+  (double-click releases), Re-layout, a collapsible legend, layout run only on what is drawn, the fit leaves room for the toolbar and
+  the fix panel, search brings hidden objects into view. Links and nodes now carry an on-path flag.
 - Engine: 20,000 differential fuzz seeds clean after these changes; ingest at 200k objects unchanged (4.9 s).
 
 ## 0.5.0
