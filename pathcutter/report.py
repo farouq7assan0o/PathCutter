@@ -106,21 +106,22 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
 
     total_in_paths = len(participation)
 
-    # No attack path reaches Tier 0 (a clean environment): the attack-focused view would be empty, so show a general
-    # context graph instead - every Tier 0 object plus the most-connected objects, up to the node cap, with their edges.
-    if not participation:
+    # Show the surrounding environment, not only the attack-path nodes: add every Tier 0 object and the most-connected
+    # objects (with their edges) up to the node cap, so the graph is the whole domain/tenant with the attack paths
+    # highlighted - never a near-empty canvas. Huge environments whose paths already fill the cap are left focused.
+    if len(participation) < max_nodes:
         degree: dict[str, int] = {}
         for u, v, _ in graph.all_edges():
             degree[u] = degree.get(u, 0) + 1
             degree[v] = degree.get(v, 0) + 1
-        seed = set(graph.tier0_nodes)
+        seed = set(participation) | set(graph.tier0_nodes)
         for nid in sorted(degree, key=lambda n: degree[n], reverse=True):
             if len(seed) >= max_nodes:
                 break
             seed.add(nid)
         for u, v, d in graph.all_edges():
             if u in seed and v in seed:
-                link_set[(u, v, d.get("edge_type", ""))] = None
+                link_set.setdefault((u, v, d.get("edge_type", "")), None)
                 participation.setdefault(u, 0)
                 participation.setdefault(v, 0)
         for nid in seed:                       # keep isolated Tier 0 nodes visible too
@@ -706,7 +707,7 @@ tr {{ cursor: pointer; }}
 .ctx-menu .ctx-item:hover {{ background: rgba(59,130,246,0.15); }}
 .ctx-menu .ctx-sep {{ height: 1px; background: var(--border); margin: 2px 0; }}
 .chart-container {{ width: 100%; height: 180px; }}
-#chart-nodes {{ height: auto; min-height: 180px; max-height: 440px; overflow-y: auto; }}
+.chart-container svg {{ display:block; }}
 #graph-legend {{ position: absolute; bottom: 10px; left: 10px; background: rgba(10,15,30,0.95); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.75rem; z-index: 5; }}
 #graph-legend .item {{ display: flex; align-items: center; gap: 8px; margin: 4px 0; }}
 #graph-legend .icon {{ width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }}
@@ -1312,52 +1313,42 @@ function drawOverviewCharts() {{
   const nodeTypes = summaryData.node_types || {{}};
   const edgeTypes = summaryData.edge_types || {{}};
 
-  // Node distribution bar chart
+  // Node and edge bar charts: equal height, top-aligned bars of a fixed thickness, labels given room so they do not clip.
   const nd = Object.entries(nodeTypes).sort((a, b) => b[1] - a[1]);
-  if (nd.length) {{
-    const ct = document.getElementById('chart-nodes');
-    const w = ct.clientWidth, h = Math.max(180, nd.length * 18 + 24);
-    const svgN = d3.select('#chart-nodes').append('svg').attr('width', w).attr('height', h);
-    const margin = {{top: 8, right: 44, bottom: 24, left: 56}};
-    const iw = w - margin.left - margin.right, ih = h - margin.top - margin.bottom;
-    const g = svgN.append('g').attr('transform', `translate(${{margin.left}},${{margin.top}})`);
-    const x = d3.scaleLinear().domain([0, d3.max(nd, d => d[1])]).range([0, iw]);
-    const y = d3.scaleBand().domain(nd.map(d => d[0])).range([0, ih]).padding(0.3);
-    g.selectAll('rect').data(nd).enter().append('rect')
-      .attr('x', 0).attr('y', d => y(d[0])).attr('width', d => x(d[1])).attr('height', y.bandwidth())
-      .attr('fill', d => NODE_COLORS[d[0]] || '#64748b').attr('rx', 3).attr('opacity', 0.85);
-    g.selectAll('.label').data(nd).enter().append('text')
-      .attr('x', d => x(d[1]) + 4).attr('y', d => y(d[0]) + y.bandwidth() / 2)
-      .attr('dy', '0.35em').attr('fill', '#94a3b8').attr('font-size', '10px').text(d => d[1]);
-    g.selectAll('.name').data(nd).enter().append('text')
-      .attr('x', -4).attr('y', d => y(d[0]) + y.bandwidth() / 2)
-      .attr('dy', '0.35em').attr('text-anchor', 'end').attr('fill', '#e2e8f0').attr('font-size', '10px')
-      .text(d => d[0].length > 13 ? d[0].substring(0, 12) + '..' : d[0]);
-  }}
-
-  // Edge type distribution (top 10)
   const plumbing = new Set(['MemberOf', 'Contains', 'AZContains', 'TrustedBy', 'Enroll', 'AutoEnroll', 'ManageCA', 'ManageCertificates', 'GetChanges', 'GetChangesAll']);
-  const ed = Object.entries(edgeTypes).filter(d => !plumbing.has(d[0])).sort((a, b) => b[1] - a[1]).slice(0, 10);
-  if (ed.length) {{
-    const ct = document.getElementById('chart-edges');
-    const w = ct.clientWidth, h = ct.clientHeight;
-    const svgE = d3.select('#chart-edges').append('svg').attr('width', w).attr('height', h);
-    const margin = {{top: 8, right: 48, bottom: 24, left: 116}};
-    const iw = w - margin.left - margin.right, ih = h - margin.top - margin.bottom;
-    const g = svgE.append('g').attr('transform', `translate(${{margin.left}},${{margin.top}})`);
-    const x = d3.scaleLinear().domain([0, d3.max(ed, d => d[1])]).range([0, iw]);
-    const y = d3.scaleBand().domain(ed.map(d => d[0])).range([0, ih]).padding(0.25);
-    g.selectAll('rect').data(ed).enter().append('rect')
-      .attr('x', 0).attr('y', d => y(d[0])).attr('width', d => x(d[1])).attr('height', y.bandwidth())
-      .attr('fill', d => EDGE_COLORS[d[0]] || '#475569').attr('rx', 3).attr('opacity', 0.85);
-    g.selectAll('.label').data(ed).enter().append('text')
-      .attr('x', d => x(d[1]) + 4).attr('y', d => y(d[0]) + y.bandwidth() / 2)
+  const ed = Object.entries(edgeTypes).filter(d => !plumbing.has(d[0])).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  const SHORT = {{AZServicePrincipal: 'Service Principal', AZFederatedIdentityCredential: 'Fed. Identity Cred',
+    AZManagementGroup: 'Mgmt Group', AZSubscription: 'Subscription', AZResourceGroup: 'Resource Group',
+    AZResource: 'AZ Resource', AZKeyVault: 'Key Vault', AZManagedCluster: 'AKS Cluster', AZContainerRegistry: 'Container Reg',
+    AZAutomationAccount: 'Automation Acct', AZLogicApp: 'Logic App', AZFunctionApp: 'Function App', AZVMScaleSet: 'VM Scale Set',
+    AZWebApp: 'Web App', CertTemplate: 'Cert Template', EnterpriseCA: 'Enterprise CA', IssuancePolicy: 'Issuance Policy',
+    AZManagedIdentity: 'Managed Identity'}};
+  const lbl = t => SHORT[t] || t;
+  const ROW = 20, PAD = 0.28;
+  const chartH = Math.max(180, Math.max(nd.length, ed.length) * ROW + 20);
+  function bars(sel, data, colors, nameLeft) {{
+    if (!data.length) return;
+    const ct = document.getElementById(sel);
+    const w = ct.clientWidth, h = chartH;
+    const svg = d3.select('#' + sel).append('svg').attr('width', w).attr('height', h);
+    const margin = {{top: 8, right: 40, bottom: 12, left: nameLeft}};
+    const iw = w - margin.left - margin.right;
+    const g = svg.append('g').attr('transform', `translate(${{margin.left}},${{margin.top}})`);
+    const x = d3.scaleLinear().domain([0, d3.max(data, d => d[1]) || 1]).range([0, iw]);
+    const y = d3.scaleBand().domain(data.map(d => d[0])).range([0, data.length * ROW]).padding(PAD);
+    g.selectAll('rect').data(data).enter().append('rect')
+      .attr('x', 0).attr('y', d => y(d[0])).attr('width', d => Math.max(2, x(d[1]))).attr('height', y.bandwidth())
+      .attr('fill', d => colors[d[0]] || '#64748b').attr('rx', 3).attr('opacity', 0.9);
+    g.selectAll('.val').data(data).enter().append('text')
+      .attr('x', d => Math.max(2, x(d[1])) + 5).attr('y', d => y(d[0]) + y.bandwidth() / 2)
       .attr('dy', '0.35em').attr('fill', '#94a3b8').attr('font-size', '10px').text(d => d[1]);
-    g.selectAll('.name').data(ed).enter().append('text')
-      .attr('x', -4).attr('y', d => y(d[0]) + y.bandwidth() / 2)
+    g.selectAll('.name').data(data).enter().append('text')
+      .attr('x', -6).attr('y', d => y(d[0]) + y.bandwidth() / 2)
       .attr('dy', '0.35em').attr('text-anchor', 'end').attr('fill', '#e2e8f0').attr('font-size', '10px')
-      .text(d => d[0]);
+      .text(d => lbl(d[0]));
   }}
+  bars('chart-nodes', nd, NODE_COLORS, 128);
+  bars('chart-edges', ed, EDGE_COLORS, 134);
 }}
 drawOverviewCharts();
 
