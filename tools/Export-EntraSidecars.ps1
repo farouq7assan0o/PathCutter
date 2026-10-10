@@ -19,7 +19,9 @@
   .\Export-EntraSidecars.ps1 -OutDir D:\collect\entra
 #>
 [CmdletBinding()]
-param([string]$OutDir = (Join-Path (Get-Location).Path 'entra-export'))
+param([string]$OutDir = (Join-Path (Get-Location).Path 'entra-export'),
+      [string]$TenantId,                 # tenant id or domain, e.g. pcsedu.tech: pick the right directory when you belong to several
+      [switch]$DeviceCode)               # sign in with a code typed into a browser (use this when the pop-up sign-in fails)
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $log = Join-Path $OutDir 'export-log.txt'
@@ -27,7 +29,10 @@ Set-Content -Path $log -Value "Export-EntraSidecars $(Get-Date -Format s)"
 
 $scopes = 'Policy.Read.All', 'RoleManagement.Read.Directory', 'RoleManagementPolicy.Read.Directory',
           'AdministrativeUnit.Read.All', 'Directory.Read.All'
-Connect-MgGraph -Scopes $scopes -NoWelcome | Out-Null
+$connect = @{ Scopes = $scopes; NoWelcome = $true }
+if ($TenantId) { $connect.TenantId = $TenantId }
+if ($DeviceCode) { $connect.UseDeviceAuthentication = $true }
+Connect-MgGraph @connect | Out-Null
 $ctx = Get-MgContext
 Add-Content $log "tenant $($ctx.TenantId) account $($ctx.Account)"
 
