@@ -1,0 +1,8 @@
+The ZIP files in this directory are from:
+
+  m4lwhere/Bloodhound-CE-Sample-Data - https://github.com/m4lwhere/Bloodhound-CE-Sample-Data
+  Licensed under MIT License
+
+They are BloodHound.py CE exports from the GOAD lab (three domains:
+NORTH, ESSOS, SEVENKINGDOMS) used as integration test fixtures for
+validating PathCutter's ingest pipeline against real-world-like data.

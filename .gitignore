@@ -11,6 +11,7 @@ pathcutter-remediate.*
 *.zip
 !tests/data/real/*.zip
 !tests/data/vendor/*.zip
+!tests/data/sample-exports/*.zip
 datasets/
 test-data/
 tests/test_sharphound_data/
