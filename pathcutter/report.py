@@ -105,6 +105,26 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
             link_set[(path.nodes[i], path.nodes[i + 1], edge.get("edge_type", ""))] = None
 
     total_in_paths = len(participation)
+
+    # No attack path reaches Tier 0 (a clean environment): the attack-focused view would be empty, so show a general
+    # context graph instead - every Tier 0 object plus the most-connected objects, up to the node cap, with their edges.
+    if not participation:
+        degree: dict[str, int] = {}
+        for u, v, _ in graph.all_edges():
+            degree[u] = degree.get(u, 0) + 1
+            degree[v] = degree.get(v, 0) + 1
+        seed = set(graph.tier0_nodes)
+        for nid in sorted(degree, key=lambda n: degree[n], reverse=True):
+            if len(seed) >= max_nodes:
+                break
+            seed.add(nid)
+        for u, v, d in graph.all_edges():
+            if u in seed and v in seed:
+                link_set[(u, v, d.get("edge_type", ""))] = None
+                participation.setdefault(u, 0)
+                participation.setdefault(v, 0)
+        for nid in seed:                       # keep isolated Tier 0 nodes visible too
+            participation.setdefault(nid, 0)
     truncated = False
     if total_in_paths > max_nodes:
         truncated = True
