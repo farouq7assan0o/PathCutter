@@ -1,9 +1,9 @@
-"""NTLM relay edge derivation tests, validated against BloodHound CE integration harnesses.
+"""NTLM relay edge derivation (experimental, NOT applied at load time: see pathcutter/relay.py).
 
-The harness files in tests/data/harnesses/ are from SpecterOps/BloodHound (Apache-2.0). They define
-the input graph (nodes with properties like SMBSigning, LDAPSigning, WebclientRunning) and the expected
-derived edges (CoerceAndRelayNTLMToSMB, CoerceAndRelayNTLMToLDAP). We build equivalent PathCutter graphs
-and verify our derivation produces edges consistent with BloodHound's analysis.
+Unit tests on hand-built graphs, then the BloodHound CE integration harnesses in tests/data/harnesses/ (SpecterOps/BloodHound,
+Apache-2.0): each harness is an input graph plus the edges BloodHound derives from it. The harness tests build that graph,
+RUN `derive_relay_edges` and compare. Known disagreements are strict xfails, so they turn into failures the moment they are
+fixed and the marker has to go.
 """
 from __future__ import annotations
 
@@ -112,94 +112,54 @@ def test_combined_smb_and_ldap_relay():
     assert edge_types == {"CoerceAndRelayNTLMToSMB", "CoerceAndRelayNTLMToLDAP"}
 
 
-# ---------- harness-based oracle tests ----------
+# ---------- harness oracle: build the harness graph, run the derivation, compare with BloodHound's edges ----------
 
-@pytest.fixture
-def smb_harness():
-    with open(HARNESS_DIR / "CoerceAndRelayNTLMToSMB.json") as f:
-        return json.load(f)
-
-
-@pytest.fixture
-def ldap_harness():
-    with open(HARNESS_DIR / "CoerceAndRelayNTLMToLDAP.json") as f:
-        return json.load(f)
-
-
-def test_harness_smb_relay_conditions(smb_harness):
-    """BloodHound's SMB relay harness: relay only to computers with SMBSigning=False."""
-    rels = smb_harness["relationships"]
-    node_map = {n["id"]: n for n in smb_harness["nodes"]}
-    relay_rels = [r for r in rels if r["type"] == "CoerceAndRelayNTLMToSMB"]
-
-    for r in relay_rels:
-        target = node_map[r["toId"]]
-        assert target["properties"].get("SMBSigning") == "False", \
-            f"SMB relay target {target['caption']} should have SMBSigning=False"
-
-    non_relay_targets = {n["id"] for n in smb_harness["nodes"] if n["properties"].get("SMBSigning") == "True"}
-    relay_target_ids = {r["toId"] for r in relay_rels}
-    assert not (non_relay_targets & relay_target_ids), "SMB-signing hosts should not be relay targets"
+def _harness_graph(name: str, kind: str):
+    d = json.loads((HARNESS_DIR / f"{name}.json").read_text())
+    g = AttackGraph()
+    ids = {}
+    for n in d["nodes"]:
+        p, cap = n["properties"], n["caption"]
+        nt = NodeType.COMPUTER if cap.startswith("Computer") else NodeType.DOMAIN if cap.startswith("Domain") else NodeType.GROUP
+        oid = p["ObjectID"] if nt == NodeType.GROUP and p.get("ObjectID") else cap
+        ids[n["id"]] = oid
+        props = {k.lower(): (True if v == "True" else False if v == "False" else v) for k, v in p.items()}
+        props["domainsid"] = p.get("DomainSID", "")
+        g.add_node(ADNode(object_id=oid, name=p.get("Name") or cap, node_type=nt, properties=props))
+    expected = set()
+    for r in d["relationships"]:
+        a, b, t = ids[r["fromId"]], ids[r["toId"]], r["type"]
+        if t == kind:
+            expected.add((a, b))
+        elif t in ("MemberOf", "AdminTo"):
+            g.add_edge(ADEdge(source_id=a, target_id=b, edge_type=t, properties={}))
+        elif t == "DCFor":
+            g.get_node(a).properties["isdc"] = True
+    return g, expected
 
 
-def test_harness_smb_restrict_outbound_not_relay_source(smb_harness):
-    """Computers with RestrictOutboundNTLM=True should not produce relay edges."""
-    node_map = {n["id"]: n for n in smb_harness["nodes"]}
-    rels = smb_harness["relationships"]
-    restrict_nodes = {n["id"] for n in smb_harness["nodes"]
-                      if n["properties"].get("RestrictOutboundNTLM") == "True"}
-    assert len(restrict_nodes) > 0, "Harness should have RestrictOutboundNTLM=True nodes"
-
-    admin_targets = {}
-    for r in rels:
-        if r["type"] == "AdminTo":
-            admin_targets.setdefault(r["fromId"], set()).add(r["toId"])
+def _derived(g, kind):
+    derive_relay_edges(g)
+    return {(u, v) for u, v, d in g.all_edges() if d.get("edge_type") == kind}
 
 
-def test_harness_ldap_relay_conditions(ldap_harness):
-    """BloodHound's LDAP relay harness: relay only when DC has LDAPSigning=False and target has WebclientRunning=True."""
-    rels = ldap_harness["relationships"]
-    node_map = {n["id"]: n for n in ldap_harness["nodes"]}
-    relay_rels = [r for r in rels if r["type"] == "CoerceAndRelayNTLMToLDAP"]
-
-    for r in relay_rels:
-        target = node_map[r["toId"]]
-        assert target["properties"].get("WebclientRunning") == "True", \
-            f"LDAP relay target {target['caption']} should have WebclientRunning=True"
-
-    assert len(relay_rels) > 0
+@pytest.mark.parametrize("name,kind", [("CoerceAndRelayNTLMToSMB", "CoerceAndRelayNTLMToSMB"),
+                                       ("CoerceAndRelayNTLMToLDAP", "CoerceAndRelayNTLMToLDAP")])
+def test_every_edge_bloodhound_derives_is_derived(name, kind):
+    g, expected = _harness_graph(name, kind)
+    assert expected and expected <= _derived(g, kind), "a relay path BloodHound finds is missed"
 
 
-def test_harness_ldap_signing_blocks_relay(ldap_harness):
-    """Domains with LDAPSigning=True should not have relay edges."""
-    node_map = {n["id"]: n for n in ldap_harness["nodes"]}
-    rels = ldap_harness["relationships"]
-
-    dc_rels = [r for r in rels if r["type"] == "DCFor"]
-    signing_domains = set()
-    for r in dc_rels:
-        dc_node = node_map[r["fromId"]]
-        if dc_node["properties"].get("LDAPSigning") == "True":
-            domain_node = node_map[r["toId"]]
-            signing_domains.add(domain_node["properties"].get("DomainSID"))
-
-    relay_rels = [r for r in rels if r["type"] == "CoerceAndRelayNTLMToLDAP"]
-    for r in relay_rels:
-        target = node_map[r["toId"]]
-        assert target["properties"].get("DomainSID") not in signing_domains, \
-            f"Relay target {target['caption']} is in a domain with LDAP signing required"
+@pytest.mark.xfail(strict=True, reason="over-reports: ignores Protected Users (functional level >= 2012R2) and RestrictOutboundNTLM")
+@pytest.mark.parametrize("name,kind", [("CoerceAndRelayNTLMToSMB", "CoerceAndRelayNTLMToSMB"),
+                                       ("CoerceAndRelayNTLMToLDAP", "CoerceAndRelayNTLMToLDAP")])
+def test_no_edge_bloodhound_does_not_derive(name, kind):
+    g, expected = _harness_graph(name, kind)
+    assert _derived(g, kind) == expected
 
 
-def test_harness_protected_users_structure(smb_harness):
-    """Verify the harness models Protected Users membership correctly."""
-    node_map = {n["id"]: n for n in smb_harness["nodes"]}
-    rels = smb_harness["relationships"]
-    protected_groups = {n["id"] for n in smb_harness["nodes"]
-                        if "PROTECTED USERS" in (n.get("properties", {}).get("Name") or "").upper()}
-    protected_members = set()
-    for r in rels:
-        if r["type"] == "MemberOf" and r["toId"] in protected_groups:
-            protected_members.add(r["fromId"])
-
-    assert len(protected_groups) > 0, "Harness should have Protected Users groups"
-    assert len(protected_members) > 0, "Harness should have Protected Users members"
+def test_relay_is_not_applied_at_load_time():
+    """It over-reports, so it must not change exposure scores until the xfail above passes."""
+    import inspect
+    from pathcutter import ingest
+    assert "derive_relay_edges" not in inspect.getsource(ingest._finish)

@@ -6,7 +6,11 @@ membership and Protected Users, this lets us derive two relay attack edges:
   CoerceAndRelayNTLMToSMB   attacker coerces a machine to authenticate and relays to a target with SMB signing off
   CoerceAndRelayNTLMToLDAP  attacker coerces a WebClient-enabled machine and relays to a DC with LDAP signing off
 
-Conditions mirror BloodHound CE's analysis (SpecterOps/BloodHound integration harnesses, Apache-2.0).
+EXPERIMENTAL, NOT APPLIED AT LOAD TIME. Checked against BloodHound CE's own integration harnesses (tests/test_relay.py) it finds
+every relay edge BloodHound finds but also emits edges BloodHound deliberately does not: it ignores Protected Users (effective
+from functional level 2012 R2) and RestrictOutboundNTLM, and it has no requirement that a coercible machine administers the
+target. On a network where signing is off almost everywhere that would put most computers one hop from "everyone". It stays out
+of `_finish` until the strict xfail in the tests passes, and no real collection in the repository carries these properties.
 
 SMB relay:  source domain's Authenticated Users -> every computer in that domain where smbsigning is False,
             excluding domain controllers.

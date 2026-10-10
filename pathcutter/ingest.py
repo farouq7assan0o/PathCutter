@@ -578,8 +578,6 @@ def _finish(graph: AttackGraph) -> AttackGraph:
     _link_unconstrained_delegation(graph)
     from .gpo_rights import derive_gpo_privileges
     derive_gpo_privileges(graph)
-    from .relay import derive_relay_edges
-    derive_relay_edges(graph)
     from .restrictions import apply_restrictions
     apply_restrictions(graph)
     graph.classify_tiers()

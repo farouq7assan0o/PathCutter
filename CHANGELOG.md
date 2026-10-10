@@ -19,6 +19,9 @@
   "Microsoft Graph"; Entra ingest 3x faster.
 - Key vault access policies are read (AZGetSecrets / AZGetKeys / AZGetCertificates), listed by `audit` and never walked; ESC14 is documented as
   subsumed by the GenericWrite edges already followed; the anonymizer test shares one copy per fixture.
+- NTLM relay derivation (`relay.py`) is experimental and NOT applied when a collection loads: against BloodHound's own harnesses it
+  over-reports (Protected Users, RestrictOutboundNTLM), which a strict xfail now records. The earlier "harness oracle" tests only read the
+  harness JSON and were removed; the relay tests now build the harness graph, run the code and compare.
 - Engine: 20,000 differential fuzz seeds clean after these changes; ingest at 200k objects unchanged (4.9 s).
 
 ## 0.5.0
