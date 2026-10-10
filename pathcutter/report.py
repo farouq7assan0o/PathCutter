@@ -706,6 +706,7 @@ tr {{ cursor: pointer; }}
 .ctx-menu .ctx-item:hover {{ background: rgba(59,130,246,0.15); }}
 .ctx-menu .ctx-sep {{ height: 1px; background: var(--border); margin: 2px 0; }}
 .chart-container {{ width: 100%; height: 180px; }}
+#chart-nodes {{ height: auto; min-height: 180px; max-height: 440px; overflow-y: auto; }}
 #graph-legend {{ position: absolute; bottom: 10px; left: 10px; background: rgba(10,15,30,0.95); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.75rem; z-index: 5; }}
 #graph-legend .item {{ display: flex; align-items: center; gap: 8px; margin: 4px 0; }}
 #graph-legend .icon {{ width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }}
@@ -1315,7 +1316,7 @@ function drawOverviewCharts() {{
   const nd = Object.entries(nodeTypes).sort((a, b) => b[1] - a[1]);
   if (nd.length) {{
     const ct = document.getElementById('chart-nodes');
-    const w = ct.clientWidth, h = ct.clientHeight;
+    const w = ct.clientWidth, h = Math.max(180, nd.length * 18 + 24);
     const svgN = d3.select('#chart-nodes').append('svg').attr('width', w).attr('height', h);
     const margin = {{top: 8, right: 44, bottom: 24, left: 56}};
     const iw = w - margin.left - margin.right, ih = h - margin.top - margin.bottom;
@@ -1331,7 +1332,7 @@ function drawOverviewCharts() {{
     g.selectAll('.name').data(nd).enter().append('text')
       .attr('x', -4).attr('y', d => y(d[0]) + y.bandwidth() / 2)
       .attr('dy', '0.35em').attr('text-anchor', 'end').attr('fill', '#e2e8f0').attr('font-size', '10px')
-      .text(d => d[0].length > 8 ? d[0].substring(0, 7) + '..' : d[0]);
+      .text(d => d[0].length > 13 ? d[0].substring(0, 12) + '..' : d[0]);
   }}
 
   // Edge type distribution (top 10)
