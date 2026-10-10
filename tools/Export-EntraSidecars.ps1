@@ -21,27 +21,46 @@
 [CmdletBinding()]
 param([string]$OutDir = (Join-Path (Get-Location).Path 'entra-export'),
       [string]$TenantId,                 # tenant id or domain, e.g. pcsedu.tech: pick the right directory when you belong to several
-      [switch]$DeviceCode)               # sign in with a code typed into a browser (use this when the pop-up sign-in fails)
+      [switch]$DeviceCode,               # sign in with a code typed into a browser (use this when the pop-up sign-in fails)
+      [switch]$UseAzCli)                 # reuse `az login`: no Microsoft.Graph module needed (use this when Connect-MgGraph crashes)
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $log = Join-Path $OutDir 'export-log.txt'
 Set-Content -Path $log -Value "Export-EntraSidecars $(Get-Date -Format s)"
 
-$scopes = 'Policy.Read.All', 'RoleManagement.Read.Directory', 'RoleManagementPolicy.Read.Directory',
-          'AdministrativeUnit.Read.All', 'Directory.Read.All'
-$connect = @{ Scopes = $scopes; NoWelcome = $true }
-if ($TenantId) { $connect.TenantId = $TenantId }
-if ($DeviceCode) { $connect.UseDeviceAuthentication = $true }
-Connect-MgGraph @connect | Out-Null
-$ctx = Get-MgContext
-Add-Content $log "tenant $($ctx.TenantId) account $($ctx.Account)"
+$script:Token = $null
+if ($UseAzCli) {
+    $tenantArgs = @(); if ($TenantId) { $tenantArgs = @('--tenant', $TenantId) }
+    $script:Token = (& az account get-access-token --resource https://graph.microsoft.com @tenantArgs --query accessToken -o tsv)
+    if (-not $script:Token) { throw 'az account get-access-token returned nothing: run `az login` first' }
+    Add-Content $log ("signed in through az cli: " + (& az account show --query user.name -o tsv))
+} else {
+    $scopes = 'Policy.Read.All', 'RoleManagement.Read.Directory', 'RoleManagementPolicy.Read.Directory',
+              'AdministrativeUnit.Read.All', 'Directory.Read.All'
+    $connect = @{ Scopes = $scopes; NoWelcome = $true }
+    if ($TenantId) { $connect.TenantId = $TenantId }
+    if ($DeviceCode) { $connect.UseDeviceAuthentication = $true }
+    Connect-MgGraph @connect | Out-Null
+    $ctx = Get-MgContext
+    Add-Content $log "tenant $($ctx.TenantId) account $($ctx.Account)"
+}
+
+function Invoke-Graph([string]$Uri) {
+    if ($script:Token) { return Invoke-RestMethod -Method GET -Uri $Uri -Headers @{ Authorization = "Bearer $script:Token" } }
+    return Invoke-MgGraphRequest -Method GET -Uri $Uri
+}
 
 function Get-GraphPages([string]$Uri) {
     $all = @()
     while ($Uri) {
-        $r = Invoke-MgGraphRequest -Method GET -Uri $Uri
-        if ($r.ContainsKey('value')) { $all += @($r.value) } else { $all += $r }
-        $Uri = $r['@odata.nextLink']
+        $r = Invoke-Graph $Uri
+        if ($r -is [System.Collections.IDictionary]) {
+            if ($r.Contains('value')) { $all += @($r['value']) } else { $all += $r }
+            $Uri = $r['@odata.nextLink']
+        } else {
+            if ($r.PSObject.Properties['value']) { $all += @($r.value) } else { $all += $r }
+            $Uri = $r.'@odata.nextLink'
+        }
     }
     return $all
 }
@@ -87,5 +106,5 @@ try {   # administrative units with their members, in AzureHound's shape so the 
 } catch { $m = "FAIL administrative_units_azure.json : $($_.Exception.Message)" }
 Write-Host $m; Add-Content $log $m
 
-Disconnect-MgGraph | Out-Null
+if (-not $script:Token) { Disconnect-MgGraph | Out-Null }
 Write-Host "Done. Files and export-log.txt are in $OutDir"
