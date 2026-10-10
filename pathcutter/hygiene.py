@@ -88,6 +88,32 @@ def _enabled(n) -> bool:
 # ---------------------------------------------------------------------------------------------- accounts
 
 @rule
+def federated_credentials(ctx):
+    g = ctx.graph
+    fics = g.nodes_by_type(NodeType.AZ_FIC)
+    if not fics:
+        return []
+    out = []
+    loose = [f for f in fics if "*" in str(f.properties.get("subject") or "")]
+    if loose:
+        out.append(HygieneFinding("fic-wildcard-subject", f"{len(loose)} federated credential(s) trust a wildcard subject", "high",
+                                  "A subject such as a whole repository (`repo:org/name:*`) accepts a token from every branch, pull request and "
+                                  "workflow in it, so anyone who can push there can sign in as the application.",
+                                  "Pin the subject to one branch or environment; remove credentials that are no longer used.",
+                                  "T1550.001", sorted(f.display_name for f in loose)[:25], len(loose)))
+    ext = [f for f in fics if f.properties.get("issuer") and "login.microsoftonline.com" not in str(f.properties.get("issuer"))]
+    if ext:
+        issuers = sorted({str(f.properties.get("issuer")).split("/")[2] if "//" in str(f.properties.get("issuer")) else str(f.properties.get("issuer"))
+                          for f in ext})
+        out.append(HygieneFinding("fic-external-issuer", f"{len(ext)} application(s) accept tokens from outside Entra ({', '.join(issuers[:4])})", "info",
+                                  "Workload identity federation removes secrets, but the application is now only as safe as the external system "
+                                  "(CI pipeline, repository, other cloud) that can mint the trusted token.",
+                                  "Review who can run those pipelines and what permissions the target applications hold.",
+                                  "T1550.001", sorted(f.display_name for f in ext)[:25], len(ext)))
+    return out
+
+
+@rule
 def keyvault_secret_readers(ctx):
     g = ctx.graph
     readers: dict[str, set[str]] = {}

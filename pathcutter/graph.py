@@ -35,6 +35,7 @@ class NodeType(Enum):
     AZ_VM = "AZVM"
     AZ_KEYVAULT = "AZKeyVault"
     AZ_RESOURCE = "AZResource"
+    AZ_FIC = "AZFederatedIdentityCredential"
     AZ_MGMTGROUP = "AZManagementGroup"
     UNKNOWN = "Unknown"
 

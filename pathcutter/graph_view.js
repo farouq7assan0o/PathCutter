@@ -6,12 +6,12 @@
 
 const NODE_COLORS = { User: '#3b82f6', Computer: '#10b981', Group: '#f59e0b', Domain: '#ef4444', GPO: '#8b5cf6', OU: '#6366f1', Container: '#64748b', CertTemplate: '#ec4899', EnterpriseCA: '#ec4899', RootCA: '#ec4899', AIACA: '#ec4899', NTAuthStore: '#ec4899', IssuancePolicy: '#f472b6',
   AZUser: '#38bdf8', AZGroup: '#fbbf24', AZServicePrincipal: '#a78bfa', AZApp: '#a78bfa', AZRole: '#f43f5e', AZTenant: '#ef4444',
-  AZSubscription: '#0ea5e9', AZResourceGroup: '#64748b', AZVM: '#22c55e', AZKeyVault: '#eab308', AZResource: '#22c55e', AZManagementGroup: '#0ea5e9',
+  AZSubscription: '#0ea5e9', AZResourceGroup: '#64748b', AZVM: '#22c55e', AZKeyVault: '#eab308', AZResource: '#22c55e', AZFederatedIdentityCredential: '#a855f7', AZManagementGroup: '#0ea5e9',
   Cluster: '#94a3b8', Unknown: '#64748b' };
 // which drawing a type uses: identities and machines in the cloud look like their on-premises relatives, with a cloud tint in the colour
 const BASE_SHAPE = { AZUser: 'User', AZGroup: 'Group', AZVM: 'Computer', AZTenant: 'Domain', CertTemplate: 'GPO', IssuancePolicy: 'GPO',
   EnterpriseCA: 'Shield', RootCA: 'Shield', AIACA: 'Shield', NTAuthStore: 'Shield', AZRole: 'Shield',
-  AZServicePrincipal: 'Hex', AZApp: 'Hex', AZKeyVault: 'Hex', AZResource: 'Hex', AZSubscription: 'Hex', AZResourceGroup: 'Hex', AZManagementGroup: 'Hex' };
+  AZServicePrincipal: 'Hex', AZApp: 'Hex', AZKeyVault: 'Hex', AZResource: 'Hex', AZFederatedIdentityCredential: 'Hex', AZSubscription: 'Hex', AZResourceGroup: 'Hex', AZManagementGroup: 'Hex' };
 const NODE_SIZES = { 0: 18, 1: 12, 2: 8 };
 const EDGE_COLORS = {
   GenericAll: '#ef4444', GenericWrite: '#f97316', WriteDacl: '#f97316', WriteOwner: '#f97316', Owns: '#f97316',
@@ -23,7 +23,7 @@ const EDGE_COLORS = {
   ADCSESC1: '#ec4899', ADCSESC3: '#ec4899', ADCSESC4: '#ec4899', ADCSESC5: '#ec4899', ADCSESC6: '#ec4899', ADCSESC7: '#ec4899',
   ADCSESC9: '#ec4899', ADCSESC10: '#ec4899', ADCSESC8: '#ec4899', GPOUserRight: '#f59e0b', CoerceAndRelayNTLMToSMB: '#ef4444', CoerceAndRelayNTLMToLDAP: '#ef4444', ADCSESC16: '#ec4899', ADCSESC11: '#ec4899', AZMGAddMember: '#f43f5e', AZMGResetPassword: '#f43f5e', ADCSESC13: '#ec4899', ADCSESC15: '#ec4899', GoldenCert: '#ec4899',
   AZOwns: '#38bdf8', AZRunsAs: '#38bdf8', AZEligibleRole: '#38bdf8', AZResetPassword: '#38bdf8', AZAddSecret: '#38bdf8', AZMGGrantRole: '#f43f5e',
-  AZMGAddSecret: '#f43f5e', AZGetSecrets: '#eab308', AZGetKeys: '#eab308', AZGetCertificates: '#eab308', AZOwner: '#0ea5e9', AZContributor: '#0ea5e9', AZUserAccessAdmin: '#0ea5e9', AZVMAdminLogin: '#0ea5e9',
+  AZMGAddSecret: '#f43f5e', AZAuthenticatesTo: '#a855f7', AZGetSecrets: '#eab308', AZGetKeys: '#eab308', AZGetCertificates: '#eab308', AZOwner: '#0ea5e9', AZContributor: '#0ea5e9', AZUserAccessAdmin: '#0ea5e9', AZVMAdminLogin: '#0ea5e9',
   AZManagedIdentity: '#22c55e', SyncedTo: '#22d3ee',
   MemberOf: '#334155', Contains: '#334155', TrustedBy: '#64748b', AZContains: '#334155',
 };

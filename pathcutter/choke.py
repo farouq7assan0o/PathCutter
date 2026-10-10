@@ -42,6 +42,8 @@ class Fix:
             return f"Require SMB signing on {self.target_name} to block NTLM relay"
         if et == "CoerceAndRelayNTLMToLDAP":
             return f"Require LDAP signing on the domain controller and disable WebClient on {self.target_name}"
+        if et == "AZAuthenticatesTo":
+            return f"Remove or narrow the federated credential {self.source_name} that lets an external identity sign in as {self.target_name}"
         if et == "GPOUserRight":
             return f"Remove the dangerous user right that a GPO grants {self.source_name} on {self.target_name}"
         if et == "GoldenCert":

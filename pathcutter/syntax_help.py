@@ -163,6 +163,10 @@ NTLM RELAY (experimental, not applied)
   over-reports against BloodHound's own harnesses (it ignores Protected Users and RestrictOutboundNTLM), so it is NOT run when a
   collection is loaded and no edges of these types appear in results.
 
+WORKLOAD IDENTITY FEDERATION
+  A federated credential (GitHub, Azure DevOps, another tenant) becomes a node with an AZAuthenticatesTo edge to its application: whoever can
+  mint the trusted token acts as the app. Wildcard subjects and outside issuers are listed by `audit`.
+
 RESTRICTIONS (applied when the graph is built; always reported, never silent)
   Protected Users / 'sensitive and cannot be delegated': constrained and resource-based delegation edges into a host
   are removed when EVERY administrator of that host is protected. Listed by `audit`; `check` does not re-evaluate it

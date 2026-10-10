@@ -67,7 +67,7 @@ ADD_SECRET_PERMS = {"1BFEFB4E-E0B5-418B-A88F-73C46D2CC8E9": "Application.ReadWri
 ADD_MEMBER_PERMS = {"62A82D76-70EA-41E2-9197-370581804D09": "Group.ReadWrite.All", "DBAAE8CF-10B5-4B86-A4A1-F871C94C6695": "GroupMember.ReadWrite.All",
                     "19DBC75E-C2E2-444C-A770-EC69D8559FC7": "Directory.ReadWrite.All"}
 RESET_PW_PERMS = {"741F803B-C850-494E-B5DF-CDE7C675A1CA": "User.ReadWrite.All", "50483E42-D915-4231-9639-7FDB7FD190E5": "UserAuthenticationMethod.ReadWrite.All"}
-_ATTACK_KINDS = {"AZMGGrantRole", "AZMGAddSecret", "AZMGAddMember", "AZMGResetPassword", "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo"}
+_ATTACK_KINDS = {"AZAuthenticatesTo", "AZMGGrantRole", "AZMGAddSecret", "AZMGAddMember", "AZMGResetPassword", "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo"}
 
 
 _DEFAULT_ROLES = {"USER", "GUEST USER", "RESTRICTED GUEST USER"}       # default permissions, not assignable roles
@@ -206,6 +206,17 @@ def _relationships(kind: str, d, graph: AttackGraph) -> None:
             perms = node.properties.setdefault("_graph_perms", [])
             if role in GRANT_ROLE_PERMS or role in ADD_SECRET_PERMS or role in ADD_MEMBER_PERMS or role in RESET_PW_PERMS:
                 perms.append(role)
+    elif kind == "AZFederatedIdentityCredential" and isinstance(d, dict):
+        for entry in d.get("fics") or []:
+            fic = (entry or {}).get("fic") or {}
+            fid, app = _id(fic.get("id")), _id((entry or {}).get("appId") or d.get("appId"))
+            if not fid or not app:
+                continue
+            if graph.get_node(fid) is None:
+                graph.add_node(ADNode(fid, str(fic.get("name") or fid).upper(), NodeType.AZ_FIC, _id(d.get("tenantId")), properties={
+                    "issuer": str(fic.get("issuer") or ""), "subject": str(fic.get("subject") or ""),
+                    "audiences": list(fic.get("audiences") or []), "appId": app}))
+            graph.meta.setdefault("fic_links", []).append({"fic": fid, "app": app})
     elif kind == "AZKeyVaultAccessPolicy" and isinstance(d, dict):
         who, vault = _id(d.get("objectId")), _id(d.get("keyVaultId"))
         perms = d.get("permissions") or {}
@@ -309,7 +320,7 @@ def _resource(kind: str, d: dict, graph: AttackGraph) -> None:
 def finalize_azure(graph: AttackGraph) -> None:
     """Cross-object links that need every file loaded: names of known roles, app->SP, hybrid sync, fan-out edges."""
     roles = graph.nodes_by_type(NodeType.AZ_ROLE)
-    if not roles and not graph.nodes_by_type(NodeType.AZ_USER):
+    if not roles and not graph.nodes_by_type(NodeType.AZ_USER) and not graph.meta.get("fic_links"):
         return
     for r in roles:
         if r.object_id in KNOWN_ROLES and not r.name.strip():
@@ -326,6 +337,12 @@ def finalize_azure(graph: AttackGraph) -> None:
         if sid and graph.get_node(str(sid)) is not None and u.properties.get("onPremisesSyncEnabled") is not False:
             _edge(graph, str(sid), u.object_id, "SyncedTo")
     # an SP holding a dangerous Graph permission is about to get an outgoing edge, so it already leads somewhere
+    app_by_appid = {str(n.properties.get("appId") or "").upper(): n.object_id for n in graph.nodes_by_type(NodeType.AZ_APP)}
+    sp_by_appid = {str(n.properties.get("appId") or "").upper(): n.object_id for n in graph.nodes_by_type(NodeType.AZ_SP)}
+    for link in graph.meta.get("fic_links", []):
+        target = app_by_appid.get(link["app"]) or sp_by_appid.get(link["app"])
+        if target:
+            _edge(graph, link["fic"], target, "AZAuthenticatesTo")
     graph._onward_memo = {n.object_id: True for n in graph.nodes_by_type(NodeType.AZ_SP) if n.properties.get("_graph_perms")}
     # (the memo also keeps this linear: the question is asked for every holder-victim pair)
     try:

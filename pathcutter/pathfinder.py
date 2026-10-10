@@ -99,7 +99,7 @@ _ATTACK_EDGES = frozenset({
     "AddMember", "Owns", "WriteSPN", "AddAllowedToAct", "WriteKeyCredentialLink",
     "AllowedToDelegate", "AllowedToAct", "AdminTo", "HasSession", "CanRDP",
     "CanPSRemote", "ExecuteDCOM", "SQLAdmin", "DCSync", "GPOControlsObject",
-    "ReadLAPSPassword", "ReadGMSAPassword", "TrustedBy", "HasSIDHistory", "WriteGPLink", "ADCSAbuse", "ADCSESC1", "ADCSESC4", "ADCSESC6", "ADCSESC7", "ADCSESC3", "ADCSESC5", "GoldenCert", "ADCSESC9", "ADCSESC15", "ADCSESC13", "ADCSESC10", "ADCSESC8", "CoerceAndRelayNTLMToSMB", "CoerceAndRelayNTLMToLDAP", "GPOUserRight", "ADCSESC16", "ADCSESC11", "AZMGAddMember", "AZMGResetPassword",
+    "ReadLAPSPassword", "ReadGMSAPassword", "TrustedBy", "HasSIDHistory", "WriteGPLink", "ADCSAbuse", "ADCSESC1", "ADCSESC4", "ADCSESC6", "ADCSESC7", "ADCSESC3", "ADCSESC5", "GoldenCert", "ADCSESC9", "ADCSESC15", "ADCSESC13", "ADCSESC10", "ADCSESC8", "AZAuthenticatesTo", "CoerceAndRelayNTLMToSMB", "CoerceAndRelayNTLMToLDAP", "GPOUserRight", "ADCSESC16", "ADCSESC11", "AZMGAddMember", "AZMGResetPassword",
     "AZOwner", "AZContributor", "AZUserAccessAdmin", "AZVMAdminLogin", "AZManagedIdentity",
     "AZMGGrantRole", "AZMGAddSecret",
     "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo",

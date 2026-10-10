@@ -591,6 +591,18 @@ GPOUserRight = EdgeType(
     description="Derived from SYSVOL security templates (tools/Export-AdGpoRights.ps1) and the objects the GPO is linked to",
 )
 
+AZAuthenticatesTo = EdgeType(
+    name="AZAuthenticatesTo",
+    category=EdgeCategory.SPECIAL,
+    abuse="A federated identity credential trusts an external identity provider: whoever can obtain a token for the trusted issuer and subject (a GitHub repository or branch, an Azure DevOps service connection, another tenant) can exchange it for an access token as the application, with no secret",
+    mitre="T1550.001",
+    exploitability=7,
+    fix_template="# Remove the federated credential, or narrow its subject to one repository, branch or environment (no wildcard): az ad app federated-credential delete --id <app> --federated-credential-id <id>",
+    detection_difficulty="high",
+    reversible=True,
+    description="Workload identity federation: an external token issuer is trusted to sign in as the application",
+)
+
 AZGetSecrets = EdgeType(
     name="AZGetSecrets",
     category=EdgeCategory.SPECIAL,

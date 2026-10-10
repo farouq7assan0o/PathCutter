@@ -242,7 +242,7 @@ _DROP_AZ = {"mail", "givenname", "surname", "jobtitle", "department", "mobilepho
             "proxyaddresses", "streetaddress", "city", "postalcode", "state", "country", "officelocation", "employeeid",
             "aboutme", "imaddresses", "identities", "faxnumber", "companyname", "mailnickname", "preferredname",
             "onpremisesimmutableid", "onpremisesdistinguishedname", "onpremisessamaccountname", "onpremisesuserprincipalname",
-            "description", "notes", "info", "homepage", "loginurl", "logouturl", "replyurls", "tags", "employeeorgdata"}
+            "description", "notes", "info", "homepage", "subject", "loginurl", "logouturl", "replyurls", "tags", "employeeorgdata"}
 _PROTECTED_KEYS = {"RightName", "ObjectType", "PrincipalType", "type", "kind", "Type", "LocalGroupType", "ObjectClass",
                    "version", "methods", "collected", "Collected"}
 _KEEP_WORDS = (set(TIER0_GROUPS) | {"MICROSOFT GRAPH", "USERS", "COMPUTERS", "DOMAIN CONTROLLERS", "BUILTIN", "NT AUTHORITY", "SYSTEM", "EVERYONE",
