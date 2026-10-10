@@ -182,7 +182,7 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
         nodes.append({
             "id": nid, "name": _e(node.display_name), "type": node.node_type.value,
             "tier": node.tier, "score": score_map.get(nid, 0), "enabled": node.enabled,
-            "p": 1 if nid in path_nodes else 0,
+            "p": 1 if nid in path_nodes else 0, "pc": participation.get(nid, 0) if nid in path_nodes else 0,
         })
 
     cluster_idx: dict[tuple, int] = {}
@@ -202,7 +202,7 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
             "type": "Cluster", "tier": 2,
             "score": max((score_map.get(m, 0) for m in members), default=0),
             "enabled": True, "count": len(members), "kind": kind,
-            "p": 1 if any(m in path_nodes for m in members) else 0,
+            "p": 1 if any(m in path_nodes for m in members) else 0, "pc": 0,
             "target": _e(tgt.display_name if tgt else key[0]), "via": key[1],
             "members": [_e(mn.display_name) for mn in member_nodes[:150] if mn],
         })
@@ -696,6 +696,10 @@ tr {{ cursor: pointer; }}
 #graph-controls {{ position: absolute; top: 10px; left: 340px; right: 10px; display: flex; gap: 6px; z-index: 5; flex-wrap: wrap; justify-content: flex-end; }}
 #graph-legend.collapsed .item {{ display: none; }}
 #graph-legend .lg-title {{ cursor: pointer; user-select: none; }}
+#graph-focus {{ position: absolute; top: 52px; left: 10px; right: 10px; z-index: 5; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.74rem; color: var(--text-dim); pointer-events: none; }}
+#graph-focus > * {{ pointer-events: auto; }}
+#graph-focus select {{ max-width: 230px; background: var(--card-bg, #111a2e); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; font-size: 0.74rem; }}
+#graph-focus .chk {{ display: inline-flex; gap: 4px; align-items: center; }}
 #graph-controls .seg {{ display: inline-flex; margin-right: 6px; }}
 #graph-controls .seg .btn {{ border-radius: 0; }}
 #graph-controls .seg .btn:first-child {{ border-radius: 6px 0 0 6px; }}
@@ -765,7 +769,7 @@ tr {{ cursor: pointer; }}
 
 #graph-container canvas#graph-canvas {{ position: absolute; inset: 0; width: 100%; height: 100%; display: block; }}
 #graph-minimap {{ position: absolute; bottom: 10px; right: 10px; width: 180px; height: 120px; background: rgba(10,15,30,0.92); border: 1px solid var(--border); border-radius: 8px; z-index: 5; cursor: crosshair; }}
-#graph-hud {{ position: absolute; top: 52px; left: 10px; font-size: 0.7rem; color: var(--text-dimmer); z-index: 4; line-height: 1.5; pointer-events: none; text-shadow: 0 0 4px #000; }}
+#graph-hud {{ position: absolute; top: 84px; left: 10px; font-size: 0.7rem; color: var(--text-dimmer); z-index: 4; line-height: 1.5; pointer-events: none; text-shadow: 0 0 4px #000; }}
 #graph-loading {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 260px; text-align: center; z-index: 8; font-size: 0.8rem; color: var(--text-dim); pointer-events: none; }}
 #graph-loading .gl-bar {{ height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }}
 #graph-loading .gl-fill {{ height: 100%; width: 0; background: var(--accent); transition: width 0.15s; }}
@@ -1068,9 +1072,15 @@ tr {{ cursor: pointer; }}
           <button class="btn btn-sm btn-outline" onclick="toggleStructural()" title="Hide MemberOf / Contains edges">Structural</button>
           <button class="btn btn-sm btn-outline" onclick="toggleEdgeFilter()">Filter</button>
           <button class="btn btn-sm btn-outline" onclick="toggleLayout()" title="Switch between a free layout and one that puts Tier 0 at the bottom">Layout</button>
-          <button class="btn btn-sm btn-outline" id="btn-lock" onclick="toggleLock()" title="Lock: dragging pans the view instead of moving nodes. Unlocked: a node you drag stays where you drop it (double-click it to release).">Move nodes: on</button>
+          <button class="btn btn-sm btn-outline" id="btn-lock" onclick="toggleLock()" title="Drag: move nodes = a node you drag stays where you drop it (double-click to release). Drag: pan only = dragging moves the view.">Drag: move nodes</button>
           <button class="btn btn-sm btn-outline" onclick="relayout()" title="Forget moved nodes and lay the graph out again">Re-layout</button>
           <button class="btn btn-sm btn-outline" onclick="exportGraphPNG()">PNG</button>
+        </div>
+        <div id="graph-focus">
+          <label>Paths to <select id="focus-to"><option value="">any Tier 0 object</option></select></label>
+          <label>from <select id="focus-from"><option value="">any object</option></select></label>
+          <label class="chk" title="Tier 0 groups hold rights over almost everything by default. Those edges are not attack steps, so they are hidden outside the attack paths."><input type="checkbox" id="focus-t0" checked> hide Tier 0 rights</label>
+          <button class="btn btn-sm btn-outline" onclick="clearFocus()">Clear focus</button>
         </div>
         <div id="edge-filter"></div>
         <div id="graph-legend">
@@ -1334,7 +1344,8 @@ function drawOverviewCharts() {{
   const edgeTypes = summaryData.edge_types || {{}};
 
   // Node and edge bar charts: equal height, top-aligned bars of a fixed thickness, labels given room so they do not clip.
-  const nd = Object.entries(nodeTypes).sort((a, b) => b[1] - a[1]);
+  let nd = Object.entries(nodeTypes).sort((a, b) => b[1] - a[1]);
+  if (nd.length > 12) {{ const rest = nd.slice(11); nd = nd.slice(0, 11).concat([['Other (' + rest.length + ' types)', rest.reduce((s, d) => s + d[1], 0)]]); }}
   const plumbing = new Set(['MemberOf', 'Contains', 'AZContains', 'TrustedBy', 'Enroll', 'AutoEnroll', 'ManageCA', 'ManageCertificates', 'GetChanges', 'GetChangesAll']);
   const ed = Object.entries(edgeTypes).filter(d => !plumbing.has(d[0])).sort((a, b) => b[1] - a[1]).slice(0, 12);
   const SHORT = {{AZServicePrincipal: 'Service Principal', AZFederatedIdentityCredential: 'Fed. Identity Cred',
@@ -1350,6 +1361,7 @@ function drawOverviewCharts() {{
     if (!data.length) return;
     const ct = document.getElementById(sel);
     const w = ct.clientWidth, h = chartH;
+    ct.style.height = h + 'px';                    // the card grows with the chart, so nothing hangs outside it
     const svg = d3.select('#' + sel).append('svg').attr('width', w).attr('height', h);
     const margin = {{top: 8, right: 40, bottom: 12, left: nameLeft}};
     const iw = w - margin.left - margin.right;

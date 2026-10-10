@@ -37,6 +37,11 @@
 - **Attack graph**: a view switch (Attack paths only / + Context / Everything, remembered), a Move-nodes lock with pinned nodes
   (double-click releases), Re-layout, a collapsible legend, layout run only on what is drawn, the fit leaves room for the toolbar and
   the fix panel, search brings hidden objects into view. Links and nodes now carry an on-path flag.
+- **Attack graph, for big estates**: "Paths to / from" pickers (and right-click "Only paths to/from here") keep only the attack-path edges
+  that reach a chosen Tier 0 object or start at a chosen object; Tier 0 groups' default rights over everything are hidden outside attack
+  paths (the 2,871-edge hairball of a 3-VM lab became 617), objects left with no relevant edge are hidden and counted; dragging a node
+  pins it (yellow ring), no longer fights the auto-fit, and "Drag: pan only" turns node moving off.
+- Overview: the node-type chart groups the tail as "Other (n types)" and its card grows with the chart.
 - Engine: 20,000 differential fuzz seeds clean after these changes; ingest at 200k objects unchanged (4.9 s).
 
 ## 0.5.0

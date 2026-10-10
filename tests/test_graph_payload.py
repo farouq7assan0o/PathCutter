@@ -127,3 +127,10 @@ def test_nodes_and_links_say_whether_they_are_on_an_attack_path():
     assert payload["meta"]["path_nodes"] == sum(1 for n in payload["nodes"] if n["p"])
     assert payload["meta"]["path_links"] == sum(1 for lk in payload["links"] if lk[3])
     assert all(lk[3] in (0, 1) for lk in payload["links"])
+
+
+def test_nodes_carry_a_path_count_for_the_focus_lists():
+    g, report, scores = _fan_in_graph(3)
+    payload, _ = _build_graph_json(g, report, scores)
+    assert all("pc" in n for n in payload["nodes"])
+    assert max(n["pc"] for n in payload["nodes"]) >= 3          # the group every user path passes through

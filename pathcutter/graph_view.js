@@ -41,6 +41,7 @@ const G = {
   sim: null, layoutRunning: false, progress: 0, alpha0: 1, frameNo: 0, userMoved: false,
   quad: null, vis: null, fps: 0, lastHud: 0, locate: -1,
   mode: null, off: null, loff: null, lock: false, active: 0, activeLinks: 0, pendingZoomNode: null,
+  focusTo: -1, focusFrom: -1, hideT0: true, isolatedHidden: 0, focusCount: 0,
 };
 
 function edgeColor(l) { return EDGE_COLORS[l.type] || '#475569'; }
@@ -151,9 +152,81 @@ function applyMode(mode) {
     for (let i = 0; i < n; i++) off[i] = on[i] ? 0 : 1;
     L.forEach(l => { if (!off[l.s] && !off[l.t] && (withContext || l.p)) loff[l.i] = 0; });
   }
+  /* Tier 0 groups own most of the directory by default: those ACL edges are not attack steps, so they are hidden unless on a path */
+  if (G.hideT0 && mode !== 'paths') L.forEach(l => { if (!loff[l.i] && !l.p && N[l.s].tier === 0 && !l.struct) loff[l.i] = 1; });
+  /* focus: keep only attack-path edges that lead to the chosen target and/or start at the chosen source */
+  G.focusCount = 0;
+  if (G.focusTo >= 0 || G.focusFrom >= 0) {
+    const R = G.focusTo >= 0 ? reachBack(G.focusTo) : null, F = G.focusFrom >= 0 ? reachFwd(G.focusFrom) : null;
+    const keepN = new Uint8Array(n);
+    L.forEach(l => {
+      const okR = !R || R[l.t], okF = !F || F[l.s];
+      if (l.p && okR && okF) { loff[l.i] = 0; keepN[l.s] = 1; keepN[l.t] = 1; } else loff[l.i] = 1;
+    });
+    if (G.focusTo >= 0) keepN[G.focusTo] = 1;
+    if (G.focusFrom >= 0) keepN[G.focusFrom] = 1;
+    for (let i = 0; i < n; i++) off[i] = keepN[i] ? 0 : 1;
+    G.focusCount = keepN.reduce((c, v) => c + v, 0);
+  } else if (mode !== 'paths') {
+    /* objects left with no visible edge are noise unless they are Tier 0 or on a path */
+    const deg = new Uint32Array(n);
+    L.forEach(l => { if (!loff[l.i]) { deg[l.s]++; deg[l.t]++; } });
+    let hid = 0;
+    for (let i = 0; i < n; i++) if (!off[i] && !deg[i] && !N[i].p && N[i].tier !== 0) { off[i] = 1; hid++; }
+    G.isolatedHidden = hid;
+  }
   G.off = off; G.loff = loff;
   G.active = n - off.reduce((c, v) => c + v, 0);
   G.activeLinks = L.length - loff.reduce((c, v) => c + v, 0);
+}
+
+/* reachability over attack-path edges only (the edges the report enumerated as parts of paths to Tier 0) */
+function reachBack(t) {
+  const seen = new Uint8Array(G.nodes.length), q = [t]; seen[t] = 1;
+  for (let h = 0; h < q.length; h++) for (const li of G.inn[q[h]]) { const l = G.links[li]; if (l.p && !seen[l.s]) { seen[l.s] = 1; q.push(l.s); } }
+  return seen;
+}
+function reachFwd(s) {
+  const seen = new Uint8Array(G.nodes.length), q = [s]; seen[s] = 1;
+  for (let h = 0; h < q.length; h++) for (const li of G.out[q[h]]) { const l = G.links[li]; if (l.p && !seen[l.t]) { seen[l.t] = 1; q.push(l.t); } }
+  return seen;
+}
+
+function applyFocus() {
+  const to = document.getElementById('focus-to').value, fr = document.getElementById('focus-from').value;
+  G.focusTo = to === '' ? -1 : parseInt(to, 10); G.focusFrom = fr === '' ? -1 : parseInt(fr, 10);
+  G.hideT0 = document.getElementById('focus-t0').checked;
+  clearSelection();
+  applyMode(G.mode);
+  if ((G.focusTo >= 0 || G.focusFrom >= 0) && !G.focusCount) showToast('No attack path matches that target and source');
+  G.userMoved = false;
+  relayout(false);
+}
+function clearFocus() {
+  document.getElementById('focus-to').value = ''; document.getElementById('focus-from').value = '';
+  applyFocus();
+}
+function setFocus(kind, i) {
+  document.getElementById(kind === 'to' ? 'focus-to' : 'focus-from').value = String(i);
+  if (G.mode === 'context' || G.mode === 'all') { /* focus works on attack-path edges whatever the view */ }
+  applyFocus();
+}
+function initFocus() {
+  const to = document.getElementById('focus-to'), fr = document.getElementById('focus-from');
+  const tgt = [], src = [];
+  G.nodes.forEach(n => {
+    if (!n.p || n.type === 'Cluster') return;
+    const hasIn = G.inn[n.i].some(li => G.links[li].p), hasOut = G.out[n.i].some(li => G.links[li].p);
+    if (n.tier === 0 && hasIn) tgt.push(n);
+    if (hasOut && n.tier !== 0) src.push(n);
+  });
+  const add = (sel, arr) => arr.sort((a, b) => (b.pc - a.pc) || a.label.localeCompare(b.label)).slice(0, 400).forEach(n => {
+    const o = document.createElement('option'); o.value = n.i; o.textContent = n.label + '  (' + n.pc + ' path' + (n.pc === 1 ? '' : 's') + ')'; sel.appendChild(o);
+  });
+  add(to, tgt); add(fr, src);
+  to.addEventListener('change', applyFocus); fr.addEventListener('change', applyFocus);
+  document.getElementById('focus-t0').addEventListener('change', applyFocus);
+  document.getElementById('graph-focus').style.display = (tgt.length || src.length) ? 'flex' : 'none';
 }
 
 function setViewMode(mode, quiet) {
@@ -172,10 +245,14 @@ function setViewMode(mode, quiet) {
 function syncViewButtons() {
   document.querySelectorAll('#view-seg button').forEach(b => b.classList.toggle('active', b.dataset.mode === G.mode));
   const lb = document.getElementById('btn-lock');
-  if (lb) lb.textContent = G.lock ? 'Move nodes: off' : 'Move nodes: on';
+  if (lb) { lb.textContent = G.lock ? 'Drag: pan only' : 'Drag: move nodes'; lb.classList.toggle('active', !G.lock); }
+  if (G.canvas) G.canvas.style.cursor = G.lock ? 'grab' : 'default';
 }
 
-function toggleLock() { G.lock = !G.lock; syncViewButtons(); showToast(G.lock ? 'Layout locked: drag to pan' : 'Drag a node to move it; double-click to release it'); }
+function toggleLock() {
+  G.lock = !G.lock; syncViewButtons();
+  showToast(G.lock ? 'Dragging now pans the view. Nodes stay where they are.' : 'Drag a node to move it. It stays where you drop it (yellow ring); double-click it to release.');
+}
 
 function relayout(reseed) {
   if (reseed) G.nodes.forEach(n => { n.fx = null; n.fy = null; n.placed = false; });
@@ -221,9 +298,9 @@ function drawGraph() {
   const sel = d3.select(canvas);
   sel.call(d3.drag().container(canvas)
     .subject(ev => { if (G.lock) return null; const n = findNode(ev.x, ev.y); return n ? { x: ev.x, y: ev.y, n } : null; })
-    .on('start', ev => { G.dragging = true; if (!ev.active) G.sim.alphaTarget(0.18); G.layoutRunning = true; ev.subject.n.fx = ev.subject.n.x; ev.subject.n.fy = ev.subject.n.y; requestDraw(); })
-    .on('drag', ev => { const n = ev.subject.n; n.fx = (ev.x - G.tx) / G.k; n.fy = (ev.y - G.ty) / G.k; markInteracting(); })
-    .on('end', ev => { G.dragging = false; if (!ev.active) G.sim.alphaTarget(0); const n = ev.subject.n; n.pinned = true; }));   // stays where it was dropped
+    .on('start', ev => { G.dragging = true; G.userMoved = true; G.dragMoved = false; if (!ev.active) G.sim.alphaTarget(0.18); G.layoutRunning = true; ev.subject.n.fx = ev.subject.n.x; ev.subject.n.fy = ev.subject.n.y; hideTooltip(); requestDraw(); })
+    .on('drag', ev => { const n = ev.subject.n; G.dragMoved = true; n.fx = (ev.x - G.tx) / G.k; n.fy = (ev.y - G.ty) / G.k; n.x = n.fx; n.y = n.fy; markInteracting(); requestDraw(); })
+    .on('end', ev => { G.dragging = false; if (!ev.active) G.sim.alphaTarget(0); const n = ev.subject.n; if (G.dragMoved) { n.pinned = true; setTimeout(() => { G.dragMoved = false; }, 0); } else { n.fx = null; n.fy = null; } }));   // stays where it was dropped
   sel.call(G.zoom).on('dblclick.zoom', null);
   canvas.addEventListener('dblclick', e => {
     const [x, y] = d3.pointer(e, canvas), n = findNode(x, y);
@@ -241,6 +318,7 @@ function drawGraph() {
   canvas.addEventListener('mouseleave', () => { G.hover = -1; hideTooltip(); requestDraw(); });
   canvas.addEventListener('click', e => {
     closeCtx();
+    if (G.dragMoved) return;                      // the click that ends a drag is not a selection
     const [x, y] = d3.pointer(e, canvas);
     const n = findNode(x, y);
     if (n) selectNode(n.i); else clearSelection();
@@ -258,6 +336,7 @@ function drawGraph() {
   initMinimap();
   initSimPanel();
   initSearch();
+  initFocus();
   syncViewButtons();
   startLayout();
 }
@@ -505,6 +584,7 @@ function draw() {
     for (let i = 0; i < nodes.length; i++) if (vis[i] && G.reach0[i] && !reach1[i] && nodes[i].tier !== 0) { const n = nodes[i]; ctx.moveTo(n.x + n.r + 3, n.y); ctx.arc(n.x, n.y, n.r + 3, 0, 6.2832); }
     ctx.stroke();
   }
+  if (G.active < 600) for (let i = 0; i < nodes.length; i++) if (nodes[i].pinned && vis[i]) ring(i, '#facc15', 1.5, 3);   // moved by hand
   if (G.pathStart >= 0) ring(G.pathStart, '#22c55e', 3, 7);
   if (G.pathEnd >= 0) ring(G.pathEnd, '#f97316', 3, 7);
   if (G.sel >= 0) ring(G.sel, '#ffffff', 2.2, 6);
@@ -577,6 +657,8 @@ function updateHud() {
   let t = '<b>' + modeName + '</b>: ' + G.active.toLocaleString() + ' of ' + G.nodes.length.toLocaleString() + ' objects | ' + G.activeLinks.toLocaleString() + ' edges | ' + Math.round(G.fps) + ' fps';
   if (m.hidden_in_clusters) t += '<br>' + m.hidden_in_clusters.toLocaleString() + ' leaf objects collapsed into clusters';
   if (m.truncated) t += '<br>Top ' + m.shown.toLocaleString() + ' of ' + m.in_paths.toLocaleString() + ' path-relevant nodes shown (use --graph-nodes to raise)';
+  if (G.focusTo >= 0 || G.focusFrom >= 0) t += '<br><b>Focus</b>: ' + (G.focusFrom >= 0 ? 'from ' + G.nodes[G.focusFrom].label + ' ' : '') + (G.focusTo >= 0 ? 'to ' + G.nodes[G.focusTo].label : '');
+  else if (G.isolatedHidden) t += '<br>' + G.isolatedHidden.toLocaleString() + ' objects with no relevant edge hidden';
   t += '<br>' + (G.pathCount || 0).toLocaleString() + ' objects lie on attack paths | ' + (m.graph_total || 0).toLocaleString() + ' objects in the environment | zoom ' + G.k.toFixed(2) + 'x';
   el.innerHTML = t;
 }
@@ -797,8 +879,20 @@ function nodeAction(a, i) {
   else if (a === 'end') { G.pathEnd = i; G.pathStart = G.pathStart === i ? -1 : G.pathStart; showToast('Path end set.'); tryPair(); requestDraw(); }
   else if (a === 'iso1' || a === 'iso2') { G.sel = i; G.pathInfo = null; G.hl = neighborhood(i, a === 'iso1' ? 1 : 2); zoomToBox([...G.hl.nodes]); requestDraw(); }
   else if (a === 'explorer') goToPath(G.nodes[i].label.split('@')[0]);
+  else if (a === 'focusto') {
+    if (!G.nodes[i].p) { showToast('This object is not on any attack path'); return; }
+    ensureOption('focus-to', i); setFocus('to', i);
+  } else if (a === 'focusfrom') {
+    if (!G.nodes[i].p) { showToast('This object is not on any attack path'); return; }
+    ensureOption('focus-from', i); setFocus('from', i);
+  }
   else if (a === 'copyname') copyText(G.nodes[i].label);
   else if (a === 'copyid') copyText(G.nodes[i].id);
+}
+
+function ensureOption(id, i) {
+  const sel = document.getElementById(id);
+  if (![...sel.options].some(o => o.value === String(i))) { const o = document.createElement('option'); o.value = i; o.textContent = G.nodes[i].label; sel.appendChild(o); }
 }
 
 function tryPair() {
@@ -814,7 +908,7 @@ function showContextMenu(e, n) {
   menu.className = 'ctx-menu';
   const rect = document.getElementById('graph-container').getBoundingClientRect();
   menu.style.left = Math.min(e.clientX - rect.left, G.w - 200) + 'px'; menu.style.top = Math.min(e.clientY - rect.top, G.h - 260) + 'px';
-  const items = [['Show details', 'details'], ['Shortest path to Tier 0', 't0'], ['Set as path start', 'start'], ['Set as path end', 'end'], null,
+  const items = [['Show details', 'details'], ['Shortest path to Tier 0', 't0'], ['Only paths to here', 'focusto'], ['Only paths from here', 'focusfrom'], null, ['Set as path start', 'start'], ['Set as path end', 'end'], null,
                  ['Isolate 1 hop', 'iso1'], ['Isolate 2 hops', 'iso2'], ['Find in Path Explorer', 'explorer'], null, ['Copy name', 'copyname'], ['Copy SID / id', 'copyid']];
   let h = '<div style="padding:6px 14px;font-weight:600;color:' + (NODE_COLORS[n.type] || '#94a3b8') + ';font-size:0.85rem;border-bottom:1px solid var(--border)">' + n.name + '</div>';
   items.forEach(it => { h += it ? '<div class="ctx-item" data-a="' + it[1] + '">' + it[0] + '</div>' : '<div class="ctx-sep"></div>'; });
