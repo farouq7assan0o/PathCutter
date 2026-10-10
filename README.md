@@ -83,6 +83,11 @@ Not modeled, stated so nobody assumes otherwise: ESC14, the contents of custom A
 as unevaluated), whether MFA or PIM approval is really enforced at sign-in, network reachability, GPO content other than local groups and user rights.
 NTLM relay (SMB / LDAP signing, WebClient) has an experimental derivation in `pathcutter/relay.py` that is **not applied**: against
 BloodHound's own harnesses it over-reports, and no real collection available to this project carries the properties it needs.
+**Collecting when EDR blocks SharpHound:** take a Sysinternals **AD Explorer** snapshot (Microsoft-signed, not flagged),
+export it with `ADExplorerSnapshot.py -m Objects`, and PathCutter reads the NDJSON natively - parsing the security
+descriptors into ACL edges itself. Add `tools/Export-AdLocalSessions.ps1` (plain PowerShell) for the local-admin and
+session edges the LDAP snapshot lacks. Validated end to end on a live domain.
+
 Entra and Azure support is checked against one real AzureHound collection (SpecterOps' PhantomCorp demo tenant, 12,879 objects) and, joined to their AD sample, the hybrid sync links. There is no independent oracle for it the way there is for AD: the tests assert known facts about that tenant, not BloodHound's own edge set.
 
 ## What is validated, and what still needs real data
@@ -141,7 +146,7 @@ knowledge drifts between modules. See [docs/extending.md](docs/extending.md).
 ## Input formats
 
 SharpHound legacy (v4) and BloodHound CE (v5, v6) JSON, ZIP or directory; **AD Explorer snapshots** (Sysinternals, exported to NDJSON by `ADExplorerSnapshot.py -m Objects`) read natively, for domains where EDR blocks SharpHound; AzureHound JSON; an optional `*_denies.json` from
-`tools/Export-AdDenyAces.ps1`; an optional `*_adcsrelay.json` from `tools/Export-AdCsRelay.ps1`; an optional `*_gporights.json` from `tools/Export-AdGpoRights.ps1`; an optional Conditional Access policy export (`Get-MgIdentityConditionalAccessPolicy`).
+`tools/Export-AdDenyAces.ps1`; an optional `*_adcsrelay.json` from `tools/Export-AdCsRelay.ps1`; an optional `*_gporights.json` from `tools/Export-AdGpoRights.ps1`; an optional `*_localsessions.json` from `tools/Export-AdLocalSessions.ps1` (local admins and sessions, to pair with an AD Explorer snapshot); an optional Conditional Access policy export (`Get-MgIdentityConditionalAccessPolicy`).
 
 ## Layout
 
