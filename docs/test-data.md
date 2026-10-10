@@ -52,7 +52,6 @@ A free tenant is enough. This is where an Azure portal login, a subscription and
      Reader and Reader on the subscription.
    - Everything that is not in AzureHound's output, in one read-only run: `tools/Export-EntraSidecars.ps1` (Conditional Access, PIM
      policies and eligibility, role assignments with their scope, custom role definitions, administrative units with members).
-   - Conditional Access alone: `Get-MgIdentityConditionalAccessPolicy | ConvertTo-Json -Depth 10 > ca.json`.
    - PIM policies: `Get-MgPolicyRoleManagementPolicyAssignment -Filter "scopeId eq '/' and scopeType eq 'DirectoryRole'" -ExpandProperty policy`
      and `Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance`.
    - Custom roles: `az role definition list --custom-role-only true`; deny assignments:

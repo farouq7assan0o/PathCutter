@@ -1,7 +1,8 @@
 """Entra Conditional Access: which identities a policy really covers, evaluated against the collected tenant.
 
 Input is the Microsoft Graph policy list (`GET /identity/conditionalAccess/policies`, or `Get-MgIdentityConditionalAccessPolicy
-| ConvertTo-Json -Depth 10`): either the raw `{"value": [...]}` response or `{"meta": {"type": "conditional_access"}, "data": [...]}`.
+| ConvertTo-Json -Depth 10`, in which case the keys are PascalCase and are accepted too): the raw `{"value": [...]}` response, a bare list, or
+`{"meta": {"type": "conditional_access"}, "data": [...]}`.
 Put the file next to the AzureHound output.
 
 What is evaluated: the include / exclude lists for users, groups and roles (group and role membership resolved through the
@@ -17,16 +18,29 @@ from dataclasses import dataclass, field
 from .graph import AttackGraph, NodeType
 
 
+def _camel(v):
+    """Graph REST returns camelCase; the Graph PowerShell SDK serializes the same objects in PascalCase. Accept both."""
+    if isinstance(v, dict):
+        return {(k[:1].lower() + k[1:] if isinstance(k, str) else k): _camel(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_camel(x) for x in v]
+    return v
+
+
+def _items(data: dict) -> list:
+    got = data.get("data") if "data" in data else data.get("value")
+    return [_camel(p) for p in (got or []) if isinstance(p, dict)]
+
+
 def is_ca_file(data: dict) -> bool:
     if str((data.get("meta") or {}).get("type", "")).lower() == "conditional_access":
         return True
-    items = data.get("value")
-    return isinstance(items, list) and bool(items) and all(isinstance(x, dict) and "conditions" in x and "grantControls" in x for x in items)
+    items = _items(data)
+    return bool(items) and all("conditions" in x and "grantControls" in x for x in items)
 
 
 def policies_of(data: dict) -> list[dict]:
-    items = data.get("data") if "data" in data else data.get("value")
-    return [p for p in (items or []) if isinstance(p, dict)]
+    return _items(data)
 
 
 @dataclass

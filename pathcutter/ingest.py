@@ -600,6 +600,8 @@ def _load_from_zip(zip_path: Path, graph: AttackGraph) -> int:
                     data = json.load(f)
                 except (json.JSONDecodeError, UnicodeDecodeError):
                     continue
+                if isinstance(data, list):
+                    data = {"value": data}
                 if isinstance(data, dict) and ("data" in data or "value" in data):
                     total += _parse_one_file(data, graph, file_type)
     return total
@@ -610,9 +612,11 @@ def _load_from_directory(dir_path: Path, graph: AttackGraph) -> int:
     for json_file in sorted(dir_path.glob("*.json")):
         file_type = _guess_file_type(json_file.name)
         try:
-            data = json.loads(json_file.read_text(encoding="utf-8"))
+            data = json.loads(json_file.read_text(encoding="utf-8-sig"))     # Windows PowerShell 5.1 writes UTF-8 with a BOM
         except (json.JSONDecodeError, UnicodeDecodeError):
             continue
+        if isinstance(data, list):                                           # a bare list (PowerShell ConvertTo-Json of an array)
+            data = {"value": data}
         if isinstance(data, dict) and ("data" in data or "value" in data):
             total += _parse_one_file(data, graph, file_type)
     return total

@@ -129,3 +129,19 @@ def test_policies_survive_a_snapshot(tmp_path):
     save_snapshot(g, tmp_path / "s.pcsnap")
     g2, _ = load_snapshot(tmp_path / "s.pcsnap")
     assert [p["displayName"] for p in g2.meta["conditional_access"]] == ["p"]
+
+
+# ---- what Windows PowerShell 5.1 and the Graph SDK actually write ------------------------------------------------------------
+
+def test_sdk_pascalcase_bare_list_with_bom_is_read_from_a_directory(tmp_path):
+    import json as _json
+    from pathcutter.ingest import load_sharphound
+    pol = [{"Id": "p1", "DisplayName": "Require MFA for admins", "State": "enabled",
+            "Conditions": {"Users": {"IncludeUsers": ["All"], "ExcludeUsers": []}, "Applications": {"IncludeApplications": ["All"]}},
+            "GrantControls": {"BuiltInControls": ["mfa"], "Operator": "OR"}}]
+    (tmp_path / "conditional_access.json").write_bytes(b"\xef\xbb\xbf" + _json.dumps(pol).encode())
+    (tmp_path / "20260101_azure.json").write_text(_json.dumps({"meta": {"type": "azure", "version": 5}, "data": [
+        {"kind": "AZUser", "data": {"id": "u1", "userPrincipalName": "a@x.com", "displayName": "a", "tenantId": "t", "accountEnabled": True}}]}))
+    g = load_sharphound(tmp_path)
+    assert len(g.meta.get("conditional_access", [])) == 1
+    assert g.meta["conditional_access"][0]["displayName"] == "Require MFA for admins"
