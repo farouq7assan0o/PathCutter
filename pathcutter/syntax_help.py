@@ -163,6 +163,11 @@ NTLM RELAY (experimental, not applied)
   over-reports against BloodHound's own harnesses (it ignores Protected Users and RestrictOutboundNTLM), so it is NOT run when a
   collection is loaded and no edges of these types appear in results.
 
+AD EXPLORER SNAPSHOTS (LDAP-only, for EDR-blocked domains)
+  A Sysinternals AD Explorer snapshot (signed, not flagged by EDR) exported to NDJSON by `ADExplorerSnapshot.py -m Objects`
+  is read natively: objects, memberships, GPO links, and ACL edges parsed from the security descriptors. It has no sessions,
+  local-group or AD CS data, so exposure is a floor and `doctor` says so.
+
 WORKLOAD IDENTITY FEDERATION
   A federated credential (GitHub, Azure DevOps, another tenant) becomes a node with an AZAuthenticatesTo edge to its application: whoever can
   mint the trusted token acts as the app. Wildcard subjects and outside issuers are listed by `audit`.

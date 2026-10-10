@@ -23,6 +23,11 @@ def iter_raw(path):
             yield from iter_raw(p)
         return
     path = Path(path)
+    from . import adexplorer
+    if adexplorer.is_adexplorer_ndjson(path):
+        for data in adexplorer.load_ndjson(path):
+            yield f"adexplorer_{data['meta']['type']}.json", data
+        return
     if path.is_file() and path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as zf:
             for entry in zf.namelist():

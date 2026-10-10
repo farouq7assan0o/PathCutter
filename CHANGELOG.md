@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+### Added
+- **Native AD Explorer snapshot ingestion** (`adexplorer.py`): reads the NDJSON from `ADExplorerSnapshot.py -m Objects`,
+  parsing the binary security descriptors into the same ACL edges SharpHound emits (GenericAll, WriteDacl, WriteOwner,
+  AddMember, WriteSPN, ForceChangePassword, GetChanges/GetChangesAll, key-credential, RBCD, owner). This collects a real
+  AD graph with a Microsoft-signed tool where EDR blocks SharpHound. Validated end to end on a live domain's snapshot.
+- **Workload identity federation**, key vault access policies, scoped Entra roles, Azure compute resources, and the real
+  AzureHound/Conditional Access validation from 0.6.0 (see below).
+
 ## 0.6.0
 
 ### Added
