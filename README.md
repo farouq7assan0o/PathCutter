@@ -81,7 +81,21 @@ CI examples: [examples/github-actions](examples/github-actions).
 
 Not modeled, stated so nobody assumes otherwise: ESC14, the contents of custom Azure roles and Azure deny assignments (reported by `audit`
 as unevaluated), whether MFA or PIM approval is really enforced at sign-in, network reachability, GPO content other than local groups and user rights.
+NTLM relay (SMB / LDAP signing, WebClient) has an experimental derivation in `pathcutter/relay.py` that is **not applied**: against
+BloodHound's own harnesses it over-reports, and no real collection available to this project carries the properties it needs.
 Entra and Azure support is checked against one real AzureHound collection (SpecterOps' PhantomCorp demo tenant, 12,879 objects) and, joined to their AD sample, the hybrid sync links. There is no independent oracle for it the way there is for AD: the tests assert known facts about that tenant, not BloodHound's own edge set.
+
+## What is validated, and what still needs real data
+
+| Area | Checked against | Status |
+|---|---|---|
+| AD graph, ACLs, groups, trusts, Tier 0 | BloodHound CE's computed edges (edge by edge), 4 public GOAD / SpecterOps collections, a differential fuzzer | strong |
+| AD CS ESC1 / 3 / 4 / 6 / 9 / 10 / 13 / 15 | BloodHound's ADCS fixtures and independent re-derivation | good |
+| Entra ID and Azure RBAC | one real AzureHound collection (SpecterOps' demo tenant); facts asserted, no independent oracle | partial |
+| ESC8 / 11 / 16, GPO user rights, Deny ACEs | PathCutter's own collectors, tested on synthetic data and in real PowerShell; never run on a live domain | unproven |
+| NTLM relay, PIM enforcement, custom Azure roles, Conditional Access | no real data exists publicly | not applied or synthetic only |
+
+If you can run a lab, [docs/test-data.md](docs/test-data.md) says exactly what to build and collect, and how to anonymise it first.
 
 ## Trusting the data
 
@@ -137,7 +151,7 @@ pathcutter/   ingest.py azure.py adcs.py derived.py   collectors -> graph, deriv
               changes.py impact.py policy.py extractors/   the change gate and its inputs
               hygiene.py toolkit.py detections.py          audit, doctor, anonymize, detect
               report.py graph_view.js                      the interactive report
-docs/         ad-change-gate.md detections.md validation.md extending.md
+docs/         ad-change-gate.md detections.md validation.md extending.md test-data.md
 tests/ benchmarks/ tools/
 ```
 
