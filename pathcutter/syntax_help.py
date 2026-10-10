@@ -158,6 +158,11 @@ GPO USER RIGHTS (needs tools/Export-AdGpoRights.ps1)
   security template become edges to the computers the GPO is linked to (GPOUserRight). Security filtering, WMI filters,
   enforcement and blocked inheritance are not evaluated, so this can only over-report.
 
+NTLM RELAY (derived from SharpHound computer properties)
+  CoerceAndRelayNTLMToSMB: Authenticated Users -> every computer with SMB signing disabled (not DCs).
+  CoerceAndRelayNTLMToLDAP: Authenticated Users -> every computer running WebClient in a domain whose DCs
+  do not require LDAP signing. Both exclude Protected Users members. Conditions match BloodHound CE's analysis.
+
 RESTRICTIONS (applied when the graph is built; always reported, never silent)
   Protected Users / 'sensitive and cannot be delegated': constrained and resource-based delegation edges into a host
   are removed when EVERY administrator of that host is protected. Listed by `audit`; `check` does not re-evaluate it
@@ -185,7 +190,7 @@ NOT MODELED (stated so nobody assumes otherwise)
   permissions other than the role, secret, group-member and user-password ones, custom Azure roles, deny assignments and key vault data-plane access policies.
   Whether MFA / PIM approval is really enforced at sign-in (Conditional Access is evaluated and reported, not turned
   into graph edges), authentication silos as graph restrictions, smart-card
-  required flags, fine-grained password policy, network reachability and firewalls, SMB/LDAP signing and NTLM relay,
+  required flags, fine-grained password policy, network reachability and firewalls,
   EDR, GPO content other than local-group membership and the user rights above, Kerberos ticket and token contents.
   Sessions are snapshots of one moment: merge several collections with --also.
   Exposure is a floor for anything the collection missed: run `pathcutter doctor` on the export first.

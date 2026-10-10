@@ -64,6 +64,23 @@ def test_unknown_gpo_or_principal_adds_nothing():
     assert derive_gpo_privileges(g) == 0
 
 
+def test_harness_gpo_enforcement_structure():
+    """Validate BloodHound's GPO enforcement harness models blocked inheritance and enforced GPLinks."""
+    from pathlib import Path
+    p = Path(__file__).parent / "data" / "harnesses" / "gpoenforcementharness.json"
+    data = json.loads(p.read_text())
+    nodes = {n["id"]: n for n in data["nodes"]}
+    rels = data["relationships"]
+
+    gplinks = [r for r in rels if r["type"] == "GPLink"]
+    assert len(gplinks) >= 2
+    enforced = [r for r in gplinks if r["properties"].get("enforced") == "True"]
+    assert len(enforced) >= 1, "At least one GPLink should be enforced"
+
+    blocked_ous = [n for n in data["nodes"] if n["properties"].get("blocksInheritence", "").lower() == "true"]
+    assert len(blocked_ous) >= 1, "At least one OU should block inheritance"
+
+
 def test_sidecar_loads_from_an_export(tmp_path):
     z = tmp_path / "e.zip"
     with zipfile.ZipFile(z, "w") as zf:

@@ -555,6 +555,30 @@ ADCSESC16 = EdgeType(
     description="Derived from CA policy-module settings (tools/Export-AdCsRelay.ps1) and domain controller data",
 )
 
+CoerceAndRelayNTLMToSMB = EdgeType(
+    name="CoerceAndRelayNTLMToSMB",
+    category=EdgeCategory.SPECIAL,
+    abuse="Coerce the computer to authenticate via NTLM and relay to a target that does not require SMB signing, gaining code execution as the relayed machine account",
+    mitre="T1557.001",
+    exploitability=7,
+    fix_template="# Require SMB signing on the target (GPO: Microsoft network server: Digitally sign communications (always)). Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from SMB signing settings on computers (SharpHound collection)",
+)
+
+CoerceAndRelayNTLMToLDAP = EdgeType(
+    name="CoerceAndRelayNTLMToLDAP",
+    category=EdgeCategory.SPECIAL,
+    abuse="Coerce a computer running WebClient to authenticate via NTLM and relay to a domain controller that does not require LDAP signing, allowing RBCD write or shadow credentials",
+    mitre="T1557.001",
+    exploitability=8,
+    fix_template="# Require LDAP signing and channel binding on domain controllers. Disable WebClient on servers that do not need WebDAV. Re-collect and re-run PathCutter to confirm the path is gone.",
+    detection_difficulty="medium",
+    reversible=True,
+    description="Derived from LDAP signing on DCs and WebClient status on computers (SharpHound collection)",
+)
+
 GPOUserRight = EdgeType(
     name="GPOUserRight",
     category=EdgeCategory.SPECIAL,

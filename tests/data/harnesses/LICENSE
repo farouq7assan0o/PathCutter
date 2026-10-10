@@ -1,0 +1,7 @@
+The JSON files in this directory are from:
+
+  SpecterOps/BloodHound - https://github.com/SpecterOps/BloodHound
+  Licensed under Apache License 2.0
+
+They are BloodHound CE integration test harnesses used as oracle fixtures
+for validating PathCutter's analysis against BloodHound's expected behavior.

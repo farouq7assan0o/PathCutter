@@ -38,6 +38,10 @@ class Fix:
             if et == "ADCSESC11":
                 return "Close AD CS ESC11: enforce RPC encryption (IF_ENFORCEENCRYPTICERTREQUEST) on the CA"
             return f"Close AD CS {et[4:]} for {self.source_name} (fix the template or CA setting, or restrict who can enroll)"
+        if et == "CoerceAndRelayNTLMToSMB":
+            return f"Require SMB signing on {self.target_name} to block NTLM relay"
+        if et == "CoerceAndRelayNTLMToLDAP":
+            return f"Require LDAP signing on the domain controller and disable WebClient on {self.target_name}"
         if et == "GPOUserRight":
             return f"Remove the dangerous user right that a GPO grants {self.source_name} on {self.target_name}"
         if et == "GoldenCert":
