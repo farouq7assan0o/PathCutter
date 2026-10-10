@@ -44,8 +44,11 @@ def iter_raw(path):
 def file_type(entry: str, data) -> str:
     meta = (data or {}).get("meta", {}) if isinstance(data, dict) else {}
     t = str(meta.get("type", "")).lower()
-    if t in _TYPE_MAP or t in ("azure", "adcsrelay", "gporights"):
+    if t in _TYPE_MAP or t in ("azure", "adcsrelay", "gporights", "conditional_access"):
         return t
+    if isinstance(data, dict) and isinstance(data.get("value"), list) and any(
+            isinstance(x, dict) and "conditions" in x and "grantControls" in x for x in data["value"][:5]):
+        return "conditional_access"
     low = entry.lower()
     return next((k for k in _TYPE_MAP if k in low), "unknown")
 
@@ -140,7 +143,9 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
         return f
     if r["unreadable"]:
         f.append(("WARN", f"{len(r['unreadable'])} file(s) could not be parsed: {', '.join(r['unreadable'][:3])}", "re-run the collection; a truncated ZIP is the usual cause"))
-    azure_only = set(r["files"]) == {"azure"}
+    _ad_types = {"users", "groups", "computers", "domains", "ous", "gpos", "containers", "certtemplates", "enterprisecas",
+                 "rootcas", "aiacas", "ntauthstores", "issuancepolicies"}
+    azure_only = bool(r["files"].get("azure")) and not (set(r["files"]) & _ad_types)
     if r["files"].get("azure") and not azure_only and not r["graph"].get("synced"):
         f.append(("WARN", "Entra ID data is present but no on-premises user is linked to an Entra user (no sync links)",
                   "check onPremisesSecurityIdentifier in the AzureHound output and that the AD collection covers the synced domain"))
@@ -155,7 +160,8 @@ def _findings(r: dict) -> list[tuple[str, str, str]]:
             f.append(("WARN", "no Azure resource role assignments (subscriptions / resource groups)", "run AzureHound with an account that has Reader on the subscriptions"))
         f.append(("INFO", ("Entra data does not include administrative-unit membership or Azure deny assignments" if g.get("ca_policies") else
                   "Entra data does not include Conditional Access policies, administrative-unit membership or Azure deny assignments"),
-                  "export Conditional Access with Get-MgIdentityConditionalAccessPolicy and add it with the collection"))
+                  ("collect them only if you use administrative units or Azure deny assignments" if g.get("ca_policies") else
+                   "export Conditional Access with tools/Export-EntraSidecars.ps1 and keep conditional_access.json next to azure.json")))
     if g["unknown_nodes"]:
         f.append(("WARN", f"{g['unknown_nodes']} principal(s) referenced but not collected (typed Unknown)", "collect from a DC with full LDAP access, or include the other domains in scope"))
     if not azure_only and not r["rights_seen"]:

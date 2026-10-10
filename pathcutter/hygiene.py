@@ -476,7 +476,7 @@ def conditional_access(ctx):
     if not raw:
         return [HygieneFinding("ca-not-collected", "Entra data was collected without Conditional Access policies", "info",
                                "Whether administrators are forced to use MFA cannot be assessed.",
-                               "Export them: Get-MgIdentityConditionalAccessPolicy -All | ConvertTo-Json -Depth 10 > ca.json, and add the file to the collection.",
+                               "Export them with tools/Export-EntraSidecars.ps1 and keep conditional_access.json in the collection folder.",
                                "T1078.004", [], 0)]
     pol = ca.load(raw)
     res = ca.evaluate(g, pol)
@@ -503,10 +503,19 @@ def conditional_access(ctx):
                                   "Switch the policy to On after reviewing the sign-in impact.", "T1078.004",
                                   sorted(name(u) for u in res["report_only_only"])[:25], len(res["report_only_only"])))
     if not res["legacy_blocked"]:
-        out.append(HygieneFinding("ca-legacy-auth", "Legacy authentication is not blocked by Conditional Access", "high",
-                                  "Basic-auth protocols (IMAP, POP, SMTP, EWS) ignore MFA, so password spraying bypasses it.",
-                                  "Create a policy: all users, client apps = Exchange ActiveSync + other clients, grant = block.",
-                                  "T1110.003", [], 0))
+        partial = [p for p in pol if p.enforced and p.blocks() and p.legacy_clients()]
+        if partial:
+            scoped = sorted(p.name for p in partial)
+            out.append(HygieneFinding("ca-legacy-auth", "Legacy authentication is blocked only for part of the tenant", "high",
+                                      "Enforced block policies exist but none applies to all users, so everyone outside their include lists "
+                                      "can still use basic-auth protocols (IMAP, POP, SMTP, EWS), which ignore MFA.",
+                                      "Change one of these policies to include All users (excluding only the break-glass accounts), or add one.",
+                                      "T1110.003", scoped[:25], len(scoped)))
+        else:
+            out.append(HygieneFinding("ca-legacy-auth", "Legacy authentication is not blocked by Conditional Access", "high",
+                                      "Basic-auth protocols (IMAP, POP, SMTP, EWS) ignore MFA, so password spraying bypasses it.",
+                                      "Create a policy: all users, client apps = Exchange ActiveSync + other clients, grant = block.",
+                                      "T1110.003", [], 0))
     return out
 
 

@@ -141,3 +141,30 @@ def test_relay_surface_rules_use_collected_properties_only():
     assert r["smb-signing-dc"].objects == ["DC1.X.LOCAL"] and r["smb-signing"].objects == ["SRV.X.LOCAL"]
     assert r["ldap-signing"].objects == ["DC1.X.LOCAL"] and r["webclient"].objects == ["SRV.X.LOCAL"]
     assert not [k for k in rules(g_with(comp("a", "A"))) if "signing" in k]
+
+
+def _entra_with(tmp, policies, with_ad_file=False):
+    import json, zipfile
+    from pathcutter.ingest import load_sharphound
+    items = [{"kind": "AZUser", "data": {"id": "u1", "userPrincipalName": "a@x.com", "displayName": "a", "tenantId": "t", "accountEnabled": True}}]
+    (tmp / "azure.json").write_text(json.dumps({"meta": {"type": "azure", "version": 5}, "data": items}))
+    (tmp / "conditional_access.json").write_text(json.dumps({"meta": {"type": "conditional_access"}, "data": policies}))
+    return load_sharphound(tmp)
+
+
+def test_legacy_block_scoped_to_a_few_users_is_reported_as_partial(tmp_path):
+    pol = [{"id": "1", "displayName": "Block legacy for pilot", "state": "enabled",
+            "conditions": {"users": {"includeUsers": ["u1"]}, "applications": {"includeApplications": ["All"]},
+                           "clientAppTypes": ["exchangeActiveSync", "other"]}, "grantControls": {"builtInControls": ["block"]}}]
+    g = _entra_with(tmp_path, pol)
+    f = [x for x in audit(g) if x.rule == "ca-legacy-auth"]
+    assert f and "only for part of the tenant" in f[0].title and f[0].objects == ["Block legacy for pilot"]
+
+
+def test_entra_only_folder_with_sidecars_is_not_asked_for_domain_controllers(tmp_path):
+    from pathcutter.toolkit import diagnose
+    _entra_with(tmp_path, [])
+    (tmp_path / "role_assignments.json").write_text('{"value": [{"id": "r"}]}')
+    r = diagnose(str(tmp_path))
+    msgs = " ".join(f[1] for f in r["findings"])
+    assert "domain controller" not in msgs and "no users file" not in msgs and "ACL data" not in msgs
