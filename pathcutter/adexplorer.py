@@ -366,3 +366,26 @@ def apply_local_sessions(graph, folder) -> int:
                     graph.add_edge(ADEdge(source_id=cid, target_id=sid, edge_type="HasSession"))
                     added += 1
     return added
+
+
+def apply_sidecars(graph, folder) -> None:
+    """Parse the optional *_denies.json / *_gporights.json / *_adcsrelay.json sidecars that sit in or beside an AD
+    Explorer NDJSON folder, so one `analyze` picks up Deny ACEs, GPO user rights and CA relay settings too."""
+    from pathlib import Path as _P
+    from . import ingest
+    folder = _P(folder)
+    dirs = [folder] + ([folder.parent] if folder.parent != folder else [])
+    seen = set()
+    for d in dirs:
+        if not d.is_dir():
+            continue
+        for f in sorted(d.glob("*.json")):
+            low = f.name.lower()
+            ft = "denies" if "denies" in low else "gporights" if "gporights" in low else "adcsrelay" if "adcsrelay" in low else None
+            if ft is None or f in seen:
+                continue
+            seen.add(f)
+            try:
+                ingest._parse_one_file(json.loads(f.read_text(encoding="utf-8-sig")), graph, ft)
+            except (ValueError, OSError):
+                pass

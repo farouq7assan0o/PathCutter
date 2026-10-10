@@ -556,7 +556,9 @@ def _load_raw(path: Path) -> AttackGraph:
     if adexplorer.is_adexplorer_ndjson(path):
         for data in adexplorer.load_ndjson(path):
             total_nodes += _parse_one_file(data, graph, data["meta"]["type"])
-        adexplorer.apply_local_sessions(graph, path if path.is_dir() else path.parent)
+        folder = path if path.is_dir() else path.parent
+        adexplorer.apply_local_sessions(graph, folder)
+        adexplorer.apply_sidecars(graph, folder)
     elif path.is_file() and path.suffix.lower() == ".zip":
         total_nodes = _load_from_zip(path, graph)
     elif path.is_dir():
