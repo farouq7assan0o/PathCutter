@@ -138,7 +138,7 @@ def parse_azure_file(data: dict, graph: AttackGraph) -> int:
         oid = _sub(d.get("id") or d.get("subscriptionId")) if kind == "AZSubscription" else             _id(d.get("id") or d.get("tenantId") or d.get("objectId"))
         if not oid:
             continue
-        name = (d.get("userPrincipalName") if nt == NodeType.AZ_USER else None) or d.get("displayName") or d.get("defaultDomain") or (d.get("name") if nt == NodeType.AZ_RESOURCE else None) or oid
+        name = (d.get("userPrincipalName") if nt == NodeType.AZ_USER else None) or d.get("displayName") or d.get("defaultDomain") or (d.get("name") if nt in (NodeType.AZ_RESOURCE, NodeType.AZ_VM, NodeType.AZ_RG, NodeType.AZ_KEYVAULT) else None) or oid
         props = {k: v for k, v in d.items() if isinstance(v, (str, int, float, bool)) or v is None}
         if kind == "AZRole":
             props["_caps"] = _capabilities(d)
