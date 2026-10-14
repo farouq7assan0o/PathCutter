@@ -73,6 +73,8 @@ def main(argv: list[str] | None = None) -> int:
     p_analyze.add_argument("--html", action="store_true", help="Generate HTML report")
     p_analyze.add_argument("--json", action="store_true", dest="json_out", help="Generate JSON snapshot")
     p_analyze.add_argument("--markdown", action="store_true", help="Generate markdown summary")
+    p_analyze.add_argument("--no-shadow-tier0", action="store_true",
+                           help="Do not treat management-plane groups (SCCM, backup, hypervisor, EDR, PAM, Entra Connect) as Tier 0 by name")
     p_analyze.add_argument("--telemetry", metavar="FILE",
                            help="JSON list of the log sources and rules you have: adds a detection-coverage card (see `pathcutter coverage --template`)")
     p_analyze.add_argument("--assume-pack", action="store_true", help="With --telemetry: count the rules `pathcutter detect` generates as deployed")
@@ -228,6 +230,14 @@ def _load_and_analyze(args):
     t0 = time.time()
     print(f"[*] Loading SharpHound data from {args.input}...")
     graph = load_sharphound([args.input, *args.also] if getattr(args, "also", None) else args.input)
+    if getattr(args, "no_shadow_tier0", False):
+        from .shadow_tier0 import strip_by_name
+        n = strip_by_name(graph)
+        if n:
+            print(f"    (Shadow Tier 0 by name disabled: {n} group(s)/account(s) no longer treated as Tier 0)")
+    _sh = [s for s in graph.meta.get("shadow_tier0", []) if s["evidence"] == "by-name"]
+    if _sh:
+        print(f"    Shadow Tier 0: {len(_sh)} management-plane group(s)/account(s) treated as Tier 0 by name (see `audit`; --no-shadow-tier0 to disable)")
     print(f"    {graph.node_count} nodes, {graph.edge_count} edges")
 
     summary = graph.summary()
@@ -370,6 +380,14 @@ def _cmd_graph(args) -> int:
     t0 = time.time()
     print(f"[*] Loading SharpHound data from {args.input}...")
     graph = load_sharphound([args.input, *args.also] if getattr(args, "also", None) else args.input)
+    if getattr(args, "no_shadow_tier0", False):
+        from .shadow_tier0 import strip_by_name
+        n = strip_by_name(graph)
+        if n:
+            print(f"    (Shadow Tier 0 by name disabled: {n} group(s)/account(s) no longer treated as Tier 0)")
+    _sh = [s for s in graph.meta.get("shadow_tier0", []) if s["evidence"] == "by-name"]
+    if _sh:
+        print(f"    Shadow Tier 0: {len(_sh)} management-plane group(s)/account(s) treated as Tier 0 by name (see `audit`; --no-shadow-tier0 to disable)")
     print(f"    {graph.node_count} nodes, {graph.edge_count} edges")
 
     # Find the target node by name (case-insensitive partial match)

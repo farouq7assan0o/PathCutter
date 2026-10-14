@@ -489,6 +489,13 @@ class AttackGraph:
                     self._tier0.add(u)
                     self._seed_t0.add(u)
                     self._tiered.add(u)
+        # Shadow Tier 0: objects that can push code or credentials to real Tier 0 (see shadow_tier0.py)
+        for n in self._nodes.values():
+            if n.properties.get("_shadow_t0") and n.tier != 0:
+                n.tier = 0
+                self._tier0.add(n.object_id)
+                self._seed_t0.add(n.object_id)
+                self._tiered.add(n.object_id)
         # Phase 1: Mark Tier 0 (already done in add_node for known groups)
         # Also mark members of Tier 0 groups as Tier 0
         for t0_id in list(self._tier0):

@@ -168,6 +168,13 @@ AD EXPLORER SNAPSHOTS (LDAP-only, for EDR-blocked domains)
   is read natively: objects, memberships, GPO links, and ACL edges parsed from the security descriptors. It has no sessions,
   local-group or AD CS data, so exposure is a floor and `doctor` says so.
 
+SHADOW TIER 0 (objects that can push code or credentials to real Tier 0)
+  A software-deployment server (SCCM/MECM, WSUS, Tanium ...), a backup admin (Veeam, Commvault ...), a hypervisor admin
+  (VMware, Hyper-V ...), an EDR console admin, a PAM vault admin, or the directory-sync account (Entra Connect / MSOL_) can
+  take over domain controllers through their own product, not through an AD ACL. Their AD groups and service accounts are
+  marked Tier 0 so a path TO them is a path to Domain Admin. DERIVED matches (DCSync or control of the domain object) are
+  certain; BY-NAME matches are listed by `audit` and can be turned off with `analyze --no-shadow-tier0`.
+
 CONFIDENCE AND COVERAGE
   Every step has a confidence: high = read from the directory, medium = computed by PathCutter from collected settings, low = rests on an
   unverified assumption or was seen once (a session in one collection, the unconstrained-delegation link, ESC15, PIM eligibility without

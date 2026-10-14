@@ -588,6 +588,8 @@ def _finish(graph: AttackGraph) -> AttackGraph:
     derive_gpo_privileges(graph)
     from .restrictions import apply_restrictions
     apply_restrictions(graph)
+    from .shadow_tier0 import derive_shadow_tier0
+    derive_shadow_tier0(graph)
     graph.classify_tiers()
     from .adcs import derive_adcs_edges
     from .derived import derive_dcsync

@@ -49,6 +49,10 @@
   hop at which it would first alert, the telemetry to switch on (greedy by blind paths made visible) and the edges that have data but no
   rule. `--assume-pack` counts the `detect` rules as deployed, `--assume-fixed N` evaluates only what is left after the top fixes,
   `--fail-on-blind` is a CI gate. `analyze --telemetry` adds a "Would you see it?" card and a status on each path.
+- **Shadow Tier 0** (`shadow_tier0.py`): objects that can deploy code or read credentials to real Tier 0 are treated as Tier 0,
+  so a path TO them counts. DERIVED (holds DCSync or control of the domain object) is certain; BY-NAME (SCCM, Veeam, VMware,
+  Hyper-V, Defender console, CyberArk, Entra Connect / MSOL_ sync accounts, WSUS ...) is reported by `audit`, extendable in the
+  policy and disabled with `analyze --no-shadow-tier0`. It only ever adds targets, so exposure can rise, never fall silently.
 - Engine: 20,000 differential fuzz seeds clean after these changes; ingest at 200k objects unchanged (4.9 s).
 
 ## 0.5.0

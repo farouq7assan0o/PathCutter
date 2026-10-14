@@ -114,6 +114,29 @@ def federated_credentials(ctx):
 
 
 @rule
+def shadow_tier0(ctx):
+    items = ctx.graph.meta.get("shadow_tier0") or []
+    if not items:
+        return []
+    out = []
+    by_name = [s for s in items if s["evidence"] == "by-name"]
+    derived = [s for s in items if s["evidence"] == "derived"]
+    if derived:
+        out.append(HygieneFinding("shadow-tier0-derived", f"{len(derived)} object(s) hold domain-takeover rights and are treated as Tier 0", "high",
+                                  "These principals can replicate or rewrite the directory (DCSync or control of the domain object), so reaching them is reaching Domain Admin.",
+                                  "Remove the right unless the object is already a managed Tier 0 identity (e.g. the directory-sync account).",
+                                  "T1003.006", sorted(s["name"] for s in derived)[:25], len(derived)))
+    if by_name:
+        prods = sorted({s["product"] for s in by_name})
+        out.append(HygieneFinding("shadow-tier0-by-name", f"{len(by_name)} group(s)/account(s) look like management-plane admins and are treated as Tier 0 ({', '.join(prods)})", "medium",
+                                  "A deployment, backup, hypervisor, EDR, PAM or directory-sync admin can push code to, or read credentials from, "
+                                  "domain controllers. BloodHound does not see this because the privilege lives in another product. Matched by NAME, so verify each.",
+                                  "Confirm these really are that product's admins; tier them as Tier 0 assets; if a match is wrong, re-run with `analyze --no-shadow-tier0` (disables all by-name matches).",
+                                  "T1072", sorted(s["name"] for s in by_name)[:25], len(by_name)))
+    return out
+
+
+@rule
 def keyvault_secret_readers(ctx):
     g = ctx.graph
     readers: dict[str, set[str]] = {}
