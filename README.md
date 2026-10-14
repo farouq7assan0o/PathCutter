@@ -7,8 +7,10 @@ Active Directory, AD CS, Microsoft Entra ID and Azure RBAC in one graph. Offline
  SharpHound / AzureHound  ──►  pathcutter doctor     can I trust this collection?
         (your export)     ──►  pathcutter analyze    what is wrong, and which 5 fixes remove most of it?
                           ──►  pathcutter audit      hygiene: roastable accounts, passwords in attributes, LAPS, MFA gaps
+                          ──►  pathcutter breach      if THIS object leaks, what Tier 0 falls, cheapest / quietest route?
  proposed change          ──►  pathcutter check      would this open a path to Domain Admin?  (CI gate, exit code)
  paths you cannot fix     ──►  pathcutter detect     Sigma / SPL / KQL scoped to exactly those objects
+                          ──►  pathcutter coverage   of those paths, which are detected, which only visible, which blind
 ```
 
 - **Exact, not sampled.** Reachability to Tier 0 is a reverse search, not capped path counting. It is checked against a brute-force
@@ -29,9 +31,11 @@ pathcutter -h                                      # every command, how to build
 pathcutter doctor   export.zip                     # completeness verdict + the collector flag that fixes each gap
 pathcutter analyze  export.zip --html -o report    # score, attack paths, the minimum fix set, an interactive report
 pathcutter audit    export.zip --fail-on critical  # attribute-level findings with why and how to fix
+pathcutter breach   export.zip --from "JSMITH@CORP.LOCAL"   # assume breach: what this one object reaches, and how
 pathcutter snapshot export.zip -o baseline.pcsnap  # a reusable baseline (nightly job)
 pathcutter check --baseline baseline.pcsnap --changes ad-changes/ --policy policy.json --html review.html
 pathcutter detect   baseline.pcsnap --assume-fixed 5 -o detections/
+pathcutter coverage baseline.pcsnap --telemetry telemetry.json   # detected / visible / blind per residual path
 pathcutter anonymize export.zip -o shareable.zip   # pseudonyms, no free text, identical attack paths
 ```
 
@@ -68,6 +72,41 @@ reason, approver and expiry. Outputs: terminal, HTML review page, Markdown for P
 `0` pass, `1` could not run, `2` blocked, `3` needs review. Guide: [docs/ad-change-gate.md](docs/ad-change-gate.md);
 CI examples: [examples/github-actions](examples/github-actions).
 
+## Reading a path: confidence, cost, coverage
+
+Not every path deserves equal attention, and PathCutter says why for each one, without ever hiding an edge.
+
+- **Confidence** (`evidence.py`) - every step is labelled high (read straight from the directory), medium (computed from
+  collected settings, like DCSync from two replication rights or an AD CS escalation) or low (rests on an unverified
+  assumption or a single sighting, like a one-collection session or unconstrained delegation that needs a coercion). A path
+  is as strong as its weakest step; a finding takes the strongest of its paths, because an attacker picks the surest route.
+- **Attacker cost** (`cost.py`) - fewest hops is not how an attacker chooses. Each attack step carries an **effort** (from
+  its exploitability) and a **noise** level (from its detection difficulty); a path sums both, and is flagged *fragile* when
+  a step needs an unverified precondition and *cross-plane* when it crosses between on-premises AD and the cloud. So a short
+  but loud or fragile route is not mistaken for the easy one. The report shows "effort N . noise N" on every path.
+- **Detection coverage** (`pathcutter coverage --telemetry FILE`) - from the log sources and rules you declare, each step is
+  detected (data plus a rule), visible (data, no rule) or blind (no data); a path takes the best of its steps and the hop it
+  would first alert on. The command also lists, greedily, which telemetry to switch on to light up the most blind paths.
+
+## Assume breach: `pathcutter breach`
+
+Every other view works inward from Tier 0. `breach --from OBJECT` starts from one object you name - a laptop, a service
+account, a contractor - and works OUTWARD: its blast radius, which Tier 0 objects it can reach, and for each the cheapest
+(least effort) and stealthiest (least noise) route, ranked for an `--profile opportunist | stealth | balanced` attacker.
+Tier 0 reachable only past another Tier 0 is listed separately. Exit code 2 means the object can reach Tier 0, for gating.
+
+```
+Compromised      : MEDITRUST-DOCTO$  (Computer)
+Tier 0 reachable : 28 of 40
+
+  AZUREUSER  (User)   effort 5, noise 3, 1 step
+      cheapest   : MEDITRUST-DOCTO$ -[HasSession]-> AZUREUSER
+  (+27 further Tier 0 object(s) reachable only after owning one of the above)
+```
+
+(Real output from the MediTrust hybrid lab below: an internet-facing clinical workstation is one session hop from a Domain
+Admin that is logged into it.)
+
 ## What it models
 
 | Area | Covered |
@@ -78,6 +117,7 @@ CI examples: [examples/github-actions](examples/github-actions).
 | Azure | resource RBAC (subscriptions, resource groups, VMs, key vaults), the scope hierarchy, VM managed identities |
 | Restrictions | Protected Users / "sensitive" accounts: delegation edges into hosts whose administrators are all protected are dropped, and `audit` says so |
 | Tier 0 | the built-in list (by name **and** SID), domain objects, GPOs linked to the domain / DC OU, PKI trust anchors, published templates, Tier 0 Entra roles, plus your own crown jewels in the policy |
+| Shadow Tier 0 | objects that take over domain controllers through their own product, not an AD ACL: software deployment (SCCM/MECM, WSUS, Tanium), backup, hypervisor, EDR console, PAM vault and directory-sync (Entra Connect / MSOL_) admins. Derived matches (DCSync / domain-object control) are certain; by-name matches are reported by `audit` and can be turned off with `analyze --no-shadow-tier0` (`shadow_tier0.py`) |
 
 Not modeled, stated so nobody assumes otherwise: ESC14, the contents of custom Azure roles and Azure deny assignments (reported by `audit`
 as unevaluated), whether MFA or PIM approval is really enforced at sign-in, network reachability, GPO content other than local groups and user rights.
@@ -97,6 +137,7 @@ Entra and Azure support is checked against one real AzureHound collection (Spect
 | AD graph, ACLs, groups, trusts, Tier 0 | BloodHound CE's computed edges (edge by edge), 4 public GOAD / SpecterOps collections, a differential fuzzer | strong |
 | AD CS ESC1 / 3 / 4 / 6 / 9 / 10 / 13 / 15 | BloodHound's ADCS fixtures and independent re-derivation | good |
 | Entra ID and Azure RBAC | one real AzureHound collection (SpecterOps' demo tenant); facts asserted, no independent oracle | partial |
+| Hybrid AD + Entra, end to end | the MediTrust capstone lab: an AD Explorer snapshot of `meditrust.local` joined to a real `pcsedu.tech` tenant (875 nodes, 2,941 edges). `breach` found an ordinary clinical user two hops from Domain Admin (`JOHN.DOCTOR -[CanRDP]-> MEDITRUST-DOCTOR-PC -[HasSession]-> AZUREUSER`), the workstation one hop | real lab |
 | ESC8 / 11 / 16, GPO user rights, Deny ACEs | PathCutter's own collectors, tested on synthetic data and in real PowerShell; never run on a live domain | unproven |
 | NTLM relay, PIM enforcement, custom Azure roles, Conditional Access | no real data exists publicly | not applied or synthetic only |
 
@@ -121,6 +162,8 @@ If you can run a lab, [docs/test-data.md](docs/test-data.md) says exactly what t
   **Can you trust this data?**: the collection verdict and its main gaps.
 - Riskiest nodes, remediation with copy-paste commands and rollback notes, attack chains, defend (MITRE, log sources), **What If**
   (toggle fixes and watch the score), path explorer, and an interactive attack graph.
+- Every path in the explorer carries a **confidence** badge (its weakest step) and an **attacker-cost** badge ("effort N . noise N",
+  plus fragile / cross-plane flags); with `--telemetry` a **detection-coverage** card and a per-path detected / visible / blind badge.
 - The graph is built for large environments: canvas rendering with viewport culling and a time-sliced layout (the page never stalls:
   worst main-thread block 15 ms on a 12,000-object domain), leaf users and computers collapse into labelled clusters, shapes and colours per
   type including CAs, templates, Entra and Azure objects, Tier 0 diamonds, shortest path between any two objects, on-graph fix simulation,
@@ -152,7 +195,11 @@ SharpHound legacy (v4) and BloodHound CE (v5, v6) JSON, ZIP or directory; **AD E
 
 ```
 pathcutter/   ingest.py azure.py adcs.py derived.py   collectors -> graph, derived edges
+              adexplorer.py                              AD Explorer NDJSON ingestion (EDR-blocked domains)
               exposure.py exposure_ref.py fastindex.py the engine and its executable specification
+              pathfinder.py scoring.py choke.py          paths, risk score, minimum fix set
+              shadow_tier0.py                            management-plane objects treated as Tier 0
+              evidence.py cost.py coverage.py breach.py  confidence, attacker cost, detection coverage, assume-breach
               changes.py impact.py policy.py extractors/   the change gate and its inputs
               hygiene.py toolkit.py detections.py          audit, doctor, anonymize, detect
               report.py graph_view.js                      the interactive report

@@ -10,7 +10,9 @@ from .snapshot import SnapshotError, load_baseline
 
 def add_parser(sub) -> None:
     p = sub.add_parser("breach", help="Assume breach: if one object is compromised, what Tier 0 can it reach and by the cheapest / stealthiest route?")
-    p.add_argument("input", help="A .pcsnap snapshot or a SharpHound ZIP/directory")
+    p.add_argument("input", help="A .pcsnap snapshot or a SharpHound/AzureHound/AD Explorer ZIP/directory")
+    p.add_argument("--also", nargs="+", metavar="PATH", default=[],
+                   help="Additional collections to merge (e.g. an Entra export alongside an on-prem one), as `analyze --also`")
     p.add_argument("--from", dest="start", required=True, metavar="OBJECT",
                    help="The compromised object: an exact name (e.g. 'BOB@CORP.LOCAL'), a short name, or an object id")
     p.add_argument("--profile", choices=["opportunist", "stealth", "balanced"], default="balanced",
@@ -23,7 +25,11 @@ def add_parser(sub) -> None:
 
 def cmd_breach(args) -> int:
     try:
-        graph, _ = load_baseline(args.input)
+        if args.also:
+            from .ingest import load_sharphound
+            graph = load_sharphound([args.input, *args.also])
+        else:
+            graph, _ = load_baseline(args.input)
     except SnapshotError as exc:
         print(f"[!] {exc}", file=sys.stderr)
         return 1

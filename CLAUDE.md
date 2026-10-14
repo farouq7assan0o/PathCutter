@@ -26,15 +26,22 @@ Nobody does **quantified risk + automated remediation + verification** in one to
 ## Architecture
 
 ```
-SharpHound JSON --> ingest.py --> graph.py --> pathfinder.py --> scoring.py
+SharpHound / AzureHound / AD Explorer --> ingest.py (+ azure.py, adcs.py, adexplorer.py, derived.py)
                                                     |
-                                              choke.py (minimum fix set)
+                                               graph.py  (tier classification, incl. shadow_tier0.py)
                                                     |
-                                         remediate.py (PowerShell commands)
-                                                    |
-                                    report.py (HTML dashboard + JSON + MD)
-                                                    |
-                                         diff.py (before/after comparison)
+                   +--------------------------------+--------------------------------+
+                   |                                |                                |
+            pathfinder.py                     exposure.py                       impact.py
+         (paths, reachability)         (exact reverse search to Tier 0)   (change-gate: what-if)
+                   |                                |                                |
+               scoring.py                     choke.py (minimum fix set)       policy.py (gate verdict)
+                   |                                |
+        analysis layers over paths          remediate.py (PowerShell + rollback)
+        evidence.py  confidence per step            |
+        cost.py      attacker effort / noise   report.py (HTML + JSON + MD),  diff.py (before/after)
+        coverage.py  detected/visible/blind    hygiene.py / toolkit.py (audit, doctor, anonymize)
+        breach.py    assume-breach, outward     detections.py (Sigma/SPL/KQL)
 ```
 
 Python. No heavy dependencies. NetworkX for graph algorithms.
@@ -98,13 +105,47 @@ Python. No heavy dependencies. NetworkX for graph algorithms.
    - JSON snapshot (machine-readable, for CI pipelines)
    - Executive summary markdown (for the pentest report appendix)
 
-9. **cli.py** - CLI
-   - `pathcutter analyze <sharphound-zip-or-dir>` - full analysis
-   - `pathcutter diff <old-snapshot> <new-snapshot>` - compare
-   - `pathcutter fix <snapshot> --top N` - generate remediation script for top N fixes
-   - `pathcutter graph <snapshot> --target <node>` - show paths to specific target
-   - `pathcutter score <snapshot>` - quick risk score without full report
-   - Flags: `--html`, `--json`, `--markdown`, `-o <dir>`, `--max-depth`, `--tier0-only`
+9. **cli.py** - CLI (full command list: `pathcutter -h`)
+   - `pathcutter analyze <export>` - full analysis (risk score, paths, minimum fix set, HTML report)
+   - `pathcutter score <export>` - quick risk score; `pathcutter graph <export> --target <node>` - paths to one target
+   - `pathcutter breach <export> --from <object>` - assume-breach: what this object reaches, cheapest / stealthiest route
+   - `pathcutter fix <export> --top N` - remediation script; `pathcutter diff <old> <new>` - before/after
+   - `pathcutter doctor | audit | anonymize <export>` - trust, hygiene, shareable copy
+   - `pathcutter snapshot <export> -o b.pcsnap` then `pathcutter check --baseline b.pcsnap --changes ...` - the change gate
+   - `pathcutter detect <baseline>` - detections for residual paths; `pathcutter coverage <baseline> --telemetry f.json`
+   - Flags: `--html`, `--json`, `--markdown`, `-o <dir>`, `--max-depth`, `--also`, `--no-shadow-tier0`
+
+### Modules added since the original design (same principles: exact, never silent, honest about limits)
+
+Collectors and planes
+- **azure.py / adcs.py / derived.py** - Microsoft Entra ID and Azure RBAC ingestion; AD CS (ESC1-16, golden cert) derived
+  from template / CA / NTAuth / DC data; other derived edges (DCSync from two replication rights, etc.).
+- **adexplorer.py** - reads a Sysinternals AD Explorer snapshot exported to NDJSON (`ADExplorerSnapshot.py -m Objects`),
+  parsing the binary security descriptors into the same ACL edges SharpHound emits. For domains where EDR blocks SharpHound.
+- **shadow_tier0.py** - management-plane objects that can push code or credentials to real Tier 0 (SCCM, backup, hypervisor,
+  EDR console, PAM, Entra Connect) are marked Tier 0. Derived matches (domain-takeover rights) are certain; by-name matches
+  are reported and can be disabled. Applied during tier classification in graph.py.
+
+The change gate
+- **changes.py / impact.py / policy.py / extractors/** - `pathcutter check`: parse a proposed change (line, file, PowerShell,
+  Terraform, Ansible, DSC), measure its exact effect on who can reach Tier 0 (marginal and combined), and return a gate verdict.
+- **snapshot.py** - reusable `.pcsnap` baselines so `check` runs in seconds.
+
+Reading a path (layers over the enumerated paths; they label, never hide)
+- **evidence.py** - confidence per step (high observed / medium derived / low assumed); a path is its weakest step, a finding
+  its strongest path.
+- **cost.py** - attacker economics: effort (from exploitability) and noise (from detection difficulty) per step, summed per
+  path, with fragile and cross-plane flags; `cheapest` / `stealthiest` / `rank(profile)` selection.
+- **coverage.py (+ coverage_cli.py)** - `pathcutter coverage`: from declared telemetry and rules, each step is detected /
+  visible / blind, and which telemetry to switch on to light up the most blind paths.
+- **breach.py (+ breach_cli.py)** - `pathcutter breach --from OBJECT`: assume-breach, working OUTWARD from one object to the
+  Tier 0 it reaches, with the cheapest and stealthiest route to each.
+
+Detections and sharing
+- **detections.py / detect_pack.py / detect_cli.py** - `pathcutter detect`: Sigma / SPL / Sentinel-KQL / Elastic rules scoped
+  to the objects on the paths you have not fixed.
+- **hygiene.py / toolkit.py** - `audit` (attribute-level findings), `doctor` (collection completeness), `anonymize` (shareable
+  copy with identical paths).
 
 ## Edge types and abuse chains
 
@@ -253,28 +294,24 @@ pathcutter diff old-snapshot.json new-snapshot.json
 
 ```
 pathcutter/
-  __init__.py
-  __main__.py
-  cli.py
-  ingest.py          # SharpHound JSON parser
-  graph.py           # Attack graph construction + edge type registry
+  __init__.py  __main__.py  cli.py
+  ingest.py          # SharpHound / BloodHound CE JSON parser
+  adexplorer.py      # AD Explorer NDJSON ingestion (parses binary security descriptors)
+  azure.py adcs.py derived.py   # Entra/Azure ingestion; AD CS and other derived edges
+  graph.py           # Attack graph construction + tier classification
+  edges.py           # Edge type registry (abuse, MITRE, exploitability, detection difficulty, fix templates)
+  shadow_tier0.py    # management-plane objects treated as Tier 0
   pathfinder.py      # Path algorithms (BFS, shortest, all-paths, reachability)
-  scoring.py         # Risk scoring + centrality
-  choke.py           # Chokepoint analysis + minimum fix set
-  remediate.py       # Fix generation + PowerShell output
-  diff.py            # Snapshot comparison
-  report.py          # HTML dashboard + JSON + Markdown
-  edges.py           # Edge type definitions (abuse, MITRE, exploitability, fix templates)
-tests/
-  conftest.py        # Synthetic graph fixtures
-  test_ingest.py
-  test_graph.py
-  test_pathfinder.py
-  test_scoring.py
-  test_choke.py
-  test_remediate.py
-  test_diff.py
-pyproject.toml
+  exposure.py exposure_ref.py fastindex.py   # exact reverse-search engine + its reference oracle
+  scoring.py choke.py remediate.py   # risk score, minimum fix set, PowerShell fixes + rollback
+  evidence.py cost.py coverage.py breach.py   # confidence, attacker cost, detection coverage, assume-breach
+  changes.py impact.py policy.py snapshot.py extractors/   # the change gate and its inputs
+  detections.py detect_pack.py   # Sigma/SPL/Sentinel/Elastic generation
+  hygiene.py toolkit.py          # audit, doctor, anonymize
+  report.py graph_view.js diff.py   # interactive HTML report + before/after
+  *_cli.py helptext.py syntax_help.py   # per-command CLI wiring and reference text
+tests/               # 16,000+ tests incl. a differential fuzzer and BloodHound-oracle checks
+pyproject.toml  docs/  benchmarks/  tools/
 ```
 
 ## Priority order for building

@@ -84,6 +84,7 @@ Examples:
   pathcutter breach baseline.pcsnap --from "JON.SNOW@NORTH.SEVENKINGDOMS.LOCAL"
   pathcutter breach export.zip --from BACKUP-SVC --profile stealth        # the quietest routes first
   pathcutter breach baseline.pcsnap --from CONTRACTOR-LAPTOP --json breach.json
+  pathcutter breach ad-explorer-ndjson/ --also entra/ --from "JOHN.DOCTOR"     # one hybrid AD + Entra graph
 
 --from accepts an exact name, a short name, or an object id; an ambiguous name lists the matches.
 Effort = how much attacker work a route needs (from edge exploitability); noise = how loud it is (from detection
