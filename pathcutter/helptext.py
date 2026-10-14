@@ -16,6 +16,7 @@ COMMANDS
     analyze    full analysis: risk score, attack paths, prioritised fixes, HTML report
     score      quick risk score only
     graph      every attack path to one target, e.g. --target "DOMAIN ADMINS"
+    breach     assume one object is compromised: what Tier 0 does it reach, cheapest and quietest route first
     fix        a PowerShell remediation script for the top N fixes (with rollback notes)
     diff       compare two collections: did the fixes work, did anything regress?
     export     JSON + exit code for CI gating on score / exposure thresholds
@@ -29,6 +30,7 @@ COMMANDS
     snapshot   save a reusable baseline (.pcsnap) from a SharpHound collection
     check      will these proposed AD changes open a path to Tier 0?   exit 2 = blocked
     detect     detections (Sigma/SPL/KQL) for the attack paths you have NOT fixed
+    coverage   of the paths you have NOT fixed, which would be detected, which only visible, which blind
     syntax     full reference: change language, PowerShell coverage, edge types, policy
 
   Try and learn
@@ -73,6 +75,33 @@ GRAPH = """\
 Examples:
   pathcutter graph export.zip --target "DOMAIN ADMINS"
   pathcutter graph export.zip --target "KINGSLANDING" --top 5
+"""
+
+BREACH = """\
+Assume one object is compromised and work OUTWARD (every other view works inward from Tier 0).
+
+Examples:
+  pathcutter breach baseline.pcsnap --from "JON.SNOW@NORTH.SEVENKINGDOMS.LOCAL"
+  pathcutter breach export.zip --from BACKUP-SVC --profile stealth        # the quietest routes first
+  pathcutter breach baseline.pcsnap --from CONTRACTOR-LAPTOP --json breach.json
+
+--from accepts an exact name, a short name, or an object id; an ambiguous name lists the matches.
+Effort = how much attacker work a route needs (from edge exploitability); noise = how loud it is (from detection
+difficulty). Cross-plane routes (on-premises <-> cloud) are flagged.
+EXIT CODES   0 reaches no Tier 0 | 1 object not found / ambiguous | 2 reaches Tier 0
+"""
+
+COVERAGE = """\
+Needs a telemetry file describing what you collect (see `pathcutter coverage --template`).
+
+Examples:
+  pathcutter coverage baseline.pcsnap --template > telemetry.json         # start here, then edit
+  pathcutter coverage baseline.pcsnap --telemetry telemetry.json
+  pathcutter coverage baseline.pcsnap --telemetry telemetry.json --assume-pack    # count `detect` rules as deployed
+  pathcutter coverage baseline.pcsnap --telemetry telemetry.json --assume-fixed 5 --fail-on-blind
+
+Each step is detected (data + a rule), visible (data, no rule) or blind (no data). A path takes the best of its steps.
+EXIT CODES   0 ok | 1 could not run | 2 a path is blind (only with --fail-on-blind)
 """
 
 DIFF = """\
@@ -179,6 +208,8 @@ DESCRIPTIONS = {
     "score": "Quick risk score for a SharpHound export.",
     "fix": "Generate a PowerShell remediation script for the top N fixes, with safety notes and rollback guidance.",
     "graph": "Show every attack path to one target node.",
+    "breach": "Assume breach: from one compromised object, show the reachable Tier 0 and the cheapest / stealthiest route to each.",
+    "coverage": "For the attack paths you have not fixed, show which would be detected, which only visible, and which are blind.",
     "diff": "Compare two SharpHound collections to verify remediation and catch regressions.",
     "export": "Machine-readable JSON with threshold gating for CI/CD (exit 2 when a threshold is exceeded).",
     "snapshot": "Save a reusable baseline (.pcsnap) from a SharpHound export so `check` runs in seconds.",
@@ -189,6 +220,6 @@ DESCRIPTIONS = {
     "anonymize": "Write a pseudonymized copy of an export that gives the same attack paths and can be shared safely.",
     "detect": "Generate detections scoped to the exact objects on the attack paths you have not fixed.",
 }
-EPILOGS = {"analyze": ANALYZE, "score": SCORE, "fix": FIX, "graph": GRAPH, "diff": DIFF, "export": EXPORT,
-           "snapshot": SNAPSHOT, "demo": DEMO, "check": CHECK, "detect": DETECT,
+EPILOGS = {"analyze": ANALYZE, "score": SCORE, "fix": FIX, "graph": GRAPH, "breach": BREACH, "diff": DIFF, "export": EXPORT,
+           "snapshot": SNAPSHOT, "demo": DEMO, "check": CHECK, "detect": DETECT, "coverage": COVERAGE,
            "doctor": DOCTOR, "anonymize": ANONYMIZE, "audit": AUDIT}

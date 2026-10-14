@@ -135,6 +135,8 @@ def main(argv: list[str] | None = None) -> int:
     _add_detect_parser(sub)
     from .coverage_cli import add_parser as _add_coverage_parser
     _add_coverage_parser(sub)
+    from .breach_cli import add_parser as _add_breach_parser
+    _add_breach_parser(sub)
     from .toolkit import add_parsers as _add_toolkit_parsers
     _add_toolkit_parsers(sub)
 
@@ -220,6 +222,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "coverage":
         from .coverage_cli import cmd_coverage
         return cmd_coverage(args)
+    elif args.command == "breach":
+        from .breach_cli import cmd_breach
+        return cmd_breach(args)
     elif args.command == "demo":
         return _cmd_demo(args)
 

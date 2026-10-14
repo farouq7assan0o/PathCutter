@@ -3,6 +3,17 @@
 ## 0.7.0
 
 ### Added
+- **Attacker cost model** (`cost.py`): every attack edge carries an effort (from its exploitability: higher = more work)
+  and a noise level (from its detection difficulty: higher = easier to catch). A path sums both over its attack steps
+  (structural MemberOf / Contains hops are free), and is flagged *fragile* when a step rests on an unverified precondition
+  (coercion, PIM activation) and *cross-plane* when it crosses between on-premises AD and the cloud. `cheapest`,
+  `stealthiest` and `rank(profile)` pick among routes; the HTML path explorer now shows "effort N . noise N" per path, so a
+  short but loud or fragile route is not mistaken for the easy one.
+- **Assume-breach mode** (`breach.py`, `pathcutter breach INPUT --from OBJECT`): starts from one compromised object and
+  works OUTWARD (every other view works inward from Tier 0). Reports the blast radius, which Tier 0 objects are reachable,
+  and for each the cheapest and stealthiest route (ranked by `--profile opportunist|stealth|balanced`). Tier 0 reachable
+  only past another Tier 0 is listed separately. `--from` accepts an exact name, a short name or an object id (ambiguous
+  names list the matches); exit code 2 means the object can reach Tier 0, for gating.
 - **Native AD Explorer snapshot ingestion** (`adexplorer.py`): reads the NDJSON from `ADExplorerSnapshot.py -m Objects`,
   parsing the binary security descriptors into the same ACL edges SharpHound emits (GenericAll, WriteDacl, WriteOwner,
   AddMember, WriteSPN, ForceChangePassword, GetChanges/GetChangesAll, key-credential, RBCD, owner). This collects a real

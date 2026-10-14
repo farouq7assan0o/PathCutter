@@ -10,6 +10,7 @@ from .graph import AttackGraph
 from .pathfinder import PathReport
 from .scoring import PostureScore, NodeRisk
 from .choke import ChokeReport
+from .cost import path_cost
 from .evidence import path_confidence
 
 
@@ -343,6 +344,7 @@ def _build_paths_json(path_report: PathReport, graph: AttackGraph) -> list[dict]
                 "edge": edge.get("edge_type", "?"),
             })
         conf = path_confidence(p.edges)
+        pc = path_cost(p.edges)
         tgt = graph.get_node(p.target)
         result.append({
             "source": _e(graph.get_node(p.source).display_name if graph.get_node(p.source) else p.source),
@@ -353,6 +355,8 @@ def _build_paths_json(path_report: PathReport, graph: AttackGraph) -> list[dict]
             "steps": steps,
             "node_ids": p.nodes,
             "conf": conf["level"], "conf_edge": conf["edge"], "conf_why": _e(conf["reason"]),
+            "effort": pc["effort"], "noise": pc["noise"], "cost_steps": pc["steps"],
+            "fragile": pc["fragile"], "cross_plane": pc["cross_plane"],
         })
     return result
 
@@ -1266,7 +1270,9 @@ function renderPathList(filter) {{
     const cov = p.cov ? ` <span style="font-size:0.68rem;font-weight:700;color:${{p.cov === 'blind' ? '#ef4444' : p.cov === 'visible' ? '#eab308' : '#22c55e'}}">${{p.cov}}</span>` : '';
     const cc = p.conf === 'low' ? '#ef4444' : p.conf === 'medium' ? '#eab308' : '#22c55e';
     const badge = p.conf && p.conf !== 'high' ? ` <span title="${{p.conf_edge}}: ${{p.conf_why}}" style="font-size:0.68rem;font-weight:700;color:${{cc}};border:1px solid ${{cc}};border-radius:8px;padding:0 6px">${{p.conf}} confidence</span>` : '';
-    card.innerHTML = `<div><strong>${{p.source}}</strong> <span style="color:var(--text-dimmer)">&#8594;</span> <strong style="color:var(--danger)">${{p.target}}</strong>${{badge}}${{cov}}</div><div class="path-meta">${{p.length}} hops | ${{p.steps.map(s => s.edge).join(' > ')}}</div>`;
+    const costTip = `attacker effort ${{p.effort}} (higher = harder), noise ${{p.noise}} (higher = easier to catch)` + (p.fragile ? ', needs an unverified precondition' : '') + (p.cross_plane ? ', crosses on-prem/cloud' : '');
+    const cost = (p.effort !== undefined) ? ` <span title="${{costTip}}" style="font-size:0.68rem;font-weight:700;color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:0 6px">effort ${{p.effort}} &middot; noise ${{p.noise}}${{p.fragile ? ' &middot; fragile' : ''}}${{p.cross_plane ? ' &middot; cross-plane' : ''}}</span>` : '';
+    card.innerHTML = `<div><strong>${{p.source}}</strong> <span style="color:var(--text-dimmer)">&#8594;</span> <strong style="color:var(--danger)">${{p.target}}</strong>${{badge}}${{cost}}${{cov}}</div><div class="path-meta">${{p.length}} hops | ${{p.steps.map(s => s.edge).join(' > ')}}</div>`;
     card.addEventListener('click', () => {{
       document.querySelectorAll('.path-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');

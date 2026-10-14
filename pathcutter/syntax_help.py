@@ -181,6 +181,20 @@ CONFIDENCE AND COVERAGE
   its policy). A path is as strong as its weakest step; a finding takes the strongest of its paths. It labels, it never hides an edge.
   `pathcutter coverage --telemetry FILE` marks each path detected / visible / blind from the log sources and rules you declare.
 
+ATTACKER COST (cheapest and stealthiest route, not just fewest hops)
+  Every attack edge carries an effort (from its exploitability: higher effort = more work/privilege/tooling) and a noise
+  level (from its detection difficulty: higher noise = easier to catch). A path sums both over its attack steps (structural
+  MemberOf / Contains hops are free), and is flagged fragile if a step rests on an unverified precondition (coercion, PIM
+  activation) and cross-plane if it crosses between on-premises AD and the cloud (Entra / Azure / Graph). The report's path
+  explorer shows "effort N . noise N" per path, so a short but loud or fragile route is no longer mistaken for the easy one.
+
+ASSUME BREACH (work outward from one compromised object)
+  `pathcutter breach INPUT --from OBJECT` starts from a single object you name - a laptop, a service account, a contractor -
+  and reports its blast radius, which Tier 0 objects it can reach, and for each the cheapest (least effort) and stealthiest
+  (least noise) route. --profile opportunist|stealth|balanced sets how routes are ranked. Tier 0 reachable only past another
+  Tier 0 is listed separately. Exit code 2 means this object can reach Tier 0 (useful for gating). --from takes an exact name,
+  a short name, or an object id; an ambiguous name lists the matches.
+
 WORKLOAD IDENTITY FEDERATION
   A federated credential (GitHub, Azure DevOps, another tenant) becomes a node with an AZAuthenticatesTo edge to its application: whoever can
   mint the trusted token acts as the app. Wildcard subjects and outside issuers are listed by `audit`.
