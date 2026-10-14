@@ -96,6 +96,10 @@ def _finding_text(f: Finding, width: int) -> list[str]:
     lines = [f"    [{f.severity}] {KIND_LABEL.get(f.kind, f.kind)}{flag}: {f.title}"]
     if f.paths:
         lines.append(f"      path : {chain_text(f.paths[0])}")
+        from .evidence import finding_confidence, label
+        c = finding_confidence(f.paths)
+        if c["level"] != "high":
+            lines.append(f"      trust: {label(c)}")
     if f.principals and f.kind in ("NEW_EXPOSURE", "COMBINED_EFFECT", "PATH_SHORTENED"):
         names = ", ".join(p["name"] for p in f.principals[:6])
         more = f" and {f.principal_total - 6} more" if f.principal_total > 6 else ""

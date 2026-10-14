@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from .changes import ResolvedChange, apply_change, undo_change, replace_node
 from .choke import find_chokepoints
 from .edges import get_edge_type
+from .evidence import edge_confidence
 from .exposure import Exposure, compute_exposure, fork_with_added_edges, fork_with_removed_edges, shortened_nodes
 from .graph import AttackGraph, NodeType
 from .pathfinder import AttackPath, PathReport, find_all_paths
@@ -80,7 +81,10 @@ class Finding:
     ids: list[str] = field(default_factory=list, repr=False)   # every affected object id (internal)
 
     def to_dict(self) -> dict:
-        return {k: v for k, v in self.__dict__.items() if k != "ids"}
+        d = {k: v for k, v in self.__dict__.items() if k != "ids"}
+        from .evidence import finding_confidence
+        d["confidence"] = finding_confidence(self.paths)
+        return d
 
 
 @dataclass
@@ -155,6 +159,12 @@ def _path_dicts(graph: AttackGraph, exp: Exposure, nid: str,
         d["edge"] = st.edge_type
         nxt_id = steps[i + 1].node_id if i + 1 < len(steps) else None
         d["new_edge"] = bool(st.edge_type and nxt_id and (st.node_id, nxt_id, st.edge_type) in change_edges)
+        if st.edge_type and nxt_id:
+            props = next((e for e in graph.get_edge_data(st.node_id, nxt_id) if e.get("edge_type") == st.edge_type), {})
+            if d["new_edge"]:
+                props = {**props, "proposed": True}
+            lvl, src, why = edge_confidence(st.edge_type, props)
+            d["conf"] = {"level": lvl, "source": src, "reason": why}
         out.append(d)
     return out
 

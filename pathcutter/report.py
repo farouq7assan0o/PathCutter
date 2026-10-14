@@ -10,6 +10,7 @@ from .graph import AttackGraph
 from .pathfinder import PathReport
 from .scoring import PostureScore, NodeRisk
 from .choke import ChokeReport
+from .evidence import path_confidence
 
 
 GRAPH_MAX_NODES = 6000
@@ -336,6 +337,7 @@ def _build_paths_json(path_report: PathReport, graph: AttackGraph) -> list[dict]
                 "from_id": p.nodes[i],
                 "edge": edge.get("edge_type", "?"),
             })
+        conf = path_confidence(p.edges)
         tgt = graph.get_node(p.target)
         result.append({
             "source": _e(graph.get_node(p.source).display_name if graph.get_node(p.source) else p.source),
@@ -345,6 +347,7 @@ def _build_paths_json(path_report: PathReport, graph: AttackGraph) -> list[dict]
             "length": p.length,
             "steps": steps,
             "node_ids": p.nodes,
+            "conf": conf["level"], "conf_edge": conf["edge"], "conf_why": _e(conf["reason"]),
         })
     return result
 
@@ -1255,7 +1258,9 @@ function renderPathList(filter) {{
   filtered.forEach((p, idx) => {{
     const card = document.createElement('div');
     card.className = 'path-card';
-    card.innerHTML = `<div><strong>${{p.source}}</strong> <span style="color:var(--text-dimmer)">&#8594;</span> <strong style="color:var(--danger)">${{p.target}}</strong></div><div class="path-meta">${{p.length}} hops | ${{p.steps.map(s => s.edge).join(' > ')}}</div>`;
+    const cc = p.conf === 'low' ? '#ef4444' : p.conf === 'medium' ? '#eab308' : '#22c55e';
+    const badge = p.conf && p.conf !== 'high' ? ` <span title="${{p.conf_edge}}: ${{p.conf_why}}" style="font-size:0.68rem;font-weight:700;color:${{cc}};border:1px solid ${{cc}};border-radius:8px;padding:0 6px">${{p.conf}} confidence</span>` : '';
+    card.innerHTML = `<div><strong>${{p.source}}</strong> <span style="color:var(--text-dimmer)">&#8594;</span> <strong style="color:var(--danger)">${{p.target}}</strong>${{badge}}</div><div class="path-meta">${{p.length}} hops | ${{p.steps.map(s => s.edge).join(' > ')}}</div>`;
     card.addEventListener('click', () => {{
       document.querySelectorAll('.path-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');

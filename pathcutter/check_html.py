@@ -133,6 +133,12 @@ def _finding_html(f: Finding, changes_by_index: dict, expanded: bool = False) ->
     refs = " ".join(f'<a class="chg" href="#c{i}">change #{i}</a>' for i in f.changes[:6]) if f.changes else ""
     out = [f'<article class="{classes}" id="{f.id}" data-sev="{f.severity}" data-kind="{f.kind}">',
            f'<header>{"".join(head)}<h3>{e(f.title)}</h3>{refs}</header>', f'<p class="detail">{e(f.detail)}</p>']
+    if f.paths:
+        from .evidence import finding_confidence
+        c = finding_confidence(f.paths)
+        if c["level"] != "high":
+            out.append(f'<p class="trust trust-{c["level"]}" title="{e(c["reason"])}"><strong>Confidence: {c["level"]}.</strong> '
+                       f'The weakest step is {e(str(c["edge"]))}: {e(c["reason"])}.</p>')
     if f.fix_first:
         out.append(f'<p class="nextfix"><strong>Fix first:</strong> {e(f.fix_first[0]["description"])}</p>')
     out.append(f'<details class="body"{" open" if expanded else ""}><summary>Paths, who is affected, fixes</summary>')
@@ -346,7 +352,7 @@ button:hover{border-color:var(--accent)}button:focus-visible,a:focus-visible,sum
 .finding{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--info);border-radius:12px;padding:16px 18px;margin-bottom:14px}
 .finding.sev-critical{border-left-color:var(--crit)}.finding.sev-high{border-left-color:var(--high)}.finding.sev-medium{border-left-color:var(--med)}.finding.sev-low{border-left-color:var(--low)}
 .finding.superseded,.finding.waived{opacity:.82}.finding header{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}.finding h3{flex:1 1 280px}.chg{font-size:.78rem}
-.detail{margin:4px 0 10px}.nextfix{margin:0 0 6px;font-size:.85rem;color:var(--ok)}.body>summary{margin:2px 0 8px;font-weight:600}.finding{content-visibility:auto;contain-intrinsic-size:auto 180px}.diagram{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px;overflow-x:auto;display:grid;gap:2px}.pathsvg{display:block;color:var(--text)}
+.trust{margin:0 0 6px;font-size:.82rem;color:var(--warn)}.trust-low{color:var(--bad)}.detail{margin:4px 0 10px}.nextfix{margin:0 0 6px;font-size:.85rem;color:var(--ok)}.body>summary{margin:2px 0 8px;font-weight:600}.finding{content-visibility:auto;contain-intrinsic-size:auto 180px}.diagram{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px;overflow-x:auto;display:grid;gap:2px}.pathsvg{display:block;color:var(--text)}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;margin-top:12px}ul{margin:4px 0;padding-left:18px}.mitres{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .mitre{font-size:.72rem;border:1px solid var(--line);border-radius:6px;padding:1px 7px;text-decoration:none;background:var(--panel2)}
 .tbl{width:100%;border-collapse:collapse;font-size:.82rem}.tbl th,.tbl td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}.tbl thead th{font-size:.7rem;text-transform:uppercase;color:var(--dim)}.kv th{width:46%;color:var(--dim);font-weight:500}

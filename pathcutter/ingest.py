@@ -473,7 +473,8 @@ def _link_unconstrained_delegation(graph: AttackGraph) -> None:
             continue
         for dc in dcs:
             if not graph.has_edge_type(node.object_id, dc, "AllowedToDelegate"):
-                graph.add_edge(ADEdge(source_id=node.object_id, target_id=dc, edge_type="AllowedToDelegate"))
+                graph.add_edge(ADEdge(source_id=node.object_id, target_id=dc, edge_type="AllowedToDelegate",
+                                      properties={"basis": "unconstrained-delegation"}))   # synthesised: pathcutter/evidence.py labels it an assumption
 
 
 def _guess_file_type(filename: str) -> str:
