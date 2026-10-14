@@ -34,7 +34,8 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
                          posture: PostureScore, node_scores: list[NodeRisk],
                          choke: ChokeReport,
                          chains=None, safety=None,
-                         max_graph_nodes: int = GRAPH_MAX_NODES, quality: dict | None = None) -> str:
+                         max_graph_nodes: int = GRAPH_MAX_NODES, quality: dict | None = None,
+                         coverage: dict | None = None) -> str:
     """Generate a self-contained HTML dashboard with interactive path explorer."""
     protected = set()
     for f in choke.fixes:
@@ -48,10 +49,14 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
     risks_data = _build_risks_json(node_scores[:30])
     chains_data = _build_chains_json(chains) if chains else []
     paths_data = _build_paths_json(path_report, graph)
+    if coverage:
+        for pd, st in zip(paths_data, coverage.get("status", [])):
+            pd["cov"] = st
 
     summary = graph.summary()
     defend_data = _build_defend_json(graph)
     start_data = _build_start_json(graph, fixes_data, quality)
+    start_data["coverage"] = ({k: coverage[k] for k in ("counts", "enable", "write_rules", "unknown")} if coverage else None)
 
     return _HTML_TEMPLATE.format(
         generated=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
@@ -1258,9 +1263,10 @@ function renderPathList(filter) {{
   filtered.forEach((p, idx) => {{
     const card = document.createElement('div');
     card.className = 'path-card';
+    const cov = p.cov ? ` <span style="font-size:0.68rem;font-weight:700;color:${{p.cov === 'blind' ? '#ef4444' : p.cov === 'visible' ? '#eab308' : '#22c55e'}}">${{p.cov}}</span>` : '';
     const cc = p.conf === 'low' ? '#ef4444' : p.conf === 'medium' ? '#eab308' : '#22c55e';
     const badge = p.conf && p.conf !== 'high' ? ` <span title="${{p.conf_edge}}: ${{p.conf_why}}" style="font-size:0.68rem;font-weight:700;color:${{cc}};border:1px solid ${{cc}};border-radius:8px;padding:0 6px">${{p.conf}} confidence</span>` : '';
-    card.innerHTML = `<div><strong>${{p.source}}</strong> <span style="color:var(--text-dimmer)">&#8594;</span> <strong style="color:var(--danger)">${{p.target}}</strong>${{badge}}</div><div class="path-meta">${{p.length}} hops | ${{p.steps.map(s => s.edge).join(' > ')}}</div>`;
+    card.innerHTML = `<div><strong>${{p.source}}</strong> <span style="color:var(--text-dimmer)">&#8594;</span> <strong style="color:var(--danger)">${{p.target}}</strong>${{badge}}${{cov}}</div><div class="path-meta">${{p.length}} hops | ${{p.steps.map(s => s.edge).join(' > ')}}</div>`;
     card.addEventListener('click', () => {{
       document.querySelectorAll('.path-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
@@ -1431,6 +1437,17 @@ function renderStart() {{
   worst.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Run `pathcutter audit` for all of them, with fixes.'));
   grid.appendChild(worst);
 
+  if (startData.coverage) {{
+    const cv = startData.coverage, tot = (cv.counts.detected + cv.counts.visible + cv.counts.blind) || 1;
+    const seen = col('Would you see it?');
+    const bar = el('div', 'display:flex;height:10px;border-radius:5px;overflow:hidden;margin:6px 0');
+    [['detected', '#22c55e'], ['visible', '#eab308'], ['blind', '#ef4444']].forEach(([k, c]) => {{ if (cv.counts[k]) bar.appendChild(el('div', 'background:' + c + ';width:' + (cv.counts[k] / tot * 100) + '%')); }});
+    seen.appendChild(bar);
+    seen.appendChild(el('div', 'font-size:0.82rem;line-height:1.4', cv.counts.detected + ' detected, ' + cv.counts.visible + ' only visible, ' + cv.counts.blind + ' blind (of ' + tot + ' paths)'));
+    (cv.enable || []).slice(0, 2).forEach(e => seen.appendChild(el('div', 'font-size:0.78rem;margin-top:6px;color:var(--text-dim)', 'Switch on ' + e.telemetry + ': ' + e.paths_made_visible + ' blind path(s) become visible')));
+    (cv.write_rules || []).slice(0, 1).forEach(r => seen.appendChild(el('div', 'font-size:0.78rem;margin-top:4px;color:var(--text-dim)', 'No rule for ' + r.edge + ' (' + r.paths + ' paths): run `pathcutter detect`')));
+    grid.appendChild(seen);
+  }}
   const q = startData.quality;
   const trust = col('Can you trust this data?');
   if (q) {{

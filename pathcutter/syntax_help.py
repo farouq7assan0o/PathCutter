@@ -168,6 +168,12 @@ AD EXPLORER SNAPSHOTS (LDAP-only, for EDR-blocked domains)
   is read natively: objects, memberships, GPO links, and ACL edges parsed from the security descriptors. It has no sessions,
   local-group or AD CS data, so exposure is a floor and `doctor` says so.
 
+CONFIDENCE AND COVERAGE
+  Every step has a confidence: high = read from the directory, medium = computed by PathCutter from collected settings, low = rests on an
+  unverified assumption or was seen once (a session in one collection, the unconstrained-delegation link, ESC15, PIM eligibility without
+  its policy). A path is as strong as its weakest step; a finding takes the strongest of its paths. It labels, it never hides an edge.
+  `pathcutter coverage --telemetry FILE` marks each path detected / visible / blind from the log sources and rules you declare.
+
 WORKLOAD IDENTITY FEDERATION
   A federated credential (GitHub, Azure DevOps, another tenant) becomes a node with an AZAuthenticatesTo edge to its application: whoever can
   mint the trusted token acts as the app. Wildcard subjects and outside issuers are listed by `audit`.

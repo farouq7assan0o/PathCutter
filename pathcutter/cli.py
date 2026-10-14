@@ -18,6 +18,25 @@ from .chains import detect_chains
 from .safety import assess_fixes, summarize_safety
 
 
+def _coverage_summary(args, graph, report):
+    """Detection coverage of the enumerated paths when the user declared their telemetry (None otherwise)."""
+    tel = getattr(args, "telemetry", None)
+    if not tel:
+        return None
+    try:
+        from .coverage import Inventory, analyse
+        inv = Inventory.load(tel)
+        if getattr(args, "assume_pack", False):
+            inv = inv.with_pack()
+        rep = analyse(graph, inv, paths=report)
+    except (OSError, ValueError) as exc:
+        print(f"[!] telemetry file not used: {exc}")
+        return None
+    print(f"    Detection coverage: {rep.counts['detected']} detected, {rep.counts['visible']} visible only, {rep.counts['blind']} blind")
+    return {"counts": rep.counts, "enable": rep.enable[:5], "write_rules": rep.write_rules[:5],
+            "status": [p["status"] for p in rep.paths[:200]], "unknown": rep.inventory.unknown_telemetry}
+
+
 def _quality_summary(args, graph=None):
     """Collection verdict and the top gaps for the report's overview (None if the raw files cannot be inspected)."""
     try:
@@ -54,6 +73,9 @@ def main(argv: list[str] | None = None) -> int:
     p_analyze.add_argument("--html", action="store_true", help="Generate HTML report")
     p_analyze.add_argument("--json", action="store_true", dest="json_out", help="Generate JSON snapshot")
     p_analyze.add_argument("--markdown", action="store_true", help="Generate markdown summary")
+    p_analyze.add_argument("--telemetry", metavar="FILE",
+                           help="JSON list of the log sources and rules you have: adds a detection-coverage card (see `pathcutter coverage --template`)")
+    p_analyze.add_argument("--assume-pack", action="store_true", help="With --telemetry: count the rules `pathcutter detect` generates as deployed")
     p_analyze.add_argument("--graph-nodes", type=int, default=6000, metavar="N",
                            help="Max nodes drawn in the HTML attack graph (default 6000)")
 
@@ -109,6 +131,8 @@ def main(argv: list[str] | None = None) -> int:
     _add_check_parsers(sub)
     from .detect_cli import add_parser as _add_detect_parser
     _add_detect_parser(sub)
+    from .coverage_cli import add_parser as _add_coverage_parser
+    _add_coverage_parser(sub)
     from .toolkit import add_parsers as _add_toolkit_parsers
     _add_toolkit_parsers(sub)
 
@@ -191,6 +215,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "detect":
         from .detect_cli import cmd_detect
         return cmd_detect(args)
+    elif args.command == "coverage":
+        from .coverage_cli import cmd_coverage
+        return cmd_coverage(args)
     elif args.command == "demo":
         return _cmd_demo(args)
 
@@ -292,6 +319,7 @@ def _cmd_analyze(args) -> int:
                 graph, report, posture, node_scores, choke,
                 chains=chains, safety=assessments if choke.fixes else None,
                 max_graph_nodes=args.graph_nodes, quality=_quality_summary(args, graph),
+                coverage=_coverage_summary(args, graph, report),
             )
             if out_dir:
                 path = out_dir / "pathcutter-report.html"

@@ -42,6 +42,13 @@
   paths (the 2,871-edge hairball of a 3-VM lab became 617), objects left with no relevant edge are hidden and counted; dragging a node
   pins it (yellow ring), no longer fights the auto-fit, and "Drag: pan only" turns node moving off.
 - Overview: the node-type chart groups the tail as "Other (n types)" and its card grows with the chart.
+- **Confidence on every path** (`evidence.py`): each edge is observed (high), derived (medium) or assumed / thin (low), and a path or
+  finding is labelled with its weakest step: the single-snapshot session behind the MediTrust headline path reads "low", an ESC15
+  edge "assumes an unpatched CA". Shown in `analyze` (path explorer badge), `check` (text and HTML) and the JSON.
+- **`pathcutter coverage`**: from a list of the log sources and rules you have, each path is detected / visible only / blind, with the
+  hop at which it would first alert, the telemetry to switch on (greedy by blind paths made visible) and the edges that have data but no
+  rule. `--assume-pack` counts the `detect` rules as deployed, `--assume-fixed N` evaluates only what is left after the top fixes,
+  `--fail-on-blind` is a CI gate. `analyze --telemetry` adds a "Would you see it?" card and a status on each path.
 - Engine: 20,000 differential fuzz seeds clean after these changes; ingest at 200k objects unchanged (4.9 s).
 
 ## 0.5.0
