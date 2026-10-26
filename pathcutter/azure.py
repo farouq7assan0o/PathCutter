@@ -161,6 +161,36 @@ def _ensure(graph: AttackGraph, oid: str, node_type: NodeType, name: str = "") -
         graph.add_node(ADNode(oid, (name or oid).upper(), node_type, ""))
 
 
+def _pim_flags(rules: list) -> dict | None:
+    """What a PIM role's end-user ACTIVATION requires, from the policy's rules (AzureHound's policy.rules[]).
+
+    Returns {"mfa", "approval", "justification"} or None if the activation rules were not found. Each rule is the raw
+    Graph object; the end-user activation rules are identified by id (Enablement_/Approval_EndUser_Assignment) with a
+    fallback to @odata.type + target. MFA / justification live in the enablement rule's enabledRules; approval in the
+    approval rule's setting.isApprovalRequired."""
+    mfa = approval = justification = None
+    for r in rules:
+        if not isinstance(r, dict):
+            continue
+        rid = str(r.get("id") or "")
+        odata = str(r.get("@odata.type") or "").lower()
+        target = r.get("target") if isinstance(r.get("target"), dict) else {}
+        end_user_activation = rid.endswith("_EndUser_Assignment") or (
+            str(target.get("caller") or "").lower() == "enduser" and str(target.get("level") or "").lower() == "assignment")
+        if not end_user_activation:
+            continue
+        if "enablementrule" in odata or rid.startswith("Enablement"):
+            enabled = [str(x).lower() for x in (r.get("enabledRules") or [])]
+            mfa = "multifactorauthentication" in enabled
+            justification = "justification" in enabled
+        elif "approvalrule" in odata or rid.startswith("Approval"):
+            setting = r.get("setting") if isinstance(r.get("setting"), dict) else {}
+            approval = bool(setting.get("isApprovalRequired"))
+    if mfa is None and approval is None and justification is None:
+        return None
+    return {"mfa": bool(mfa), "approval": bool(approval), "justification": bool(justification)}
+
+
 def _grant(graph: AttackGraph, who: str, rid: str, scope, edge_kind: str) -> None:
     """A role assignment. Tenant-wide (or a role that cannot be scoped) is membership of the role; a user-management or
     application role scoped to an administrative unit or to one object only reaches that scope, so it is kept aside and
@@ -190,6 +220,12 @@ def _relationships(kind: str, d, graph: AttackGraph) -> None:
         rid = _id(d.get("roleDefinitionId"))
         _ensure(graph, rid, NodeType.AZ_ROLE, KNOWN_ROLES.get(rid, ""))
         _grant(graph, _id(d.get("principalId")), rid, d.get("directoryScopeId"), "AZEligibleRole")
+    elif kind == "AZRoleManagementPolicyAssignment" and isinstance(d, dict):
+        rid = _id(d.get("roleDefinitionId"))
+        rules = (d.get("policy") or {}).get("rules") if isinstance(d.get("policy"), dict) else None
+        flags = _pim_flags(rules if isinstance(rules, list) else [])
+        if rid and flags is not None:
+            graph.meta.setdefault("pim_policy", {})[rid] = flags
     elif kind == "AZAdministrativeUnit" and isinstance(d, dict):
         au = _id(d.get("id"))
         if au:
@@ -343,6 +379,17 @@ def finalize_azure(graph: AttackGraph) -> None:
         target = app_by_appid.get(link["app"]) or sp_by_appid.get(link["app"])
         if target:
             _edge(graph, link["fic"], target, "AZAuthenticatesTo")
+    # PIM: stamp each eligible-role edge with what its activation requires, so evidence/cost/audit can use it
+    pim = graph.meta.get("pim_policy") or {}
+    for rid, flags in pim.items():
+        if graph.get_node(rid) is None:
+            continue
+        for _u, _v, key, dd in graph.graph.in_edges(rid, keys=True, data=True):
+            if dd.get("edge_type") == "AZEligibleRole":
+                dd["pim_collected"] = True
+                dd["pim_mfa"] = flags["mfa"]
+                dd["pim_approval"] = flags["approval"]
+                dd["pim_justification"] = flags["justification"]
     graph._onward_memo = {n.object_id: True for n in graph.nodes_by_type(NodeType.AZ_SP) if n.properties.get("_graph_perms")}
     # (the memo also keeps this linear: the question is asked for every holder-victim pair)
     try:

@@ -118,6 +118,9 @@ Python. No heavy dependencies. NetworkX for graph algorithms.
 ### Modules added since the original design (same principles: exact, never silent, honest about limits)
 
 Collectors and planes
+- **azure.py** also reads PIM activation policy: `AZRoleManagementPolicyAssignment` stamps each `AZEligibleRole` edge
+  with what end-user activation requires (MFA / approval), which evidence.py turns into a confidence verdict and
+  hygiene.py flags when weak. Schema matches AzureHound's `models/azure/unified_role_management_policy*`.
 - **azure.py / adcs.py / derived.py** - Microsoft Entra ID and Azure RBAC ingestion; AD CS (ESC1-16, golden cert) derived
   from template / CA / NTAuth / DC data; other derived edges (DCSync from two replication rights, etc.).
 - **adexplorer.py** - reads a Sysinternals AD Explorer snapshot exported to NDJSON (`ADExplorerSnapshot.py -m Objects`),

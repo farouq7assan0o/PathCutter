@@ -82,6 +82,13 @@ def edge_confidence(edge_type: str, props: dict | None = None) -> tuple[str, str
         if seen == 2:
             return ("medium", "collector:sessions", "seen in 2 collections")
         return ("low", "collector:sessions", "a session seen in one collection only: sessions are transient")
+    if edge_type == "AZEligibleRole" and props.get("pim_collected"):
+        # the PIM activation policy was collected (AzureHound AZRoleManagementPolicyAssignment): say what it enforces
+        if props.get("pim_approval"):
+            return ("low", "assumption:pim-approval", "activation requires approval, which may be denied")
+        if props.get("pim_mfa"):
+            return ("medium", "derived:pim-policy", "the eligible holder can activate after MFA (no approval)")
+        return ("high", "derived:pim-policy", "activation requires neither MFA nor approval: effectively a standing assignment")
     if edge_type in _TABLE:
         return _TABLE[edge_type]
     return ("high", "collector:directory", "read directly from the collected directory data")

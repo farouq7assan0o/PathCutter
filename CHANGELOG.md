@@ -3,6 +3,12 @@
 ## 0.7.0
 
 ### Added
+- **PIM activation policy** (Entra Privileged Identity Management): when AzureHound collected the role-management-policy
+  assignments (`AZRoleManagementPolicyAssignment`), PathCutter reads what end-user activation of an eligible role
+  requires and turns the `AZEligibleRole` edge from an assumption into a verdict - approval required -> low confidence
+  and fragile; MFA but no approval -> medium; neither -> high (effectively a standing assignment). New `audit` findings
+  flag roles activatable with no MFA/approval (high) or no approval (medium). Without the policy data the edge keeps its
+  old low-confidence label.
 - **Fix as code** (`prbundle.py`, `pathcutter fix --pr`): write a pull-request-ready remediation bundle instead of a bare
   script - `remediation.ps1`, `PR.md` (description with a per-fix safety table), `fixes.changes` (the fixes as change
   lines, so `pathcutter check --changes fixes.changes` confirms they REMOVE exposure), and `apply.sh` / `apply.ps1` that

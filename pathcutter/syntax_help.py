@@ -211,6 +211,15 @@ ASSUME BREACH (work outward from one compromised object)
   Tier 0 is listed separately. Exit code 2 means this object can reach Tier 0 (useful for gating). --from takes an exact name,
   a short name, or an object id; an ambiguous name lists the matches.
 
+PIM ACTIVATION POLICY (Entra Privileged Identity Management)
+  A PIM-eligible role (AZEligibleRole) is only a real standing risk if the holder can actually activate it. When
+  AzureHound collected the role-management-policy assignments (AZRoleManagementPolicyAssignment, needs
+  RoleManagement.Read.Directory), PathCutter reads what end-user activation requires and upgrades the edge from an
+  assumption to a verdict: approval required -> low confidence and FRAGILE (an approver may say no); MFA but no approval
+  -> medium (the holder activates on their own after MFA); neither -> HIGH, because the eligibility is effectively a
+  standing assignment. `audit` flags roles activatable with no MFA/approval (high) or no approval (medium). Without the
+  policy data the edge stays the old low-confidence assumption, and `doctor`-style honesty applies.
+
 WORKLOAD IDENTITY FEDERATION
   A federated credential (GitHub, Azure DevOps, another tenant) becomes a node with an AZAuthenticatesTo edge to its application: whoever can
   mint the trusted token acts as the app. Wildcard subjects and outside issuers are listed by `audit`.

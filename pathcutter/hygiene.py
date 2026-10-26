@@ -137,6 +137,40 @@ def shadow_tier0(ctx):
 
 
 @rule
+def pim_weak_activation(ctx):
+    """Eligible roles whose PIM activation policy requires no approval (and especially no MFA): near-standing privilege."""
+    g = ctx.graph
+    no_approval: set[str] = set()      # role names: activation needs no approval
+    no_mfa: set[str] = set()           # role names: activation needs neither MFA nor approval
+    for _u, v, d in g.all_edges():
+        if d.get("edge_type") != "AZEligibleRole" or not d.get("pim_collected"):
+            continue
+        name = g.get_node_name(v)
+        if not d.get("pim_approval"):
+            no_approval.add(name)
+            if not d.get("pim_mfa"):
+                no_mfa.add(name)
+    out = []
+    if no_mfa:
+        out.append(HygieneFinding("pim-activation-no-mfa",
+                                  f"{len(no_mfa)} PIM-eligible role(s) can be activated with neither MFA nor approval",
+                                  "high",
+                                  "An eligible holder can raise themselves into the role at will, with no second factor and no human in the loop, "
+                                  "so the eligibility is effectively a standing assignment.",
+                                  "In PIM role settings, require MFA on activation and (for Tier 0 roles) approval; shorten the activation window.",
+                                  "T1078.004", sorted(no_mfa)[:25], len(no_mfa)))
+    only_mfa = no_approval - no_mfa
+    if only_mfa:
+        out.append(HygieneFinding("pim-activation-no-approval",
+                                  f"{len(only_mfa)} PIM-eligible role(s) activate with MFA but no approval",
+                                  "medium",
+                                  "MFA is required but no approver is in the loop, so a holder whose session satisfies MFA can self-elevate.",
+                                  "Require approval on activation for privileged roles.",
+                                  "T1078.004", sorted(only_mfa)[:25], len(only_mfa)))
+    return out
+
+
+@rule
 def keyvault_secret_readers(ctx):
     g = ctx.graph
     readers: dict[str, set[str]] = {}
