@@ -188,7 +188,7 @@ knowledge drifts between modules. See [docs/extending.md](docs/extending.md).
 
 ## Input formats
 
-SharpHound legacy (v4) and BloodHound CE (v5, v6) JSON, ZIP or directory; **AD Explorer snapshots** (Sysinternals, exported to NDJSON by `ADExplorerSnapshot.py -m Objects`) read natively, for domains where EDR blocks SharpHound; AzureHound JSON; an optional `*_denies.json` from
+SharpHound legacy (v4) and BloodHound CE (v5, v6) JSON, ZIP or directory; **AD Explorer snapshots** (Sysinternals, exported to NDJSON by `ADExplorerSnapshot.py -m Objects`) read natively, for domains where EDR blocks SharpHound - including AD CS (ESC1/4/5/13/15 and golden certificate), trusts, LAPS and gMSA reads when the Configuration partition is in the snapshot (see [docs/collect-with-adexplorer.md](docs/collect-with-adexplorer.md)); AzureHound JSON; an optional `*_denies.json` from
 `tools/Export-AdDenyAces.ps1`; an optional `*_adcsrelay.json` from `tools/Export-AdCsRelay.ps1`; an optional `*_gporights.json` from `tools/Export-AdGpoRights.ps1`; an optional `*_localsessions.json` from `tools/Export-AdLocalSessions.ps1` (local admins and sessions, to pair with an AD Explorer snapshot); an optional Conditional Access policy export (`Get-MgIdentityConditionalAccessPolicy`).
 
 ## Layout

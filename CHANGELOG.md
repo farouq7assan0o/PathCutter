@@ -3,6 +3,17 @@
 ## 0.7.0
 
 ### Added
+- **AD Explorer snapshots now read the Configuration partition and more** (`adexplorer.py`): when the snapshot includes
+  the Configuration NC, PathCutter reads AD Certificate Services objects (certificate templates, enterprise CAs, the
+  NTAuth store, issuance policies) and derives the escalations determined by the directory alone - ESC1, ESC4, ESC5,
+  ESC15, ESC13 and golden certificate - from a Microsoft-signed collection, no SharpHound needed. `trustedDomain`
+  objects become trust edges (direction, transitivity, SID filtering from `trustAttributes`); `msDS-GroupMSAMembership`
+  becomes `ReadGMSAPassword`; a targeted read of a LAPS password attribute (`ms-Mcs-AdmPwd` / `msLAPS-Password` /
+  `msLAPS-EncryptedPassword`, the per-forest GUID resolved from the schema partition) becomes `ReadLAPSPassword`. What
+  lives only in the CA/DC registry (EDITF SAN flag, ManageCA, enrollment-agent restrictions, strong-binding) stays off
+  unless the matching sidecar is collected - never guessed. Sidecars (`*_denies.json`, `*_gporights.json`,
+  `*_adcsrelay.json`, `*_localsessions.json`) are auto-merged when they sit in or beside the NDJSON folder. New guide:
+  `docs/collect-with-adexplorer.md`.
 - **Attacker cost model** (`cost.py`): every attack edge carries an effort (from its exploitability: higher = more work)
   and a noise level (from its detection difficulty: higher = easier to catch). A path sums both over its attack steps
   (structural MemberOf / Contains hops are free), and is flagged *fragile* when a step rests on an unverified precondition
