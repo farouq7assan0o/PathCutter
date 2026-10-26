@@ -73,7 +73,13 @@ FIX = """\
 Examples:
   pathcutter fix export.zip --top 10 -o remediation.ps1
   pathcutter check --baseline baseline.pcsnap --powershell remediation.ps1     # verify the script BEFORE running it
+  pathcutter fix export.zip --pr -o ./pr                                        # fix-as-code: a PR-ready bundle
+  pathcutter fix export.zip --pr --pr-platform gitlab --pr-base main -o ./pr
+
 The script is annotated so `check` can predict its exact effect.
+--pr writes a bundle: remediation.ps1, fixes.changes (re-verify with `pathcutter check --changes`), PR.md (the
+description, with per-fix safety), and apply.sh / apply.ps1 that open the PR with YOUR `gh` (GitHub) or `glab` (GitLab).
+PathCutter never touches your git remote; the apply script does, with your credentials, and a human merges the PR.
 """
 
 GRAPH = """\

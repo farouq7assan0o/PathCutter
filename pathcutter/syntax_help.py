@@ -188,6 +188,14 @@ ATTACKER COST (cheapest and stealthiest route, not just fewest hops)
   activation) and cross-plane if it crosses between on-premises AD and the cloud (Entra / Azure / Graph). The report's path
   explorer shows "effort N . noise N" per path, so a short but loud or fragile route is no longer mistaken for the easy one.
 
+FIX AS CODE (open the remediation as a pull request)
+  `fix --pr -o DIR` writes a branch-ready bundle instead of a bare script: remediation.ps1, a PR.md description with the
+  per-fix safety table, fixes.changes (the fixes as change lines so `pathcutter check --changes fixes.changes` confirms
+  they REMOVE exposure, not add it), and apply.sh / apply.ps1 that create the branch and open the PR with your own `gh`
+  (GitHub) or `glab` (GitLab; --pr-platform gitlab). PathCutter stays offline and never touches your remote - the apply
+  script does, with your credentials, and a human reviews and merges. A fix the change DSL cannot express (e.g. an ADCS
+  escalation fixed on the template) is written as a comment and confirmed by re-collection instead.
+
 CROWN JEWELS (business value, not just hop count)
   `analyze --crown-jewels FILE` names the assets whose compromise is a crisis even when it is not domain takeover: the
   student-records system, the finance ERP, research servers. Each entry is {"match": name-or-id, "value":

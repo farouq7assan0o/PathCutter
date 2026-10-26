@@ -66,6 +66,11 @@ Verdict  : BLOCK - 1 blocking finding (1 critical)
 | Ansible | `--ansible playbooks/` (microsoft.ad / ansible.windows / community.windows, embedded PowerShell, vars and loops) |
 | DSC | `--dsc configs/` (ActiveDirectoryDsc / PSDscResources) |
 
+**Fix as code:** `pathcutter fix export.zip --pr -o ./pr` writes a branch-ready bundle - the remediation script, a `PR.md`
+description with a per-fix safety table, a `fixes.changes` file that `pathcutter check --changes` re-verifies as a risk
+*reduction*, and an `apply.sh` / `apply.ps1` that opens the PR with your own `gh` or `glab`. PathCutter never touches your
+remote; the apply script does, and a human reviews and merges.
+
 It understands what a plain graph cannot: **Deny ACEs** (identity-sensitive; collect them with `tools/Export-AdDenyAces.ps1`),
 **time-bound JIT/PAM grants** (`ttl=4h`, `-MemberTimeToLive`), **declared compensating controls** (they lower severity, never hide,
 always say "declared, not verified"), SDProp and revocation-lag notes, and governance: policy file, crown-jewel assets, waivers with
@@ -213,7 +218,7 @@ pathcutter/   ingest.py azure.py adcs.py derived.py   collectors -> graph, deriv
               pathfinder.py scoring.py choke.py          paths, risk score, minimum fix set
               shadow_tier0.py                            management-plane objects treated as Tier 0
               evidence.py cost.py coverage.py breach.py  confidence, attacker cost, detection coverage, assume-breach
-              value.py                                   crown jewels / business value (weight risk by asset worth)
+              value.py prbundle.py                       crown jewels / business value; fix-as-code PR bundles
               changes.py impact.py policy.py extractors/   the change gate and its inputs
               hygiene.py toolkit.py detections.py          audit, doctor, anonymize, detect
               report.py graph_view.js                      the interactive report

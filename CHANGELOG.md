@@ -3,6 +3,13 @@
 ## 0.7.0
 
 ### Added
+- **Fix as code** (`prbundle.py`, `pathcutter fix --pr`): write a pull-request-ready remediation bundle instead of a bare
+  script - `remediation.ps1`, `PR.md` (description with a per-fix safety table), `fixes.changes` (the fixes as change
+  lines, so `pathcutter check --changes fixes.changes` confirms they REMOVE exposure), and `apply.sh` / `apply.ps1` that
+  create the branch and open the PR with the reviewer's own `gh` (GitHub) or `glab` (GitLab, `--pr-platform gitlab`).
+  PathCutter stays offline and never touches the git remote; the apply script does, with the reviewer's credentials, and
+  a human merges. Change-line direction follows each edge's grammar (e.g. HasSession reverses), and a fix the DSL cannot
+  express is written as a comment and confirmed by re-collection.
 - **Packaging and deployment**: full PyPI metadata (PEP 639 SPDX license, classifiers, project URLs, readme) so
   `pip install pathcutter` works; a non-root **Dockerfile** and `.dockerignore`; a **release workflow** that publishes to
   PyPI via Trusted Publishing (OIDC, no stored token) on a version tag; and **scheduled-run scripts** `tools/nightly.ps1`

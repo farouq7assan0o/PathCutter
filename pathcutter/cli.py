@@ -97,8 +97,13 @@ def main(argv: list[str] | None = None) -> int:
     p_fix.add_argument("--top", type=int, default=10, help="Top N fixes")
     p_fix.add_argument("--max-depth", type=int, default=20)
     p_fix.add_argument("--max-paths", type=int, default=10000)
-    p_fix.add_argument("-o", "--output", help="Output .ps1 file")
+    p_fix.add_argument("-o", "--output", help="Output .ps1 file (or, with --pr, the bundle directory)")
     p_fix.add_argument("--no-rollback", action="store_true", help="Skip rollback section")
+    p_fix.add_argument("--pr", action="store_true",
+                       help="Write a fix-as-code PR bundle (remediation + PR.md + a re-verifiable change file + an apply script) instead of a bare script")
+    p_fix.add_argument("--pr-platform", choices=["github", "gitlab", "none"], default="github",
+                       help="Which tool the apply script uses to open the PR (default github: gh)")
+    p_fix.add_argument("--pr-base", default="main", metavar="BRANCH", help="Base branch the PR targets (default main)")
 
     # graph - show paths to a specific target
     p_graph = sub.add_parser("graph", help="Show attack paths to a specific target node")
@@ -401,6 +406,24 @@ def _cmd_fix(args) -> int:
     graph, report = _load_and_analyze(args)
     choke = find_chokepoints(graph, report, max_fixes=args.top)
     plan = build_plan(choke, top_n=args.top)
+
+    if getattr(args, "pr", False):
+        if not plan.fixes:
+            print("[i] No attack path reaches Tier 0, so there is nothing to remediate; no PR bundle written.")
+            return 0
+        from .prbundle import write_pr_bundle
+        from .safety import assess_fixes
+        safety = assess_fixes(graph, plan.fixes)
+        out_dir = args.output or "pathcutter-pr"
+        written = write_pr_bundle(plan, out_dir, graph=graph, safety=safety, baseline=args.input,
+                                  platform=args.pr_platform, base=args.pr_base,
+                                  include_rollback=not args.no_rollback)
+        print(f"\n[+] Fix-as-code PR bundle: {out_dir}")
+        print(f"    {len(plan.fixes)} fixes | {plan.paths_eliminated}/{plan.total_paths} paths ({plan.elimination_pct:.0f}%)")
+        for p in written:
+            print(f"    {Path(p).name}")
+        print(f"    Open the PR: run apply.sh (or apply.ps1) from inside your target repo (uses your {args.pr_platform} login).")
+        return 0
 
     script = plan.powershell_script(include_rollback=not args.no_rollback)
 
