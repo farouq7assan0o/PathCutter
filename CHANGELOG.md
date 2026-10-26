@@ -3,6 +3,13 @@
 ## 0.7.0
 
 ### Added
+- **Crown jewels / business value** (`value.py`, `analyze --crown-jewels FILE`): name the assets whose compromise is a
+  crisis even when it is not domain takeover (student records, finance ERP, research servers), by name/id or by OU, each
+  with a value (critical/high/medium) and a label. They become targets and the report ranks who can reach each one by
+  the cheapest route. PathCutter never invents value - an asset counts only because you declared it.
+- **Leadership reporting**: the HTML report now opens with an **executive summary** (grade, exposure, crown jewels
+  reachable, top fixes in one paragraph), a **Crown Jewels** card, and a **risk-by-department (per-OU)** breakdown, and
+  it **prints cleanly to PDF** (a `@media print` stylesheet turns the Overview into a one-page brief; no new dependency).
 - **AD Explorer snapshots now read the Configuration partition and more** (`adexplorer.py`): when the snapshot includes
   the Configuration NC, PathCutter reads AD Certificate Services objects (certificate templates, enterprise CAs, the
   NTAuth store, issuance policies) and derives the escalations determined by the directory alone - ESC1, ESC4, ESC5,

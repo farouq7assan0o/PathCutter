@@ -188,6 +188,14 @@ ATTACKER COST (cheapest and stealthiest route, not just fewest hops)
   activation) and cross-plane if it crosses between on-premises AD and the cloud (Entra / Azure / Graph). The report's path
   explorer shows "effort N . noise N" per path, so a short but loud or fragile route is no longer mistaken for the easy one.
 
+CROWN JEWELS (business value, not just hop count)
+  `analyze --crown-jewels FILE` names the assets whose compromise is a crisis even when it is not domain takeover: the
+  student-records system, the finance ERP, research servers. Each entry is {"match": name-or-id, "value":
+  critical|high|medium, "label": "..."} or {"ou": "OU=...,DC=...", ...} to value everything under an OU. A crown jewel
+  becomes a target (the exposure search measures who can reach it) and the HTML report adds an executive summary, a Crown
+  Jewels card (reachable / by how many / cheapest route) and a per-OU breakdown, and prints cleanly to PDF. PathCutter
+  never invents value: an asset counts only because you declared it.
+
 ASSUME BREACH (work outward from one compromised object)
   `pathcutter breach INPUT --from OBJECT` starts from a single object you name - a laptop, a service account, a contractor -
   and reports its blast radius, which Tier 0 objects it can reach, and for each the cheapest (least effort) and stealthiest

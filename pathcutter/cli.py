@@ -80,6 +80,8 @@ def main(argv: list[str] | None = None) -> int:
     p_analyze.add_argument("--assume-pack", action="store_true", help="With --telemetry: count the rules `pathcutter detect` generates as deployed")
     p_analyze.add_argument("--graph-nodes", type=int, default=6000, metavar="N",
                            help="Max nodes drawn in the HTML attack graph (default 6000)")
+    p_analyze.add_argument("--crown-jewels", metavar="FILE",
+                           help="JSON of your high-value assets (student records, finance, research): they become targets and the report ranks who can reach them by business value")
 
     # score
     p_score = sub.add_parser("score", help="Quick risk score")
@@ -245,6 +247,23 @@ def _load_and_analyze(args):
         print(f"    Shadow Tier 0: {len(_sh)} management-plane group(s)/account(s) treated as Tier 0 by name (see `audit`; --no-shadow-tier0 to disable)")
     print(f"    {graph.node_count} nodes, {graph.edge_count} edges")
 
+    graph._crown_value = {}                        # {id: {value,label}} for the report; set below if declared
+    cj_file = getattr(args, "crown_jewels", None)
+    if cj_file:
+        from . import value as _value
+        try:
+            specs = _value.load(cj_file)
+            vb, errs = _value.resolve(graph, specs)
+        except _value.ValueError_ as exc:
+            print(f"[!] {exc}", file=sys.stderr)
+            vb, errs = {}, []
+        for e in errs:
+            print(f"    [!] {e}")
+        if vb:
+            graph.retier(extra_tier0=set(vb))        # crown jewels become targets alongside Tier 0
+            graph._crown_value = vb
+            print(f"    Crown jewels: {len(vb)} high-value object(s) added as targets")
+
     summary = graph.summary()
     print(f"    Tier 0: {summary['tier_0_count']} | Tier 1: {summary['tier_1_count']} | Tier 2: {summary['tier_2_count']}")
 
@@ -274,6 +293,18 @@ def _cmd_analyze(args) -> int:
         print(f"    {'Name':<40} {'Type':<10} {'Tier':<5} {'Score':<8} {'Paths':<8} {'T0 Reach'}")
         for ns in node_scores[:n]:
             print(f"    {ns.display_name:<40} {ns.node_type:<10} T{ns.tier:<4} {ns.risk_score:<8.1f} {ns.path_count:<8} {ns.tier0_reach}")
+
+    crown = []
+    if getattr(graph, "_crown_value", None):
+        from . import value as _value
+        crown = _value.analyse(graph, graph._crown_value, max_depth=args.max_depth)
+        reach = [c for c in crown if c["reachable"]]
+        print(f"\n[*] Crown jewels: {len(reach)} of {len(crown)} reachable")
+        for c in crown:
+            mark = "REACHABLE" if c["reachable"] else "no path found"
+            extra = f" by {c['reachers']} object(s)" if c["reachable"] else ""
+            lbl = f" - {c['label']}" if c["label"] else ""
+            print(f"    [{c['value'].upper():<8}] {c['name']}{lbl}: {mark}{extra}")
 
     # Attack chain detection
     chains = detect_chains(graph, report)
@@ -335,6 +366,7 @@ def _cmd_analyze(args) -> int:
                 chains=chains, safety=assessments if choke.fixes else None,
                 max_graph_nodes=args.graph_nodes, quality=_quality_summary(args, graph),
                 coverage=_coverage_summary(args, graph, report),
+                crown_jewels=crown or None,
             )
             if out_dir:
                 path = out_dir / "pathcutter-report.html"

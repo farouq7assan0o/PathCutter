@@ -32,6 +32,7 @@ pathcutter doctor   export.zip                     # completeness verdict + the 
 pathcutter analyze  export.zip --html -o report    # score, attack paths, the minimum fix set, an interactive report
 pathcutter audit    export.zip --fail-on critical  # attribute-level findings with why and how to fix
 pathcutter breach   export.zip --from "JSMITH@CORP.LOCAL"   # assume breach: what this one object reaches, and how
+pathcutter analyze  export.zip --crown-jewels crown.json --html -o report  # weight by business value; exec summary + per-OU + PDF
 pathcutter snapshot export.zip -o baseline.pcsnap  # a reusable baseline (nightly job)
 pathcutter check --baseline baseline.pcsnap --changes ad-changes/ --policy policy.json --html review.html
 pathcutter detect   baseline.pcsnap --assume-fixed 5 -o detections/
@@ -158,6 +159,9 @@ If you can run a lab, [docs/test-data.md](docs/test-data.md) says exactly what t
 
 `pathcutter analyze --html` writes one self-contained file. It opens on what to do:
 
+- **Executive summary** (one paragraph for leadership: grade, exposure, crown jewels reachable, top fixes) and, with
+  `--crown-jewels`, a **Crown Jewels** card and a **risk-by-department (per-OU)** breakdown. The Overview **prints to PDF**
+  cleanly (browser Print > Save as PDF becomes a one-page brief).
 - **Fix these first**: the three best fixes, paths cut, safety. **Worst findings**: counts by severity and the top critical ones.
   **Can you trust this data?**: the collection verdict and its main gaps.
 - Riskiest nodes, remediation with copy-paste commands and rollback notes, attack chains, defend (MITRE, log sources), **What If**
@@ -200,6 +204,7 @@ pathcutter/   ingest.py azure.py adcs.py derived.py   collectors -> graph, deriv
               pathfinder.py scoring.py choke.py          paths, risk score, minimum fix set
               shadow_tier0.py                            management-plane objects treated as Tier 0
               evidence.py cost.py coverage.py breach.py  confidence, attacker cost, detection coverage, assume-breach
+              value.py                                   crown jewels / business value (weight risk by asset worth)
               changes.py impact.py policy.py extractors/   the change gate and its inputs
               hygiene.py toolkit.py detections.py          audit, doctor, anonymize, detect
               report.py graph_view.js                      the interactive report

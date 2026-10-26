@@ -140,6 +140,9 @@ Reading a path (layers over the enumerated paths; they label, never hide)
   visible / blind, and which telemetry to switch on to light up the most blind paths.
 - **breach.py (+ breach_cli.py)** - `pathcutter breach --from OBJECT`: assume-breach, working OUTWARD from one object to the
   Tier 0 it reaches, with the cheapest and stealthiest route to each.
+- **value.py** - crown jewels / business value: `analyze --crown-jewels FILE` names high-value assets (by name/id or OU)
+  with a value and label; they become targets and the report ranks who can reach each. Drives the executive summary,
+  the Crown Jewels card and the per-OU breakdown in report.py (which also prints to PDF via a @media print stylesheet).
 
 Detections and sharing
 - **detections.py / detect_pack.py / detect_cli.py** - `pathcutter detect`: Sigma / SPL / Sentinel-KQL / Elastic rules scoped
@@ -305,6 +308,7 @@ pathcutter/
   exposure.py exposure_ref.py fastindex.py   # exact reverse-search engine + its reference oracle
   scoring.py choke.py remediate.py   # risk score, minimum fix set, PowerShell fixes + rollback
   evidence.py cost.py coverage.py breach.py   # confidence, attacker cost, detection coverage, assume-breach
+  value.py                                     # crown jewels / business value (targets + exec summary + per-OU)
   changes.py impact.py policy.py snapshot.py extractors/   # the change gate and its inputs
   detections.py detect_pack.py   # Sigma/SPL/Sentinel/Elastic generation
   hygiene.py toolkit.py          # audit, doctor, anonymize

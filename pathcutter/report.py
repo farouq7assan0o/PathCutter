@@ -36,7 +36,7 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
                          choke: ChokeReport,
                          chains=None, safety=None,
                          max_graph_nodes: int = GRAPH_MAX_NODES, quality: dict | None = None,
-                         coverage: dict | None = None) -> str:
+                         coverage: dict | None = None, crown_jewels: list | None = None) -> str:
     """Generate a self-contained HTML dashboard with interactive path explorer."""
     protected = set()
     for f in choke.fixes:
@@ -58,6 +58,33 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
     defend_data = _build_defend_json(graph)
     start_data = _build_start_json(graph, fixes_data, quality)
     start_data["coverage"] = ({k: coverage[k] for k in ("counts", "enable", "write_rules", "unknown")} if coverage else None)
+
+    # crown jewels (compact) + a leadership exec summary + a per-OU breakdown of the riskiest objects
+    cj_reach = 0
+    if crown_jewels:
+        from .value import ou_path
+        compact = []
+        for c in crown_jewels:
+            route = (c.get("cheapest") or {}).get("route") or []
+            cost = (c.get("cheapest") or {}).get("cost") or {}
+            compact.append({"name": c["name"], "value": c["value"], "label": c.get("label", ""),
+                            "reachable": c["reachable"], "reachers": c.get("reachers", 0),
+                            "frm": (route[0]["name"] if route else None),
+                            "steps": cost.get("steps"), "effort": cost.get("effort"), "noise": cost.get("noise")})
+        cj_reach = sum(1 for c in compact if c["reachable"])
+        start_data["crown"] = compact
+    risky_ids = [ns.node_id for ns in node_scores if ns.tier != 0][:800]
+    ou_counts: dict[str, int] = {}
+    for nid in risky_ids:
+        n = graph.get_node(nid)
+        if n is None:
+            continue
+        from .value import ou_path as _oup
+        ou = _oup(n.properties.get("distinguishedname") or "")
+        if ou:
+            ou_counts[ou] = ou_counts.get(ou, 0) + 1
+    start_data["by_ou"] = sorted(({"ou": k, "count": v} for k, v in ou_counts.items()), key=lambda x: -x["count"])[:8]
+    start_data["exec"] = _exec_summary(posture, choke, crown_jewels, cj_reach)
 
     return _HTML_TEMPLATE.format(
         generated=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
@@ -250,6 +277,19 @@ def _build_graph_json(graph: AttackGraph, path_report: PathReport,
         "max_nodes": max_nodes,
     }
     return {"nodes": nodes, "links": out_links, "edgeTypes": edge_types, "meta": meta}, edge_index
+
+
+def _exec_summary(posture, choke, crown_jewels, cj_reach: int) -> str:
+    """One plain-English paragraph for leadership, printed at the top of the Overview (and the PDF)."""
+    pct = f"{posture.exposure_pct:.0f}%"
+    bits = [f"Risk grade {posture.grade} ({posture.score}/100)."]
+    if posture.tier2_total:
+        bits.append(f"{pct} of standard objects ({posture.tier2_with_path_count} of {posture.tier2_total}) can reach a Tier 0 (domain-takeover) object.")
+    if crown_jewels:
+        bits.append(f"{cj_reach} of {len(crown_jewels)} declared crown jewels can be reached from a standard account.")
+    if choke.fixes:
+        bits.append(f"The top {len(choke.fixes)} fixes remove {choke.elimination_pct:.0f}% of all attack paths.")
+    return " ".join(bits)
 
 
 def _build_start_json(graph: AttackGraph, fixes: list[dict], quality: dict | None) -> dict:
@@ -841,6 +881,18 @@ tr {{ cursor: pointer; }}
   .whatif-layout {{ grid-template-columns: 1fr; }}
   #graph-sim {{ left: 10px; right: 10px; bottom: 140px; }}
 }}
+
+/* Print / Save as PDF: a clean leadership report - the Overview only, no interactive chrome */
+@media print {{
+  body {{ background: #fff; color: #111; }}
+  .tabs, .node-detail, #graph-sim, .whatif-btns {{ display: none !important; }}
+  .tab-content {{ display: none !important; }}
+  #overview {{ display: block !important; }}
+  .card {{ break-inside: avoid; border: 1px solid #ccc; background: #fff; box-shadow: none; }}
+  h1, h2, h3 {{ color: #111; }}
+  a {{ color: #111; text-decoration: none; }}
+  .exec-summary {{ border: 1px solid #333 !important; background: #f5f5f5 !important; color: #111 !important; }}
+}}
 </style>
 </head>
 <body>
@@ -1412,7 +1464,33 @@ function renderStart() {{
   const link = (label, tab) => {{ const a = el('a', 'color:var(--accent);cursor:pointer;font-size:0.8rem;display:inline-block;margin-top:8px', label);
     a.onclick = () => document.querySelector('[data-tab="' + tab + '"]').click(); return a; }};
   root.innerHTML = '';
+  if (startData.exec) {{
+    const ex = el('div', 'margin:0 0 16px;padding:12px 16px;border-left:4px solid var(--accent);background:var(--accent-dim)22;border-radius:6px;font-size:0.9rem;line-height:1.5');
+    ex.className = 'exec-summary';
+    ex.appendChild(el('div', 'font-weight:700;margin-bottom:4px', 'Executive summary'));
+    ex.appendChild(el('div', '', startData.exec));
+    root.appendChild(ex);
+  }}
   const grid = el('div', 'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px');
+
+  if (startData.crown && startData.crown.length) {{
+    const cj = col('Crown jewels');
+    const vcolor = {{critical: '#ef4444', high: '#f97316', medium: '#eab308'}};
+    startData.crown.forEach(c => {{
+      const row = el('div', 'margin:7px 0;font-size:0.82rem;line-height:1.35');
+      const head = el('div', 'display:flex;gap:8px;align-items:baseline');
+      head.appendChild(el('span', 'font-size:0.68rem;font-weight:700;text-transform:uppercase;color:' + (vcolor[c.value] || '#94a3b8'), c.value));
+      head.appendChild(el('span', 'font-weight:600', c.label || c.name));
+      row.appendChild(head);
+      if (c.reachable) {{
+        row.appendChild(el('div', 'color:var(--danger);font-size:0.78rem', 'REACHABLE by ' + c.reachers + ' object(s)' + (c.steps ? ' - cheapest ' + c.steps + ' step(s), effort ' + c.effort + ' / noise ' + c.noise : '')));
+        if (c.frm) row.appendChild(el('div', 'color:var(--text-dim);font-size:0.74rem', 'e.g. from ' + c.frm));
+      }} else row.appendChild(el('div', 'color:var(--success);font-size:0.78rem', 'no path found in this collection'));
+      cj.appendChild(row);
+    }});
+    cj.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Declared crown jewels. Reaching one is measured like reaching Tier 0.'));
+    grid.appendChild(cj);
+  }}
 
   const fixes = col('Fix these first');
   if (startData.fixes.length) {{
@@ -1463,6 +1541,24 @@ function renderStart() {{
     trust.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Exposure is a floor for anything the collection missed. `pathcutter doctor` lists every gap.'));
   }} else trust.appendChild(el('div', 'font-size:0.8rem;color:var(--text-dim)', 'Run `pathcutter doctor` on the export to see what the collection is missing.'));
   grid.appendChild(trust);
+
+  if (startData.by_ou && startData.by_ou.length) {{
+    const dept = col('Risk by department (OU)');
+    const max = startData.by_ou[0].count || 1;
+    startData.by_ou.forEach(o => {{
+      const row = el('div', 'margin:5px 0');
+      const label = el('div', 'display:flex;justify-content:space-between;font-size:0.8rem');
+      label.appendChild(el('span', 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', o.ou));
+      label.appendChild(el('span', 'color:var(--text-dim);margin-left:8px', String(o.count)));
+      row.appendChild(label);
+      const bar = el('div', 'height:6px;border-radius:3px;background:var(--accent);margin-top:2px;width:' + (o.count / max * 100) + '%');
+      row.appendChild(bar);
+      dept.appendChild(row);
+    }});
+    dept.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Risky (non-Tier-0) objects grouped by their OU, so findings can be routed to the owning team.'));
+    grid.appendChild(dept);
+  }}
+
   root.appendChild(grid);
 }}
 renderStart();

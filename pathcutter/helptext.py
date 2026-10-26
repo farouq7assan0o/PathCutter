@@ -57,6 +57,11 @@ Examples:
   pathcutter analyze export.zip --html -o ./report --top 10
   pathcutter analyze ./sharphound-dir --json --markdown -o ./out
   pathcutter analyze export.zip --html --graph-nodes 3000 -o ./report     # smaller graph for huge domains
+  pathcutter analyze export.zip --crown-jewels crown.json --html -o ./report   # weight by business value; exec summary + per-OU + PDF
+
+crown.json: {"crown_jewels": [{"match": "SQL-SIS", "value": "critical", "label": "Student records"},
+                              {"ou": "OU=Research,DC=uni,DC=edu", "value": "high", "label": "Research"}]}
+The HTML report prints cleanly to PDF (browser: Print > Save as PDF) - the Overview becomes a one-page leadership brief.
 """
 
 SCORE = """\
