@@ -1,0 +1,13 @@
+.git
+.github
+tests
+benchmarks
+docs
+examples
+**/__pycache__
+*.pyc
+*.pcsnap
+*.zip
+dist
+build
+*.egg-info

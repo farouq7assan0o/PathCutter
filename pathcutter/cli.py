@@ -235,8 +235,12 @@ def main(argv: list[str] | None = None) -> int:
 
 def _load_and_analyze(args):
     t0 = time.time()
-    print(f"[*] Loading SharpHound data from {args.input}...")
-    graph = load_sharphound([args.input, *args.also] if getattr(args, "also", None) else args.input)
+    print(f"[*] Loading data from {args.input}...")
+    if getattr(args, "also", None):
+        graph = load_sharphound([args.input, *args.also])          # merging several collections (raw exports)
+    else:
+        from .snapshot import load_baseline                         # a single input may be a .pcsnap snapshot
+        graph, _ = load_baseline(args.input)
     if getattr(args, "no_shadow_tier0", False):
         from .shadow_tier0 import strip_by_name
         n = strip_by_name(graph)
@@ -415,8 +419,12 @@ def _cmd_graph(args) -> int:
     from .pathfinder import shortest_paths_to_targets
 
     t0 = time.time()
-    print(f"[*] Loading SharpHound data from {args.input}...")
-    graph = load_sharphound([args.input, *args.also] if getattr(args, "also", None) else args.input)
+    print(f"[*] Loading data from {args.input}...")
+    if getattr(args, "also", None):
+        graph = load_sharphound([args.input, *args.also])          # merging several collections (raw exports)
+    else:
+        from .snapshot import load_baseline                         # a single input may be a .pcsnap snapshot
+        graph, _ = load_baseline(args.input)
     if getattr(args, "no_shadow_tier0", False):
         from .shadow_tier0 import strip_by_name
         n = strip_by_name(graph)
@@ -472,13 +480,18 @@ def _cmd_graph(args) -> int:
 
 
 def _cmd_diff(args) -> int:
-    print(f"[*] Loading BEFORE snapshot: {args.old}")
-    graph_before = load_sharphound(args.old)
-    print(f"    {graph_before.node_count} nodes, {graph_before.edge_count} edges")
+    from .snapshot import SnapshotError, load_baseline
+    try:
+        print(f"[*] Loading BEFORE snapshot: {args.old}")
+        graph_before, _ = load_baseline(args.old)           # accepts a .pcsnap snapshot or a raw export
+        print(f"    {graph_before.node_count} nodes, {graph_before.edge_count} edges")
 
-    print(f"[*] Loading AFTER snapshot: {args.new}")
-    graph_after = load_sharphound(args.new)
-    print(f"    {graph_after.node_count} nodes, {graph_after.edge_count} edges")
+        print(f"[*] Loading AFTER snapshot: {args.new}")
+        graph_after, _ = load_baseline(args.new)
+        print(f"    {graph_after.node_count} nodes, {graph_after.edge_count} edges")
+    except SnapshotError as exc:
+        print(f"[!] {exc}", file=sys.stderr)
+        return 1
 
     print("[*] Comparing snapshots...")
     result = compare_snapshots(graph_before, graph_after,

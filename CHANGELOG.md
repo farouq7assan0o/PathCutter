@@ -3,6 +3,12 @@
 ## 0.7.0
 
 ### Added
+- **Packaging and deployment**: full PyPI metadata (PEP 639 SPDX license, classifiers, project URLs, readme) so
+  `pip install pathcutter` works; a non-root **Dockerfile** and `.dockerignore`; a **release workflow** that publishes to
+  PyPI via Trusted Publishing (OIDC, no stored token) on a version tag; and **scheduled-run scripts** `tools/nightly.ps1`
+  (Windows Task Scheduler) and `tools/nightly.sh` (cron / container) that snapshot today's collection, write a dated
+  report, and diff it against the previous snapshot with a retained history. `analyze`, `score`, `graph` and `diff` now
+  also accept a `.pcsnap` snapshot, not only a raw export. New guide `docs/deploy.md`.
 - **Crown jewels / business value** (`value.py`, `analyze --crown-jewels FILE`): name the assets whose compromise is a
   crisis even when it is not domain takeover (student records, finance ERP, research servers), by name/id or by OU, each
   with a value (critical/high/medium) and a label. They become targets and the report ranks who can reach each one by

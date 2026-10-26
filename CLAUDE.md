@@ -315,8 +315,14 @@ pathcutter/
   report.py graph_view.js diff.py   # interactive HTML report + before/after
   *_cli.py helptext.py syntax_help.py   # per-command CLI wiring and reference text
 tests/               # 16,000+ tests incl. a differential fuzzer and BloodHound-oracle checks
-pyproject.toml  docs/  benchmarks/  tools/
+pyproject.toml  Dockerfile  .github/workflows/ (ci, release)  docs/  benchmarks/
+tools/               # read-only collectors (Export-Ad*.ps1) + nightly.ps1 / nightly.sh (scheduled snapshot->analyze->diff)
 ```
+
+Packaging: `pip install pathcutter` (PyPI metadata in pyproject, PEP 639 SPDX license). Releases publish via PyPI Trusted
+Publishing (OIDC) from `.github/workflows/release.yml` on a `v*` tag; bump version in BOTH pyproject.toml and
+`pathcutter/__init__.py` (a test enforces they match). A non-root Dockerfile builds a wheel and runs the `pathcutter`
+entry point. See `docs/deploy.md`.
 
 ## Priority order for building
 

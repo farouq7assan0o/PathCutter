@@ -21,7 +21,7 @@ Active Directory, AD CS, Microsoft Entra ID and Azure RBAC in one graph. Offline
 ## Quick start
 
 ```bash
-pip install -e .                                   # Python 3.10+, NetworkX; add [yaml] for Ansible input
+pip install pathcutter                             # Python 3.10+, NetworkX only; or `pip install -e .` from a checkout; add [yaml] for Ansible input
 pathcutter demo --size medium -o demo --snapshot demo.pcsnap      # try everything with no real data
 pathcutter demo --lab hybrid-sevenkingdoms -o hybrid               # a known AD + Entra lab: synced users, a cloud chain to Global Administrator
 pathcutter -h                                      # every command, how to build it, examples
@@ -184,6 +184,15 @@ python -m pytest                                    # 16,000+ tests, about a min
 python tests/fuzz.py --seeds 1000000 --workers 8    # differential fuzzing: engine vs reference vs oracles
 python benchmarks/bench_cli.py 1000000              # wall-clock of every command
 ```
+
+## Deploy and run on a schedule
+
+Three shapes, all offline: an analyst's machine (`pip install pathcutter`), a container
+(`docker build -t pathcutter . && docker run --rm -v "$PWD/data:/data" pathcutter analyze /data/export.zip --html -o /data/report`,
+non-root, reads the collection you mount and writes the report), and a scheduled job on a management server. `tools/nightly.ps1`
+(Windows Task Scheduler) and `tools/nightly.sh` (cron / container) snapshot today's collection, write a dated report, and
+diff it against the previous snapshot so you see what changed since the last run, with a retained history. Releases publish to
+PyPI via Trusted Publishing (OIDC, no stored token). Full guide: [docs/deploy.md](docs/deploy.md).
 
 ## Extending
 
