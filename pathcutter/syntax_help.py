@@ -220,9 +220,14 @@ PIM ACTIVATION POLICY (Entra Privileged Identity Management)
   standing assignment. `audit` flags roles activatable with no MFA/approval (high) or no approval (medium). Without the
   policy data the edge stays the old low-confidence assumption, and `doctor`-style honesty applies.
 
-WORKLOAD IDENTITY FEDERATION
+WORKLOAD IDENTITY FEDERATION (CI/CD to cloud)
   A federated credential (GitHub, Azure DevOps, another tenant) becomes a node with an AZAuthenticatesTo edge to its application: whoever can
-  mint the trusted token acts as the app. Wildcard subjects and outside issuers are listed by `audit`.
+  mint the trusted token acts as the app. PathCutter parses the credential's SUBJECT to show exactly which pipeline is trusted and how wide
+  the trust is: a single protected branch is tight; `audit` flags a wildcard (high), a `pull_request` subject (high: any contributor via a PR)
+  and a repo with no branch/environment pin (medium), as well as outside issuers. An optional `*_cicd.json` sidecar (one entry per repository,
+  optionally who can push; see tools/Export-GitHubActions.ps1) adds a CI/CD source node with an edge to the application each repo can authenticate
+  as, so the attack path reaches from the pipeline into the cloud. GitHub/ADO logins only connect to a pusher when their id maps to a collected
+  object; unmapped logins are counted, never invented.
 
 RESTRICTIONS (applied when the graph is built; always reported, never silent)
   Protected Users / 'sensitive and cannot be delegated': constrained and resource-based delegation edges into a host

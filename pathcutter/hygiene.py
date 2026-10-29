@@ -94,13 +94,33 @@ def federated_credentials(ctx):
     if not fics:
         return []
     out = []
-    loose = [f for f in fics if "*" in str(f.properties.get("subject") or "")]
+
+    def info(f):
+        return f.properties.get("_cicd") or {}
+
+    loose = [f for f in fics if info(f).get("wildcard") or "*" in str(f.properties.get("subject") or "")]
     if loose:
         out.append(HygieneFinding("fic-wildcard-subject", f"{len(loose)} federated credential(s) trust a wildcard subject", "high",
                                   "A subject such as a whole repository (`repo:org/name:*`) accepts a token from every branch, pull request and "
                                   "workflow in it, so anyone who can push there can sign in as the application.",
                                   "Pin the subject to one branch or environment; remove credentials that are no longer used.",
                                   "T1550.001", sorted(f.display_name for f in loose)[:25], len(loose)))
+    pr = [f for f in fics if info(f).get("pull_request")]
+    if pr:
+        out.append(HygieneFinding("fic-pull-request-trigger",
+                                  f"{len(pr)} federated credential(s) trust a pull_request subject", "high",
+                                  "A `pull_request` subject lets a token minted by ANY pull request sign in as the application, so any contributor "
+                                  "(or anyone who can open a PR to a public repo) can act as it.",
+                                  "Pin the subject to a protected branch or a deployment environment with required reviewers, not pull_request.",
+                                  "T1550.001", sorted(f"{f.display_name} ({info(f).get('repo') or '?'})" for f in pr)[:25], len(pr)))
+    anyref = [f for f in fics if info(f).get("broad") and not info(f).get("pull_request") and not info(f).get("wildcard")
+              and info(f).get("repo")]
+    if anyref:
+        out.append(HygieneFinding("fic-no-ref-pin",
+                                  f"{len(anyref)} federated credential(s) trust a repository with no branch/environment pin", "medium",
+                                  "The subject names a repository but no specific branch or environment, so a token from any ref satisfies it.",
+                                  "Pin the subject to one protected branch (`ref:refs/heads/main`) or an environment.",
+                                  "T1550.001", sorted(f"{f.display_name} ({info(f).get('repo')})" for f in anyref)[:25], len(anyref)))
     ext = [f for f in fics if f.properties.get("issuer") and "login.microsoftonline.com" not in str(f.properties.get("issuer"))]
     if ext:
         issuers = sorted({str(f.properties.get("issuer")).split("/")[2] if "//" in str(f.properties.get("issuer")) else str(f.properties.get("issuer"))

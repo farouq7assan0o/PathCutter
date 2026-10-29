@@ -379,6 +379,8 @@ def finalize_azure(graph: AttackGraph) -> None:
         target = app_by_appid.get(link["app"]) or sp_by_appid.get(link["app"])
         if target:
             _edge(graph, link["fic"], target, "AZAuthenticatesTo")
+    from . import cicd                                   # parse each FIC subject into structured CI/CD trust
+    cicd.enrich_fic_nodes(graph)
     # PIM: stamp each eligible-role edge with what its activation requires, so evidence/cost/audit can use it
     pim = graph.meta.get("pim_policy") or {}
     for rid, flags in pim.items():

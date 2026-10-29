@@ -581,6 +581,10 @@ def _finish(graph: AttackGraph) -> AttackGraph:
 
     from . import azure
     azure.finalize_azure(graph)
+    if graph.meta.get("cicd_files"):
+        from . import cicd
+        for _cf in graph.meta["cicd_files"]:
+            cicd.apply_cicd(_cf, graph)
     _name_uncollected_principals(graph)
     _add_implicit_memberships(graph)
     _link_unconstrained_delegation(graph)
@@ -781,9 +785,12 @@ def _parse_one_file(data: dict, graph: AttackGraph, file_type: str) -> int:
             if rec.get("ComputerSID") and rec.get("UserSID"):
                 graph.add_edge(ADEdge(source_id=rec["ComputerSID"], target_id=rec["UserSID"], edge_type="HasSession"))
         return 0
-    from . import azure, conditional_access
+    from . import azure, cicd, conditional_access
     if conditional_access.is_ca_file(data):
         graph.meta.setdefault("conditional_access", []).extend(conditional_access.policies_of(data))
+        return 0
+    if cicd.is_cicd_file(data) or file_type == "cicd":
+        graph.meta.setdefault("cicd_files", []).append(data)     # applied in _finish, after FIC nodes exist
         return 0
     if azure.is_azure_file(data):
         return azure.parse_azure_file(data, graph)

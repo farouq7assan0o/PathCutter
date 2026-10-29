@@ -3,6 +3,13 @@
 ## 0.7.0
 
 ### Added
+- **CI/CD to cloud** (`cicd.py`): PathCutter parses an Entra federated credential's subject into structured trust
+  (provider, repo, branch/environment, pull_request, wildcard), so `audit` can flag a `pull_request` subject (high: any
+  contributor via a PR) and a repo with no branch/environment pin (medium) on top of the existing wildcard/outside-issuer
+  findings. An optional `*_cicd.json` sidecar (one entry per repository, optionally who can push; `tools/Export-GitHubActions.ps1`
+  generates it from `gh`) adds a CI/CD source node with an edge to each application the repo can authenticate as, so the
+  attack path reaches from the pipeline into the cloud. GitHub/ADO identities only connect to a pusher when their id maps
+  to a collected object; unmapped logins are counted, never invented.
 - **PIM activation policy** (Entra Privileged Identity Management): when AzureHound collected the role-management-policy
   assignments (`AZRoleManagementPolicyAssignment`), PathCutter reads what end-user activation of an eligible role
   requires and turns the `AZEligibleRole` edge from an assumption into a verdict - approval required -> low confidence

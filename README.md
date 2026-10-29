@@ -119,7 +119,7 @@ Admin that is logged into it.)
 |---|---|
 | Active Directory | ACLs (allow and deny), nested groups, primary group, local admin / RDP / PSRemote / DCOM, sessions, GPO links, GPO-granted local-group rights and (with `tools/Export-AdGpoRights.ps1`) GPO user rights such as SeBackupPrivilege, delegation (unconstrained, constrained, RBCD), SID history, DCSync (both replication rights, also via two groups), shadow credentials, gMSA / LAPS reads, trusts, implicit Everyone / Authenticated Users membership |
 | AD CS | ESC1, 2 (as a feeder of 3), 3, 4, 5, 6, 7, 9, 10, 13, 15 and golden certificate, derived from template, CA, NTAuth and DC registry data; ESC8, 11 and 16 once `tools/Export-AdCsRelay.ps1` has collected the CA relay settings |
-| Microsoft Entra ID | users, groups, apps, service principals, directory roles, PIM eligibility **and its activation policy** (MFA / approval requirements, when AzureHound collected the role-management-policy assignments), ownership, password-reset and add-secret roles (also when scoped to an administrative unit or one object), dangerous Graph application permissions, the on-premises to cloud sync link, Conditional Access coverage (in `audit`) |
+| Microsoft Entra ID | users, groups, apps, service principals, directory roles, PIM eligibility **and its activation policy** (MFA / approval requirements, when AzureHound collected the role-management-policy assignments), ownership, password-reset and add-secret roles (also when scoped to an administrative unit or one object), dangerous Graph application permissions, the on-premises to cloud sync link, workload identity federation (CI/CD to cloud: the subject is parsed and rated, and a `*_cicd.json` sidecar adds the repo-to-app pipeline edge), Conditional Access coverage (in `audit`) |
 | Azure | resource RBAC (subscriptions, resource groups, VMs, key vaults), the scope hierarchy, VM managed identities |
 | Restrictions | Protected Users / "sensitive" accounts: delegation edges into hosts whose administrators are all protected are dropped, and `audit` says so |
 | Tier 0 | the built-in list (by name **and** SID), domain objects, GPOs linked to the domain / DC OU, PKI trust anchors, published templates, Tier 0 Entra roles, plus your own crown jewels in the policy |
@@ -207,7 +207,7 @@ knowledge drifts between modules. See [docs/extending.md](docs/extending.md).
 ## Input formats
 
 SharpHound legacy (v4) and BloodHound CE (v5, v6) JSON, ZIP or directory; **AD Explorer snapshots** (Sysinternals, exported to NDJSON by `ADExplorerSnapshot.py -m Objects`) read natively, for domains where EDR blocks SharpHound - including AD CS (ESC1/4/5/13/15 and golden certificate), trusts, LAPS and gMSA reads when the Configuration partition is in the snapshot (see [docs/collect-with-adexplorer.md](docs/collect-with-adexplorer.md)); AzureHound JSON; an optional `*_denies.json` from
-`tools/Export-AdDenyAces.ps1`; an optional `*_adcsrelay.json` from `tools/Export-AdCsRelay.ps1`; an optional `*_gporights.json` from `tools/Export-AdGpoRights.ps1`; an optional `*_localsessions.json` from `tools/Export-AdLocalSessions.ps1` (local admins and sessions, to pair with an AD Explorer snapshot); an optional Conditional Access policy export (`Get-MgIdentityConditionalAccessPolicy`).
+`tools/Export-AdDenyAces.ps1`; an optional `*_adcsrelay.json` from `tools/Export-AdCsRelay.ps1`; an optional `*_gporights.json` from `tools/Export-AdGpoRights.ps1`; an optional `*_localsessions.json` from `tools/Export-AdLocalSessions.ps1` (local admins and sessions, to pair with an AD Explorer snapshot); an optional Conditional Access policy export (`Get-MgIdentityConditionalAccessPolicy`); an optional `*_cicd.json` from `tools/Export-GitHubActions.ps1` (the repositories and pushers behind workload identity federation).
 
 ## Layout
 
@@ -218,7 +218,7 @@ pathcutter/   ingest.py azure.py adcs.py derived.py   collectors -> graph, deriv
               pathfinder.py scoring.py choke.py          paths, risk score, minimum fix set
               shadow_tier0.py                            management-plane objects treated as Tier 0
               evidence.py cost.py coverage.py breach.py  confidence, attacker cost, detection coverage, assume-breach
-              value.py prbundle.py                       crown jewels / business value; fix-as-code PR bundles
+              value.py prbundle.py cicd.py               crown jewels / business value; fix-as-code PRs; CI/CD-to-cloud
               changes.py impact.py policy.py extractors/   the change gate and its inputs
               hygiene.py toolkit.py detections.py          audit, doctor, anonymize, detect
               report.py graph_view.js                      the interactive report
