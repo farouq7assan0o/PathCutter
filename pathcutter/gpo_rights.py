@@ -7,8 +7,10 @@ SeDebugPrivilege, SeLoadDriverPrivilege, SeTcbPrivilege or SeCreateTokenPrivileg
 each becomes a `GPOUserRight` edge principal -> computer, which the exposure search follows like local administration
 (on a domain controller it ends at Tier 0).
 
-Where a GPO applies is read from the graph: the objects it is linked to (`GPOControlsObject`) and everything they contain.
-Security filtering, WMI filters, link enforcement and blocked inheritance are not evaluated, so this can only over-report.
+Where a GPO applies is read from the graph: the objects it is linked to (`GPOControlsObject`) and everything they contain,
+honouring blocked inheritance (an OU with gPOptions "block inheritance" stops inherited, non-enforced GPOs at and below it)
+and link enforcement (an enforced link pierces blocks). Security filtering and WMI filters are still not evaluated, so this
+can over-report but no longer propagates a blocked policy down a shielded OU subtree.
 A GPO that reaches more than _MAX_TARGETS computers is reduced to its domain controllers and Tier 0 computers and the
 truncation is recorded in graph.meta["gpo_rights_truncated"].
 """
@@ -38,22 +40,32 @@ def _resolve(graph: AttackGraph, sid: str, domain: str) -> str | None:
 
 
 def _scope(graph: AttackGraph, gpo: str) -> set[str]:
-    """Computers the GPO applies to: everything below the objects it is linked to."""
+    """Computers the GPO applies to: everything below the objects it is linked to, honouring blocked inheritance.
+
+    A non-enforced link does not reach into (or below) an OU that blocks inheritance; an enforced link ignores the block.
+    The directly linked container always applies (a block stops only inheritance from above)."""
     out: set[str] = set()
-    stack = [t for _, t, d in graph.out_edges(gpo) if d.get("edge_type") == "GPOControlsObject"]
-    seen: set[str] = set()
+    seen: set[tuple[str, bool]] = set()
+    stack: list[tuple[str, bool]] = [(t, bool(d.get("enforced")))
+                                     for _, t, d in graph.out_edges(gpo) if d.get("edge_type") == "GPOControlsObject"]
     while stack:
-        cur = stack.pop()
-        if cur in seen:
+        cur, enforced = stack.pop()
+        if (cur, enforced) in seen:
             continue
-        seen.add(cur)
+        seen.add((cur, enforced))
         n = graph.get_node(cur)
         if n is None:
             continue
         if n.node_type == NodeType.COMPUTER:
             out.add(cur)
             continue
-        stack.extend(t for _, t, d in graph.out_edges(cur) if d.get("edge_type") == "Contains")
+        for _, child, d in graph.out_edges(cur):
+            if d.get("edge_type") != "Contains":
+                continue
+            cn = graph.get_node(child)
+            if not enforced and cn is not None and cn.node_type == NodeType.OU and cn.properties.get("blocksinheritance"):
+                continue                 # inherited, non-enforced policy is blocked at this OU and its subtree
+            stack.append((child, enforced))
     return out
 
 

@@ -411,6 +411,13 @@ def _build(objs: list[dict]) -> list[dict]:
             props["dnshostname"] = _one(o.get("dNSHostName")) or _one(o.get("dnsHostName"))
             if "CN=DOMAIN CONTROLLERS" in dn.upper() or (isinstance(uac, int) and uac & 0x2000):
                 props["isdc"] = True                                          # SERVER_TRUST_ACCOUNT
+        if ft == "ous":
+            gpoptions = _one(o.get("gPOptions"))
+            if gpoptions is not None:
+                try:
+                    props["blocksinheritance"] = bool(int(gpoptions) & 1)         # gPOptions bit 0 = block inheritance
+                except (TypeError, ValueError):
+                    pass
         if ft == "domains":
             maq = _one(o.get("ms-DS-MachineAccountQuota"))
             if maq is not None:

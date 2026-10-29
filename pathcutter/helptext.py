@@ -197,7 +197,8 @@ attributes, no-password accounts, stale privileged accounts, old krbtgt, unprote
 orphaned adminCount, unconstrained delegation, protocol transition, unsupported OS, no LAPS, stale computers, old
 functional level, trusts without SID filtering, Everyone-like groups holding dangerous rights (including AD CS),
 a non-zero machine account quota (any user can add computers -> RBCD), accounts allowing RC4/DES but not AES
-(krbtgt and Tier 0 escalated), and Tier 0 credentials exposed in a session on a lower-tier host.
+(krbtgt and Tier 0 escalated), Tier 0 credentials exposed in a session on a lower-tier host, and privileged accounts
+created in the last 30 days (a possible persistence backdoor).
 With Entra data and an exported Conditional Access policy list (Get-MgIdentityConditionalAccessPolicy -All | ConvertTo-Json
 -Depth 10, placed next to the AzureHound file): administrators not covered by an enforced MFA policy for all cloud apps,
 admins excluded from MFA, report-only policies, legacy authentication not blocked. `--also PATH` merges more collections.

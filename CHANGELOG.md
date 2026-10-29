@@ -2,7 +2,19 @@
 
 ## 0.7.0
 
+Highlights: attack paths now carry confidence, attacker cost (effort/noise) and detection coverage; new `breach`
+(assume-breach), crown jewels with an executive / per-OU / PDF report, fix-as-code pull requests, and a posture trend
+with remediation SLAs and risk acceptance. Coverage widened to AD CS / trusts / LAPS / gMSA from AD Explorer snapshots,
+PIM activation policy, CI/CD-to-cloud, Shadow Tier 0, and the modern BloodHound CE edges (CoerceToTGT, owner-limited
+rights, the v7.4 trust split). Ships as a pip package and a Docker image with a trusted-publishing release workflow.
+
 ### Added
+- **GPO blocked inheritance and link enforcement** (`gpo_rights.py`): the GPO-rights scope now stops an inherited,
+  non-enforced policy at an OU that blocks inheritance (gPOptions), while an enforced link pierces the block, so
+  `GPOUserRight` edges no longer propagate a shielded policy down a blocked OU subtree. The `GPOControlsObject` edge
+  carries the link's enforced flag, and the AD Explorer ingester reads an OU's block-inheritance bit.
+- **Recently-created privileged accounts** (`audit`): a Tier 0 / admin-count account created in the last 30 days
+  (`whenCreated`) is flagged as a possible persistence backdoor.
 - **Operationalisation** (`trend.py`, `acceptance.py`): posture over time and risk governance, so PathCutter is a
   continuous programme, not a point-in-time scan. `analyze --history posture.jsonl` appends one aggregate record per run
   (score, Tier 0 exposure, paths, crown jewels reachable, audit counts - no object names) and prints movement since the

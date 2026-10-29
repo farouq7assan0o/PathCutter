@@ -451,6 +451,23 @@ def privileged_not_protected(ctx):
 
 
 @rule
+def recent_privileged(ctx):
+    """Privileged accounts created recently: a newly-planted Tier 0 / admin account is a classic persistence backdoor."""
+    bad = []
+    for n in ctx.users + ctx.computers:
+        if not ctx.is_priv(n):
+            continue
+        a = ctx.age_days(n.properties.get("whencreated"))
+        if a is not None and a <= 30:
+            bad.append(n)
+    return _f("recent-privileged-object", "Privileged accounts created in the last 30 days", "medium",
+              "A recently created Tier 0 or admin-count account can be a persistence backdoor planted by an attacker who "
+              "already had control. Confirm each was created by a known, approved process.",
+              "Verify the creation against change records; disable or remove any that are not accounted for.",
+              "T1136.002", bad)
+
+
+@rule
 def sid_history(ctx):
     return _f("sid-history", "Objects carrying SID history", "medium",
               "SID history is honoured in access checks; a leftover or planted entry silently grants another principal's access.",

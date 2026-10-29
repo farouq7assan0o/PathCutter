@@ -213,7 +213,8 @@ def _parse_v4_file(data: dict, graph: AttackGraph, file_type: str) -> int:
         for link in _unwrap_results(obj.get("Links", [])):
             gpo_guid = link.get("GUID", link.get("ObjectIdentifier", ""))
             if gpo_guid:
-                graph.add_edge(ADEdge(source_id=gpo_guid, target_id=oid, edge_type="GPOControlsObject"))
+                graph.add_edge(ADEdge(source_id=gpo_guid, target_id=oid, edge_type="GPOControlsObject",
+                                      properties={"enforced": bool(link.get("IsEnforced"))}))
 
         # OU/Container containment
         for child in _unwrap_results(obj.get("ChildObjects", [])):

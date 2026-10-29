@@ -48,7 +48,7 @@ _TABLE: dict[str, tuple[str, str, str]] = {
     "AZAuthenticatesTo": ("medium", "derived:federation", "holds only if the external issuer's token can be obtained for that subject"),
     "AZRunsAs": ("high", "collector:application", "an application and its service principal share an app id"),
     # on-premises derived or approximate
-    "GPOUserRight": ("medium", "sidecar:gporights", "security filtering, WMI filters and enforcement are not evaluated: may over-report"),
+    "GPOUserRight": ("medium", "sidecar:gporights", "blocked inheritance and link enforcement are evaluated; security filtering and WMI filters are not, so it may still over-report"),
     "GPOControlsObject": ("medium", "collector:gplink", "the link exists; security filtering and blocked inheritance are not evaluated"),
     "CoerceAndRelayNTLMToSMB": ("low", "assumption:coercion", "experimental derivation that over-reports against BloodHound's own harnesses"),
     "CoerceAndRelayNTLMToLDAP": ("low", "assumption:coercion", "experimental derivation that over-reports against BloodHound's own harnesses"),
