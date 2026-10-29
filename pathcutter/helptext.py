@@ -17,6 +17,7 @@ COMMANDS
     score      quick risk score only
     graph      every attack path to one target, e.g. --target "DOMAIN ADMINS"
     breach     assume one object is compromised: what Tier 0 does it reach, cheapest and quietest route first
+    trend      posture over time from a history file (analyze --history): is exposure going down?
     fix        a PowerShell remediation script for the top N fixes (with rollback notes)
     diff       compare two collections: did the fixes work, did anything regress?
     export     JSON + exit code for CI gating on score / exposure thresholds
@@ -58,6 +59,9 @@ Examples:
   pathcutter analyze ./sharphound-dir --json --markdown -o ./out
   pathcutter analyze export.zip --html --graph-nodes 3000 -o ./report     # smaller graph for huge domains
   pathcutter analyze export.zip --crown-jewels crown.json --html -o ./report   # weight by business value; exec summary + per-OU + PDF
+  pathcutter analyze export.zip --history posture.jsonl                         # append this run's posture; show movement since last run
+  pathcutter trend posture.jsonl                                                # the whole series: is risk going down?
+  pathcutter audit export.zip --accept accepted.json --fail-on high             # accepted risks are labelled and skip the gate until they expire
 
 crown.json: {"crown_jewels": [{"match": "SQL-SIS", "value": "critical", "label": "Student records"},
                               {"ou": "OU=Research,DC=uni,DC=edu", "value": "high", "label": "Research"}]}

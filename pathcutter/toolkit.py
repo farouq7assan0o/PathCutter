@@ -483,6 +483,7 @@ def add_parsers(sub) -> None:
     au.add_argument("--min-severity", choices=["info", "low", "medium", "high", "critical"], default="low")
     au.add_argument("--json", action="store_true")
     au.add_argument("--fail-on", choices=["low", "medium", "high", "critical"], help="exit 2 if a finding at or above this severity exists")
+    au.add_argument("--accept", metavar="FILE", help="Risk-acceptance JSON: accepted findings are labelled and left out of --fail-on until they expire")
     a = sub.add_parser("anonymize", help="Make a shareable copy of your export (pseudonyms, no free text), same attack paths")
     a.add_argument("input", help="SharpHound ZIP or directory")
     a.add_argument("-o", "--output", default="anonymized.zip", help="Output ZIP (default ./anonymized.zip)")
@@ -513,13 +514,27 @@ def cmd_audit(args) -> int:
         print(f"[!] {exc}", file=sys.stderr)
         return 1
     findings = audit(graph)
+    from .trend import sla_due
+    collected = graph.meta.get("collected")
+    for f in findings:                                    # attach the remediation SLA window from severity
+        f.sla = sla_due(f.severity, collected)
+    if getattr(args, "accept", None):
+        from . import acceptance
+        try:
+            acceptance.apply(findings, acceptance.load(args.accept))
+        except acceptance.AcceptanceError as exc:
+            print(f"[!] {exc}", file=sys.stderr)
+            return 1
     shown = [f for f in findings if SEVERITIES.index(f.severity) >= SEVERITIES.index(args.min_severity)]
     if args.json:
         print(json.dumps([f.to_dict() for f in shown], indent=2))
     else:
         print(render(findings, args.min_severity))
-    if args.fail_on and any(SEVERITIES.index(f.severity) >= SEVERITIES.index(args.fail_on) for f in findings):
-        return 2
+    if args.fail_on:
+        from .acceptance import is_live
+        floor = SEVERITIES.index(args.fail_on)
+        if any(SEVERITIES.index(f.severity) >= floor and is_live(f) for f in findings):
+            return 2
     return 0
 
 

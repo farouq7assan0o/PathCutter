@@ -82,6 +82,8 @@ def main(argv: list[str] | None = None) -> int:
                            help="Max nodes drawn in the HTML attack graph (default 6000)")
     p_analyze.add_argument("--crown-jewels", metavar="FILE",
                            help="JSON of your high-value assets (student records, finance, research): they become targets and the report ranks who can reach them by business value")
+    p_analyze.add_argument("--history", metavar="FILE",
+                           help="Append this run's posture to a JSONL history and show movement since the last run (see `pathcutter trend`)")
 
     # score
     p_score = sub.add_parser("score", help="Quick risk score")
@@ -144,6 +146,8 @@ def main(argv: list[str] | None = None) -> int:
     _add_coverage_parser(sub)
     from .breach_cli import add_parser as _add_breach_parser
     _add_breach_parser(sub)
+    p_trend = sub.add_parser("trend", help="Show posture over time from a history file (written by `analyze --history`)")
+    p_trend.add_argument("history", help="JSONL history file")
     from .toolkit import add_parsers as _add_toolkit_parsers
     _add_toolkit_parsers(sub)
 
@@ -232,6 +236,10 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "breach":
         from .breach_cli import cmd_breach
         return cmd_breach(args)
+    elif args.command == "trend":
+        from .trend import load_history, render_trend
+        print(render_trend(load_history(args.history)))
+        return 0
     elif args.command == "demo":
         return _cmd_demo(args)
 
@@ -245,7 +253,9 @@ def _load_and_analyze(args):
         graph = load_sharphound([args.input, *args.also])          # merging several collections (raw exports)
     else:
         from .snapshot import load_baseline                         # a single input may be a .pcsnap snapshot
-        graph, _ = load_baseline(args.input)
+        graph, _info = load_baseline(args.input)
+        if _info.get("collected"):
+            graph.meta.setdefault("collected", _info["collected"])  # for the posture history x-axis
     if getattr(args, "no_shadow_tier0", False):
         from .shadow_tier0 import strip_by_name
         n = strip_by_name(graph)
@@ -315,6 +325,22 @@ def _cmd_analyze(args) -> int:
             lbl = f" - {c['label']}" if c["label"] else ""
             print(f"    [{c['value'].upper():<8}] {c['name']}{lbl}: {mark}{extra}")
 
+    trend_hist = None
+    if getattr(args, "history", None):
+        from . import trend as _trend
+        from .hygiene import audit as _audit
+        try:
+            _findings = _audit(graph)
+        except Exception:
+            _findings = []
+        crown_reach = sum(1 for c in crown if c["reachable"]) if crown else None
+        rec = _trend.build_record(graph.meta.get("collected") or "", posture, _findings, crown_reach)
+        trend_hist = _trend.append_history(args.history, rec)
+        line = _trend.summary_line(trend_hist)
+        print(f"\n[*] Posture history: {len(trend_hist)} run(s) in {args.history}")
+        if line:
+            print(f"    {line}")
+
     # Attack chain detection
     chains = detect_chains(graph, report)
     if chains:
@@ -375,7 +401,7 @@ def _cmd_analyze(args) -> int:
                 chains=chains, safety=assessments if choke.fixes else None,
                 max_graph_nodes=args.graph_nodes, quality=_quality_summary(args, graph),
                 coverage=_coverage_summary(args, graph, report),
-                crown_jewels=crown or None,
+                crown_jewels=crown or None, trend=trend_hist,
             )
             if out_dir:
                 path = out_dir / "pathcutter-report.html"
@@ -447,7 +473,9 @@ def _cmd_graph(args) -> int:
         graph = load_sharphound([args.input, *args.also])          # merging several collections (raw exports)
     else:
         from .snapshot import load_baseline                         # a single input may be a .pcsnap snapshot
-        graph, _ = load_baseline(args.input)
+        graph, _info = load_baseline(args.input)
+        if _info.get("collected"):
+            graph.meta.setdefault("collected", _info["collected"])  # for the posture history x-axis
     if getattr(args, "no_shadow_tier0", False):
         from .shadow_tier0 import strip_by_name
         n = strip_by_name(graph)

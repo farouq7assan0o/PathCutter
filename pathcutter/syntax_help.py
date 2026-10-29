@@ -248,6 +248,14 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
   (traversable), CrossForestTrust (the trust fact, NOT traversable on its own) and the attack edges SpoofSIDHistory
   (weak SID filtering) and AbuseTGTDelegation (TGT delegation) which ARE traversable: those are ingested as such.
 
+OPERATIONALISE (prove it is getting better, and govern what you accept)
+  `analyze --history posture.jsonl` appends one line per run (risk score, Tier 0 exposure, paths, crown jewels reachable,
+  audit counts) and prints the movement since the previous run; `pathcutter trend posture.jsonl` renders the whole series
+  with deltas, so you can show "exposure fell from 41% to 6% this quarter". The history holds only aggregate numbers,
+  never object names. Audit findings carry a remediation SLA window by severity (critical now, high 7d, medium 30d, low
+  90d). `audit --accept accepted.json` is risk acceptance: a finding the org has formally accepted (rule, optional object,
+  reason, owner, expiry) is labelled and left out of `--fail-on` until it expires, then it resurfaces automatically.
+
 MODERN BLOODHOUND CE EDGES
   SharpHound v6/v7 emit edges older collections did not. PathCutter ingests them so current collections are not
   under-reported: CoerceToTGT (unconstrained delegation: coerce a privileged computer or DC and capture its TGT),

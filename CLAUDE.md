@@ -146,6 +146,9 @@ Reading a path (layers over the enumerated paths; they label, never hide)
 - **prbundle.py** - fix as code: `fix --pr` writes a PR-ready bundle (remediation.ps1, PR.md, fixes.changes that
   `check --changes` re-verifies, apply.sh/apply.ps1 that open the PR via the reviewer's gh/glab). Offline - PathCutter
   never touches the remote. Change-line direction follows each edge's grammar (_ENDPOINTS); HasSession reverses.
+- **trend.py / acceptance.py** - operationalisation: `analyze --history` appends aggregate posture records and
+  `pathcutter trend` renders the series; audit findings get a severity SLA window; `audit --accept` is a risk-acceptance
+  workflow (labels a finding and skips `--fail-on` until it expires). No object names in the history.
 - **cicd.py** - CI/CD to cloud: parses an Entra federated credential's subject into structured trust (repo, branch,
   pull_request, wildcard) to enrich the FIC node and the `audit` findings, and ingests an optional `*_cicd.json` sidecar
   (`tools/Export-GitHubActions.ps1`) that adds a CI/CD source node with a repo -> application edge (plus pusher edges

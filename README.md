@@ -190,6 +190,15 @@ python tests/fuzz.py --seeds 1000000 --workers 8    # differential fuzzing: engi
 python benchmarks/bench_cli.py 1000000              # wall-clock of every command
 ```
 
+## Prove it is getting better (and govern what you accept)
+
+`pathcutter analyze --history posture.jsonl` appends one aggregate record per run (risk score, Tier 0 exposure, paths,
+crown jewels reachable, audit counts - no object names) and reports the movement since the last run; `pathcutter trend
+posture.jsonl` renders the series with deltas, so you can show "exposure fell from 41% to 6% this quarter". Audit findings
+carry a severity-based remediation SLA (critical now / high 7d / medium 30d / low 90d), and `pathcutter audit --accept
+accepted.json` is a risk-acceptance workflow: an accepted finding (rule, object, reason, owner, expiry) is labelled and
+skips the `--fail-on` gate until it expires, then resurfaces automatically.
+
 ## Deploy and run on a schedule
 
 Three shapes, all offline: an analyst's machine (`pip install pathcutter`), a container

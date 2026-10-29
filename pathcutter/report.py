@@ -36,7 +36,8 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
                          choke: ChokeReport,
                          chains=None, safety=None,
                          max_graph_nodes: int = GRAPH_MAX_NODES, quality: dict | None = None,
-                         coverage: dict | None = None, crown_jewels: list | None = None) -> str:
+                         coverage: dict | None = None, crown_jewels: list | None = None,
+                         trend: list | None = None) -> str:
     """Generate a self-contained HTML dashboard with interactive path explorer."""
     protected = set()
     for f in choke.fixes:
@@ -84,7 +85,13 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
         if ou:
             ou_counts[ou] = ou_counts.get(ou, 0) + 1
     start_data["by_ou"] = sorted(({"ou": k, "count": v} for k, v in ou_counts.items()), key=lambda x: -x["count"])[:8]
-    start_data["exec"] = _exec_summary(posture, choke, crown_jewels, cj_reach)
+    exec_text = _exec_summary(posture, choke, crown_jewels, cj_reach)
+    if trend:
+        from .trend import summary_line
+        tl = summary_line(trend)
+        if tl:
+            exec_text += " " + tl
+    start_data["exec"] = exec_text
 
     return _HTML_TEMPLATE.format(
         generated=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),

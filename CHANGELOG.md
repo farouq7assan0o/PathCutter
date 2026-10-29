@@ -3,6 +3,13 @@
 ## 0.7.0
 
 ### Added
+- **Operationalisation** (`trend.py`, `acceptance.py`): posture over time and risk governance, so PathCutter is a
+  continuous programme, not a point-in-time scan. `analyze --history posture.jsonl` appends one aggregate record per run
+  (score, Tier 0 exposure, paths, crown jewels reachable, audit counts - no object names) and prints movement since the
+  last run, which also lands in the HTML executive summary; `pathcutter trend posture.jsonl` renders the series with
+  deltas and a sparkline. Audit findings carry a severity-based remediation **SLA** window (critical now / high 7d /
+  medium 30d / low 90d). `audit --accept accepted.json` is a **risk-acceptance** workflow: an accepted finding (rule,
+  optional object, reason, owner, expiry) is labelled and excluded from `--fail-on` until it expires, then resurfaces.
 - **Modern BloodHound CE edges** (SharpHound v6/v7): PathCutter now ingests edges that current collections emit but it
   previously dropped, so paths are no longer silently under-reported - `CoerceToTGT` (unconstrained delegation: coerce a
   privileged computer or DC and capture its TGT), `WriteOwnerLimitedRights` / `OwnsLimitedRights` (owner control limited

@@ -30,10 +30,13 @@ class HygieneFinding:
     mitre: str = ""
     objects: list[str] = field(default_factory=list)       # display names, sorted
     total: int = 0
+    accepted: dict | None = None     # a declared risk acceptance (see acceptance.py): {reason, owner, expires, status}
+    sla: dict | None = None          # remediation window from severity (see trend.sla_due): {days, due}
 
     def to_dict(self) -> dict:
         return {"rule": self.rule, "title": self.title, "severity": self.severity, "why": self.why, "fix": self.fix,
-                "mitre": self.mitre, "total": self.total, "objects": self.objects}
+                "mitre": self.mitre, "total": self.total, "objects": self.objects,
+                "accepted": self.accepted, "sla": self.sla}
 
 
 class Context:
@@ -748,7 +751,15 @@ def render(findings: list[HygieneFinding], min_severity: str = "info", names: in
            "  " + "   ".join(f"{n} {s}" for s, n in counts.items() if n) or "  nothing found", ""]
     for f in rows:
         shown = ", ".join(f.objects[:names]) + (f" and {f.total - names} more" if f.total > names else "")
-        out.append(f"  [{f.severity:<8}] {f.title}  ({f.total})")
+        tag = ""
+        if f.accepted:
+            tag = (f"   [ACCEPTED: {f.accepted.get('reason', '')} - {f.accepted.get('owner', '?')}"
+                   + (f", expires {f.accepted['expires']}" if f.accepted.get("expires") else "") + "]") \
+                if f.accepted.get("status") == "accepted" else \
+                f"   [ACCEPTANCE EXPIRED {f.accepted.get('expires', '')}: resurfaced]"
+        elif f.sla and f.sla.get("days") is not None:
+            tag = "   [SLA: fix now]" if f.sla["days"] == 0 else f"   [SLA: {f.sla['days']}d" + (f", by {f.sla['due']}" if f.sla.get("due") else "") + "]"
+        out.append(f"  [{f.severity:<8}] {f.title}  ({f.total}){tag}")
         out.append(f"             {shown}")
         out.append(f"             why: {f.why}")
         out.append(f"             fix: {f.fix}" + (f"   [{f.mitre}]" if f.mitre else ""))
