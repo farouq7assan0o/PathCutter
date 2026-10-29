@@ -332,6 +332,113 @@ def krbtgt_age(ctx):
 
 
 @rule
+def machine_account_quota(ctx):
+    """A non-zero ms-DS-MachineAccountQuota lets any authenticated user add computer accounts (default 10)."""
+    out = []
+    for d in ctx.graph.nodes_by_type(NodeType.DOMAIN):
+        maq = d.properties.get("machineaccountquota")
+        if isinstance(maq, (int, float)) and int(maq) > 0:
+            out.append(HygieneFinding(
+                "machine-account-quota",
+                f"Any authenticated user can add up to {int(maq)} computer account(s) (ms-DS-MachineAccountQuota={int(maq)})",
+                "medium",
+                "A non-zero machine account quota lets any domain user create computer accounts. An attacker uses a fresh "
+                "one to complete resource-based constrained delegation wherever they can write a target's delegation "
+                "attribute, and it underpins several Kerberos-relay and shadow-credential attacks.",
+                "Set the quota to 0 and delegate the join-computer right to a dedicated group "
+                "(Set-ADDomain -Identity <domain> -Replace @{'ms-DS-MachineAccountQuota'='0'}).",
+                "T1078", [d.display_name], 1))
+    return out
+
+
+def _enc_class(val) -> str | None:
+    """Classify an account's Kerberos encryption support: 'aes', 'rc4only' (RC4/DES but no AES), 'notdefined' (0), or
+    None if not collected. Accepts SharpHound's label list or a raw msDS-SupportedEncryptionTypes integer."""
+    if val is None:
+        return None
+    if isinstance(val, bool):
+        return None
+    if isinstance(val, (int, float)):
+        v = int(val)
+        if v == 0:
+            return "notdefined"
+        return "aes" if (v & 0x18) else "rc4only"          # 0x8 AES128 | 0x10 AES256
+    if isinstance(val, (list, tuple)):
+        labels = [str(x).upper() for x in val]
+        if not labels:
+            return None
+        if any(l.startswith("AES") for l in labels):
+            return "aes"
+        if any(l == "NOT DEFINED" for l in labels):
+            return "notdefined"
+        return "rc4only"
+    if isinstance(val, str):
+        u = val.strip().upper()
+        return None if not u else ("aes" if u.startswith("AES") else "notdefined" if u == "NOT DEFINED" else "rc4only")
+    return None
+
+
+@rule
+def weak_kerberos_encryption(ctx):
+    """Accounts that advertise RC4/DES but not AES (explicitly), plus krbtgt even when 'Not defined' (it issues RC4 keys)."""
+    rc4 = [n for n in ctx.users + ctx.computers
+           if _enabled(n) and _enc_class(n.properties.get("supportedencryptiontypes")) == "rc4only"]
+    krbtgt = [n for n in ctx.users if n.display_name.upper() == "KRBTGT"
+              and _enc_class(n.properties.get("supportedencryptiontypes")) in ("rc4only", "notdefined")]
+    if not rc4 and not krbtgt:
+        return []
+    rc4_ids = {n.object_id for n in rc4}
+    pool = rc4 + [k for k in krbtgt if k.object_id not in rc4_ids]
+    priv_ids = {n.object_id for n in rc4 if ctx.is_priv(n)} | {n.object_id for n in krbtgt}
+    spn_ids = {n.object_id for n in rc4 if ctx.has(n, "hasspn")} - priv_ids
+    priv = [n for n in pool if n.object_id in priv_ids]
+    spn = [n for n in pool if n.object_id in spn_ids]
+    other = [n for n in pool if n.object_id not in priv_ids and n.object_id not in spn_ids]
+    out = _f("weak-kerberos-enc-privileged", "Privileged accounts (incl. krbtgt) that allow RC4/DES but not AES", "high",
+             "An account that does not require AES accepts RC4 (or DES) Kerberos tickets: far faster to crack offline, and "
+             "the basis of encryption-downgrade and golden/silver-ticket forgery. On krbtgt or a Tier 0 account this is "
+             "especially serious.",
+             "Set msDS-SupportedEncryptionTypes to AES only (value 24) and rotate the account; reset krbtgt twice.",
+             "T1558", priv)
+    out += _f("weak-kerberos-enc-spn", "Kerberoastable accounts that allow RC4/DES but not AES", "medium",
+              "Without AES the service ticket is RC4-encrypted, so a Kerberoasted hash cracks far faster.",
+              "Set AES-only encryption and use a long random password or a gMSA.", "T1558.003", spn)
+    out += _f("weak-kerberos-enc", "Accounts that allow RC4/DES but not AES", "low",
+              "RC4/DES Kerberos encryption is weak and should be retired across the domain.",
+              "Enforce AES domain-wide and set AES-only on these accounts.", "T1558", other)
+    return out
+
+
+@rule
+def tier0_credentials_on_lower_tier(ctx):
+    """A Tier 0 account has a live session on a non-Tier-0 host: whoever owns that host can steal its credentials."""
+    g = ctx.graph
+    t0 = g.tier0_nodes
+    hosts: dict[str, set[str]] = {}
+    for u, v, d in g.all_edges():
+        if d.get("edge_type") != "HasSession" or v not in t0 or u in t0:
+            continue
+        host, acct = g.get_node(u), g.get_node(v)
+        if host is not None and host.node_type == NodeType.COMPUTER and acct is not None and acct.node_type == NodeType.USER:
+            hosts.setdefault(u, set()).add(acct.display_name)
+    if not hosts:
+        return []
+    accounts = sorted({a for s in hosts.values() for a in s})
+    host_names = sorted(g.get_node(h).display_name for h in hosts)
+    return [HygieneFinding(
+        "tier0-exposed-on-lower-tier",
+        f"{len(accounts)} Tier 0 account(s) have a session on {len(hosts)} lower-tier host(s)",
+        "critical",
+        "A Tier 0 credential (such as a Domain Admin) is logged on to a host that is not Tier 0. Whoever compromises that "
+        "host, or any account that can log on to it, can steal the Tier 0 credential from memory and take over the domain. "
+        "This is the most common real-world AD escalation. Exposed accounts: " + ", ".join(accounts[:10])
+        + (" ..." if len(accounts) > 10 else ""),
+        "Enforce the tiered administration model: Tier 0 accounts log on only to Tier 0 systems. End these sessions, add "
+        "the accounts to Protected Users, and deny their interactive/RDP logon to lower tiers by GPO.",
+        "T1003", host_names[:25], len(hosts))]
+
+
+@rule
 def privileged_not_protected(ctx):
     bad = [n for n in ctx.users if _enabled(n) and n.object_id in ctx.t0 and not ctx.has(n, "sensitive")
            and n.object_id not in ctx.protected_members and n.display_name.upper() not in ("KRBTGT",)]

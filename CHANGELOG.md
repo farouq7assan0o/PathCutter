@@ -3,6 +3,14 @@
 ## 0.7.0
 
 ### Added
+- **More from SharpHound** (`audit`): three hygiene findings from data SharpHound collects but PathCutter was not using -
+  a non-zero **machine account quota** (`ms-DS-MachineAccountQuota`; any authenticated user can add computer accounts, a
+  prerequisite for RBCD and shadow-credential attacks), **weak Kerberos encryption** (accounts allowing RC4/DES but not
+  AES, with krbtgt and Tier 0 escalated; reads SharpHound's `supportedencryptiontypes` label list or a raw bitmask), and
+  **Tier 0 credentials exposed on a lower-tier host** (a Domain-Admin-class session on a non-Tier-0 computer - the most
+  common real-world escalation). The AD Explorer ingester now also reads `ms-DS-MachineAccountQuota` and
+  `msDS-SupportedEncryptionTypes`, so these fire on signed-tool snapshots too. All three verified on the real MediTrust
+  collection.
 - **CI/CD to cloud** (`cicd.py`): PathCutter parses an Entra federated credential's subject into structured trust
   (provider, repo, branch/environment, pull_request, wildcard), so `audit` can flag a `pull_request` subject (high: any
   contributor via a PR) and a repo with no branch/environment pin (medium) on top of the existing wildcard/outside-issuer

@@ -411,6 +411,20 @@ def _build(objs: list[dict]) -> list[dict]:
             props["dnshostname"] = _one(o.get("dNSHostName")) or _one(o.get("dnsHostName"))
             if "CN=DOMAIN CONTROLLERS" in dn.upper() or (isinstance(uac, int) and uac & 0x2000):
                 props["isdc"] = True                                          # SERVER_TRUST_ACCOUNT
+        if ft == "domains":
+            maq = _one(o.get("ms-DS-MachineAccountQuota"))
+            if maq is not None:
+                try:
+                    props["machineaccountquota"] = int(maq)
+                except (TypeError, ValueError):
+                    pass
+        if ft in ("users", "computers"):
+            enc = _one(o.get("msDS-SupportedEncryptionTypes"))
+            if enc is not None:
+                try:
+                    props["supportedencryptiontypes"] = int(enc)             # raw bitmask; hygiene._enc_class handles it
+                except (TypeError, ValueError):
+                    pass
 
         record = {"ObjectIdentifier": oid, "Properties": {k: v for k, v in props.items() if v is not None}}
 

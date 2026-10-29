@@ -191,7 +191,9 @@ AUDIT = """Examples:
 Rules: Kerberoastable / AS-REP roastable accounts (privileged ones are critical), passwords in descriptions or
 attributes, no-password accounts, stale privileged accounts, old krbtgt, unprotected Tier 0 accounts, SID history,
 orphaned adminCount, unconstrained delegation, protocol transition, unsupported OS, no LAPS, stale computers, old
-functional level, trusts without SID filtering, and Everyone-like groups holding dangerous rights (including AD CS).
+functional level, trusts without SID filtering, Everyone-like groups holding dangerous rights (including AD CS),
+a non-zero machine account quota (any user can add computers -> RBCD), accounts allowing RC4/DES but not AES
+(krbtgt and Tier 0 escalated), and Tier 0 credentials exposed in a session on a lower-tier host.
 With Entra data and an exported Conditional Access policy list (Get-MgIdentityConditionalAccessPolicy -All | ConvertTo-Json
 -Depth 10, placed next to the AzureHound file): administrators not covered by an enforced MFA policy for all cloud apps,
 admins excluded from MFA, report-only policies, legacy authentication not blocked. `--also PATH` merges more collections.
