@@ -52,6 +52,10 @@ _TABLE: dict[str, tuple[str, str, str]] = {
     "GPOControlsObject": ("medium", "collector:gplink", "the link exists; security filtering and blocked inheritance are not evaluated"),
     "CoerceAndRelayNTLMToSMB": ("low", "assumption:coercion", "experimental derivation that over-reports against BloodHound's own harnesses"),
     "CoerceAndRelayNTLMToLDAP": ("low", "assumption:coercion", "experimental derivation that over-reports against BloodHound's own harnesses"),
+    # modern BloodHound CE edges
+    "CoerceToTGT": ("low", "assumption:coercion", "holds only if a privileged computer or a DC can be coerced to authenticate to the unconstrained-delegation host"),
+    "SpoofSIDHistory": ("medium", "derived:trust", "a cross-forest trust with SID filtering disabled (collected by SharpHound v7.4+)"),
+    "AbuseTGTDelegation": ("medium", "derived:trust", "a cross-forest trust with TGT delegation enabled (collected by SharpHound v7.4+)"),
     # key vault data plane is reported, never walked
     "AZGetSecrets": ("medium", "collector:keyvault", "an access policy entry; the vault's contents are unknown"),
     "AZGetKeys": ("medium", "collector:keyvault", "an access policy entry; the vault's contents are unknown"),

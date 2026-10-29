@@ -13,7 +13,8 @@ from pathcutter.pathfinder import _ATTACK_EDGES
 NAMES = sorted({e.name for e in EDGE_REGISTRY.values()})
 
 # Edges that are not attack steps by themselves (plumbing)
-STRUCTURAL = {"MemberOf", "Contains", "AZContains"}
+STRUCTURAL = {"MemberOf", "Contains", "AZContains",
+              "CrossForestTrust"}      # the cross-forest trust fact: recorded, never walked (SpoofSIDHistory/AbuseTGTDelegation are the attack edges)
 # Known gap: AD CS rights are ingested and typed but only become attack steps once the ESC conditions are modeled.
 REPORTED_ONLY = {"AZGetSecrets", "AZGetKeys", "AZGetCertificates"}      # key vault data plane: listed by `audit`, never a step
 PENDING_ADCS = {"Enroll", "AutoEnroll", "ManageCA", "ManageCertificates", "WritePKIEnrollmentFlag", "WritePKINameFlag", "OIDGroupLink",

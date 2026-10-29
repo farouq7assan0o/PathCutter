@@ -3,6 +3,12 @@
 ## 0.7.0
 
 ### Added
+- **Modern BloodHound CE edges** (SharpHound v6/v7): PathCutter now ingests edges that current collections emit but it
+  previously dropped, so paths are no longer silently under-reported - `CoerceToTGT` (unconstrained delegation: coerce a
+  privileged computer or DC and capture its TGT), `WriteOwnerLimitedRights` / `OwnsLimitedRights` (owner control limited
+  by an OWNER RIGHTS ACE), and the v7.4 trust split: `SameForestTrust` (traversable, mapped to the existing trust edge),
+  `SpoofSIDHistory` and `AbuseTGTDelegation` (traversable cross-forest attack edges), and `CrossForestTrust` (the trust
+  fact, recorded but non-traversable on its own). Each new edge has registry metadata, confidence labels and cost.
 - **More from SharpHound** (`audit`): three hygiene findings from data SharpHound collects but PathCutter was not using -
   a non-zero **machine account quota** (`ms-DS-MachineAccountQuota`; any authenticated user can add computer accounts, a
   prerequisite for RBCD and shadow-credential attacks), **weak Kerberos encryption** (accounts allowing RC4/DES but not

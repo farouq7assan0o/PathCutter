@@ -401,6 +401,79 @@ HasSIDHistory = EdgeType(
     reversible=False,
 )
 
+# Modern BloodHound CE edges (SharpHound v6/v7). Ingested so current collections are not under-reported.
+CoerceToTGT = EdgeType(
+    name="CoerceToTGT",
+    category=EdgeCategory.DELEGATION,
+    abuse="Unconstrained delegation: coerce a privileged computer or a domain controller to authenticate to this host and capture its TGT, then impersonate it",
+    mitre="T1558",
+    exploitability=8,
+    fix_template='Set-ADComputer -Identity "{source_name}" -TrustedForDelegation $false',
+    detection_difficulty="medium",
+    reversible=True,
+    description="BloodHound CE edge (v6.3+): an unconstrained-delegation principal whose compromise plus a coercion yields a privileged TGT",
+)
+
+WriteOwnerLimitedRights = EdgeType(
+    name="WriteOwnerLimitedRights",
+    category=EdgeCategory.ACL,
+    abuse="WriteOwner limited by an OWNER RIGHTS (S-1-3-4) ACE: set the object's owner to gain the specific rights that ACE grants the owner",
+    mitre="T1222.001",
+    exploitability=7,
+    fix_template='# Review the OWNER RIGHTS (S-1-3-4) ACE and WriteOwner grants on "{target_dn}"; remove unneeded owner rights',
+    detection_difficulty="high",
+    reversible=True,
+    description="BloodHound CE edge (v7.1 Owns/WriteOwner rework)",
+)
+
+OwnsLimitedRights = EdgeType(
+    name="OwnsLimitedRights",
+    category=EdgeCategory.ACL,
+    abuse="Owner of the object with the specific rights an OWNER RIGHTS (S-1-3-4) ACE grants the owner: use them to control the object",
+    mitre="T1222.001",
+    exploitability=7,
+    fix_template='# Change the owner of "{target_dn}" to an admin and review the OWNER RIGHTS (S-1-3-4) ACE',
+    detection_difficulty="high",
+    reversible=True,
+    description="BloodHound CE edge (v7.1 Owns/WriteOwner rework)",
+)
+
+SpoofSIDHistory = EdgeType(
+    name="SpoofSIDHistory",
+    category=EdgeCategory.DOMAIN,
+    abuse="Across a cross-forest trust with weak SID filtering, inject SID history so access checks in the target domain treat the attacker as a privileged principal there",
+    mitre="T1134.005",
+    exploitability=8,
+    fix_template="# Enable SID filtering / quarantine on the cross-forest trust (netdom trust <trust> /quarantine:yes)",
+    detection_difficulty="medium",
+    reversible=False,
+    description="BloodHound CE edge (v7.4): cross-forest trust with SID filtering disabled (SpoofSIDHistoryBlocked = False)",
+)
+
+AbuseTGTDelegation = EdgeType(
+    name="AbuseTGTDelegation",
+    category=EdgeCategory.DOMAIN,
+    abuse="A cross-forest trust with TGT (unconstrained) delegation enabled: capture a TGT delegated across the trust and impersonate the principal in the other forest",
+    mitre="T1558",
+    exploitability=7,
+    fix_template="# Disable TGT delegation across the trust (netdom trust <trust> /EnableTGTDelegation:No)",
+    detection_difficulty="medium",
+    reversible=True,
+    description="BloodHound CE edge (v7.4): cross-forest trust with TGT delegation enabled",
+)
+
+CrossForestTrust = EdgeType(
+    name="CrossForestTrust",
+    category=EdgeCategory.DOMAIN,
+    abuse="A trust between two forests. Not traversable by itself: it becomes an attack path only with SpoofSIDHistory (weak SID filtering) or AbuseTGTDelegation (TGT delegation)",
+    mitre="",
+    exploitability=0,
+    fix_template="# Review the cross-forest trust: enable SID filtering and disable TGT delegation unless required",
+    detection_difficulty="medium",
+    reversible=False,
+    description="BloodHound CE edge (v7.4): the trust fact; the attack edges are SpoofSIDHistory / AbuseTGTDelegation",
+)
+
 WriteGPLink = EdgeType(
     name="WriteGPLink",
     category=EdgeCategory.ACL,
@@ -953,7 +1026,8 @@ def exploitability_weight(edge_name: str) -> float:
 # template is not control of it. They stay in the graph for the derivations and for reports, but no path crosses them.
 NON_TRAVERSABLE = frozenset({"Enroll", "AutoEnroll", "ManageCA", "ManageCertificates", "WritePKIEnrollmentFlag",
                              "WritePKINameFlag", "OIDGroupLink", "GetChanges", "GetChangesAll", "GetChangesInFilteredSet",
-                             "AZGetSecrets", "AZGetKeys", "AZGetCertificates"})     # the last three are reported, never walked
+                             "AZGetSecrets", "AZGetKeys", "AZGetCertificates",     # the last three are reported, never walked
+                             "CrossForestTrust"})     # the trust fact; the attack is SpoofSIDHistory / AbuseTGTDelegation
 
 TIER0_GROUPS = frozenset({
     "DOMAIN ADMINS",

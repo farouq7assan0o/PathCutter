@@ -103,6 +103,7 @@ _ATTACK_EDGES = frozenset({
     "AZOwner", "AZContributor", "AZUserAccessAdmin", "AZVMAdminLogin", "AZManagedIdentity",
     "AZMGGrantRole", "AZMGAddSecret",
     "AZOwns", "AZRunsAs", "AZEligibleRole", "AZResetPassword", "AZAddSecret", "SyncedTo",
+    "CoerceToTGT", "WriteOwnerLimitedRights", "OwnsLimitedRights", "SpoofSIDHistory", "AbuseTGTDelegation",
 })
 
 

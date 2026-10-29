@@ -243,8 +243,16 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
   Declared compensating controls (Conditional Access, PIM approval, vaulting, tiering): lower severity only.
   SDProp: ACL edits on adminCount=1 objects are noted as likely to be reverted (or to return) within ~60 min.
   Revocation lag: removals are noted as not ending live sessions or already-issued Kerberos tickets.
-  Trusts: direction, transitivity and SID filtering are recorded and `doctor` reports unfiltered external trusts,
-  but every trust is treated as traversable (conservative: it can over-report, not under-report).
+  Trusts: direction, transitivity and SID filtering are recorded and `doctor` reports unfiltered external trusts. The
+  legacy TrustedBy edge is treated as traversable (conservative). SharpHound v7.4+ splits trusts into SameForestTrust
+  (traversable), CrossForestTrust (the trust fact, NOT traversable on its own) and the attack edges SpoofSIDHistory
+  (weak SID filtering) and AbuseTGTDelegation (TGT delegation) which ARE traversable: those are ingested as such.
+
+MODERN BLOODHOUND CE EDGES
+  SharpHound v6/v7 emit edges older collections did not. PathCutter ingests them so current collections are not
+  under-reported: CoerceToTGT (unconstrained delegation: coerce a privileged computer or DC and capture its TGT),
+  WriteOwnerLimitedRights / OwnsLimitedRights (owner control limited by an OWNER RIGHTS ACE), and the v7.4 trust edges
+  above. Edges that are only a precondition (CrossForestTrust) are recorded but never walked.
 
 NOT MODELED (stated so nobody assumes otherwise)
   ESC14 (weak altSecurityIdentities mapping): the attacker needs a write right on the victim, and GenericWrite / GenericAll over a user
