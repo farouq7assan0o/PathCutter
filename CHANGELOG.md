@@ -9,6 +9,10 @@ PIM activation policy, CI/CD-to-cloud, Shadow Tier 0, and the modern BloodHound 
 rights, the v7.4 trust split). Ships as a pip package and a Docker image with a trusted-publishing release workflow.
 
 ### Added
+- **Two derived views** (`toprisk.py`, in `analyze` and the HTML overview): a **protect-first leaderboard** - the
+  non-Tier-0 actors whose compromise reaches the most Tier 0, so there is a short proactive "protect these first" list -
+  and **silent blind spots**, the intersection of paths that are neither cut by the prioritised fixes nor detectable with
+  the declared telemetry (with `--telemetry`): the real top risk, called out in the executive summary.
 - **GPO blocked inheritance and link enforcement** (`gpo_rights.py`): the GPO-rights scope now stops an inherited,
   non-enforced policy at an OU that blocks inheritance (gPOptions), while an enforced link pierces the block, so
   `GPOUserRight` edges no longer propagate a shielded policy down a blocked OU subtree. The `GPOControlsObject` edge

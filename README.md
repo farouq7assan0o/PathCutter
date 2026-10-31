@@ -167,6 +167,8 @@ If you can run a lab, [docs/test-data.md](docs/test-data.md) says exactly what t
 - **Executive summary** (one paragraph for leadership: grade, exposure, crown jewels reachable, top fixes) and, with
   `--crown-jewels`, a **Crown Jewels** card and a **risk-by-department (per-OU)** breakdown. The Overview **prints to PDF**
   cleanly (browser Print > Save as PDF becomes a one-page brief).
+- **Protect these first**: the non-Tier-0 principals whose compromise reaches the most Tier 0 (a proactive target list),
+  and **silent blind spots** (with `--telemetry`): the paths you can neither prioritise-fix nor detect - the real top risk.
 - **Fix these first**: the three best fixes, paths cut, safety. **Worst findings**: counts by severity and the top critical ones.
   **Can you trust this data?**: the collection verdict and its main gaps.
 - Riskiest nodes, remediation with copy-paste commands and rollback notes, attack chains, defend (MITRE, log sources), **What If**
@@ -227,7 +229,7 @@ pathcutter/   ingest.py azure.py adcs.py derived.py   collectors -> graph, deriv
               pathfinder.py scoring.py choke.py          paths, risk score, minimum fix set
               shadow_tier0.py                            management-plane objects treated as Tier 0
               evidence.py cost.py coverage.py breach.py  confidence, attacker cost, detection coverage, assume-breach
-              value.py prbundle.py cicd.py               crown jewels / business value; fix-as-code PRs; CI/CD-to-cloud
+              value.py prbundle.py cicd.py toprisk.py    crown jewels; fix-as-code PRs; CI/CD-to-cloud; protect-list + blind spots
               changes.py impact.py policy.py extractors/   the change gate and its inputs
               hygiene.py toolkit.py detections.py          audit, doctor, anonymize, detect
               report.py graph_view.js                      the interactive report

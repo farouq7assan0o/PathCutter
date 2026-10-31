@@ -37,7 +37,8 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
                          chains=None, safety=None,
                          max_graph_nodes: int = GRAPH_MAX_NODES, quality: dict | None = None,
                          coverage: dict | None = None, crown_jewels: list | None = None,
-                         trend: list | None = None) -> str:
+                         trend: list | None = None, protect: list | None = None,
+                         blind_spots: dict | None = None) -> str:
     """Generate a self-contained HTML dashboard with interactive path explorer."""
     protected = set()
     for f in choke.fixes:
@@ -86,12 +87,17 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
             ou_counts[ou] = ou_counts.get(ou, 0) + 1
     start_data["by_ou"] = sorted(({"ou": k, "count": v} for k, v in ou_counts.items()), key=lambda x: -x["count"])[:8]
     exec_text = _exec_summary(posture, choke, crown_jewels, cj_reach)
+    if blind_spots and blind_spots.get("count"):
+        exec_text += (f" {blind_spots['count']} path(s) are neither cut by the top fixes nor detectable with the declared "
+                      "telemetry (the real top risk).")
     if trend:
         from .trend import summary_line
         tl = summary_line(trend)
         if tl:
             exec_text += " " + tl
     start_data["exec"] = exec_text
+    start_data["protect"] = protect or []
+    start_data["blind_spots"] = blind_spots or None
 
     return _HTML_TEMPLATE.format(
         generated=time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
@@ -1478,7 +1484,27 @@ function renderStart() {{
     ex.appendChild(el('div', '', startData.exec));
     root.appendChild(ex);
   }}
+  const bs = startData.blind_spots;
+  if (bs && bs.count) {{
+    const b = el('div', 'margin:0 0 16px;padding:12px 16px;border-left:4px solid var(--danger);background:#ef444415;border-radius:6px;font-size:0.88rem;line-height:1.5');
+    b.appendChild(el('div', 'font-weight:700;color:var(--danger);margin-bottom:4px', 'Silent blind spots - the real top risk'));
+    b.appendChild(el('div', '', bs.count + ' attack path(s) are NOT cut by the top fixes AND leave no telemetry trace: you can neither prioritise-fix nor detect them.'));
+    bs.groups.slice(0, 5).forEach(g => b.appendChild(el('div', 'font-size:0.78rem;color:var(--text-dim);margin-top:4px', g.source + ' → ' + g.target + '  [' + g.edges + ']' + (g.times > 1 ? '  x' + g.times : ''))));
+    root.appendChild(b);
+  }}
   const grid = el('div', 'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px');
+
+  if (startData.protect && startData.protect.length) {{
+    const pc = col('Protect these first');
+    pc.appendChild(el('div', 'font-size:0.76rem;color:var(--text-dim);margin-bottom:4px', 'If compromised, these reach the most Tier 0:'));
+    startData.protect.forEach(p => {{
+      const row = el('div', 'margin:6px 0;font-size:0.82rem;line-height:1.3');
+      row.appendChild(el('div', 'font-weight:600', p.name + '  ' + '·' + ' ' + p.type));
+      row.appendChild(el('div', 'color:var(--danger);font-size:0.78rem', 'reaches ' + p.tier0_reach + ' Tier 0 object(s) via ' + p.paths + ' path(s)'));
+      pc.appendChild(row);
+    }});
+    grid.appendChild(pc);
+  }}
 
   if (startData.crown && startData.crown.length) {{
     const cj = col('Crown jewels');

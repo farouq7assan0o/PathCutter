@@ -370,6 +370,23 @@ def _cmd_analyze(args) -> int:
                 for w in assessment.warnings:
                     print(f"         -> {w}")
 
+    from . import toprisk
+    protect = toprisk.protect_leaderboard(node_scores, top=args.top)
+    if protect:
+        print(f"\n[*] Protect these first (compromise reaches the most Tier 0):")
+        for p in protect:
+            print(f"    {p['name']:<40} {p['type']:<10} reaches {p['tier0_reach']} Tier 0 object(s) via {p['paths']} path(s)")
+
+    cov = _coverage_summary(args, graph, report)            # computed once; reused by blind-spots and the report
+    blind = None
+    if cov and cov.get("status"):
+        blind = toprisk.blind_spots(graph, report, choke.fixes, cov["status"])
+        if blind["count"]:
+            print(f"\n[!] Silent blind spots: {blind['count']} path(s) are NOT cut by the top fixes AND leave no telemetry trace")
+            for g in blind["groups"][:5]:
+                print(f"    {g['source']} -> {g['target']}   [{g['edges']}]" + (f"   x{g['times']}" if g['times'] > 1 else ""))
+            print("    These are the real top risk: neither prioritised-fixable nor detectable. Switch on telemetry or fix them directly.")
+
     out_dir = Path(args.output) if args.output else None
     if out_dir:
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -400,8 +417,9 @@ def _cmd_analyze(args) -> int:
                 graph, report, posture, node_scores, choke,
                 chains=chains, safety=assessments if choke.fixes else None,
                 max_graph_nodes=args.graph_nodes, quality=_quality_summary(args, graph),
-                coverage=_coverage_summary(args, graph, report),
+                coverage=cov,
                 crown_jewels=crown or None, trend=trend_hist,
+                protect=protect or None, blind_spots=blind,
             )
             if out_dir:
                 path = out_dir / "pathcutter-report.html"
