@@ -76,6 +76,19 @@ def test_tier0_session_on_lower_tier_host():
     assert "ADMIN" in f.why
 
 
+def test_dnsadmins_members_flagged():
+    g = AttackGraph()
+    g.add_node(ADNode("dns", "DNSADMINS@CORP.LOCAL", NodeType.GROUP, "CORP.LOCAL"))
+    g.add_node(ADNode("bob", "BOB@CORP.LOCAL", NodeType.USER, "CORP.LOCAL"))
+    g.add_edge(ADEdge("bob", "dns", "MemberOf"))
+    f = _rules(g).get("dnsadmins")
+    assert f and f.severity == "high" and "BOB" in f.objects
+    # empty DNSAdmins -> no finding
+    g2 = AttackGraph()
+    g2.add_node(ADNode("dns", "DNSADMINS@CORP.LOCAL", NodeType.GROUP, "CORP.LOCAL"))
+    assert "dnsadmins" not in _rules(g2)
+
+
 def test_no_finding_when_tier0_session_is_on_a_tier0_host():
     g = AttackGraph()
     g.add_node(ADNode("da", "DOMAIN ADMINS@CORP.LOCAL", NodeType.GROUP, "CORP.LOCAL"))

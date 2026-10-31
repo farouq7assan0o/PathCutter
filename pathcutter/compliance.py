@@ -65,6 +65,7 @@ MAP: dict[str, dict] = {
     "domain-control-nonpriv": {"nist": ["AC-6(5)", "AC-3"], "cis": [_CIS_ACCESS], "e8": [_ADMIN], "stig": "restrict control of the domain object"},
     "ea-sa-populated": {"nist": ["AC-5", "AC-6(5)"], "cis": [_CIS_ACCESS], "e8": [_ADMIN], "stig": "keep Schema/Enterprise Admins empty except during use"},
     "many-domain-admins": {"nist": ["AC-5", "AC-6(5)"], "cis": [_CIS_ACCESS], "e8": [_ADMIN], "stig": "minimise Domain Admins membership"},
+    "dnsadmins": {"nist": ["AC-6(5)", "AC-3"], "cis": [_CIS_ACCESS], "e8": [_ADMIN], "stig": "restrict DNSAdmins; monitor ServerLevelPluginDll"},
     "svc-privileged": {"nist": ["AC-5", "AC-6(5)"], "cis": [_CIS_ACCT, _CIS_ACCESS], "e8": [_ADMIN], "stig": "service accounts not in privileged groups"},
     "guest-enabled": {"nist": ["AC-2"], "cis": [_CIS_ACCT], "e8": [], "stig": "built-in Guest disabled"},
     "smb-signing": {"nist": ["SC-8", "SC-13"], "cis": [_CIS_SECCFG], "e8": [], "stig": "require SMB signing"},

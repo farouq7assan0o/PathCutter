@@ -9,6 +9,11 @@ PIM activation policy, CI/CD-to-cloud, Shadow Tier 0, and the modern BloodHound 
 rights, the v7.4 trust split). Ships as a pip package and a Docker image with a trusted-publishing release workflow.
 
 ### Added
+- **DNSAdmins finding and per-department drill-down**: `audit` flags members of DNSAdmins (they can make the DNS
+  service load a DLL and run code as SYSTEM on a domain controller - a direct Tier 0 route). The HTML report's
+  risk-by-department (OU) card is now a **drill-down**: each OU shows "reaches Tier 0 / total" and expands to its
+  riskiest objects, so findings route to the owning team. (ADIDNS record abuse stays unmodelled - SharpHound does not
+  collect DNS-zone ACLs - and UAC-flag abuse is already covered by the GenericWrite edge; both are stated in `syntax model`.)
 - **Compliance / framework mapping** (`compliance.py`, `audit --compliance` and the HTML overview): every audit finding
   now carries, alongside its MITRE technique, the controls it bears on across **NIST SP 800-53 Rev5**, **CIS Controls v8**,
   the **ASD Essential Eight** and a **DISA STIG** requirement theme, and `audit --compliance` prints a per-framework

@@ -282,6 +282,10 @@ NOT MODELED (stated so nobody assumes otherwise)
   into graph edges), authentication silos as graph restrictions, smart-card
   required flags, fine-grained password policy, network reachability and firewalls, SMB/LDAP signing and NTLM relay (see above),
   EDR, GPO content other than local-group membership and the user rights above, Kerberos ticket and token contents.
+  ADIDNS record abuse (any authenticated user adding a DNS record for WPAD / NTLM relay) is not modeled: SharpHound does
+  not collect DNS-zone ACLs, so there is no data to judge it from. UAC-flag abuse (using a write to set unconstrained
+  delegation or clear pre-auth) is not a separate edge because the GenericWrite / GenericAll that allows it is already a
+  followed takeover edge. DNSAdmins-to-DC code execution is covered: DNSAdmins is Tier 0 and `audit` explains the vector.
   Sessions are snapshots of one moment: merge several collections with --also.
   Exposure is a floor for anything the collection missed: run `pathcutter doctor` on the export first.
 """

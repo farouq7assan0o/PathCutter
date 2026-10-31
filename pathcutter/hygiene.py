@@ -617,6 +617,19 @@ def schema_enterprise_admins(ctx):
 
 
 @rule
+def dnsadmins(ctx):
+    """Members of DNSAdmins can make the DNS service (it runs on the DCs) load an arbitrary DLL: code execution as SYSTEM on a DC."""
+    members = [m for m in _members(ctx, {"DNSADMINS"})
+               if m.node_type in (NodeType.USER, NodeType.COMPUTER) and _enabled(m)]
+    return _f("dnsadmins", f"{len(members)} member(s) of DNSAdmins can run code on domain controllers", "high",
+              "DNSAdmins can set a server-level plugin DLL (ServerLevelPluginDll); the DNS service, running as SYSTEM on "
+              "the domain controllers, loads it on restart, giving code execution on a DC. This is a direct route to Tier 0 "
+              "that does not need an ACL on any Tier 0 object.",
+              "Keep DNSAdmins empty or limited to a managed admin group, and monitor ServerLevelPluginDll changes and DNS "
+              "service restarts.", "T1543.003", members) if members else []
+
+
+@rule
 def many_domain_admins(ctx):
     das = [m for m in _members(ctx, {"DOMAIN ADMINS"}) if m.node_type == NodeType.USER and m.display_name.upper() not in ("ADMINISTRATOR",)]
     return _f("many-domain-admins", f"{len(das)} accounts in Domain Admins", "medium",

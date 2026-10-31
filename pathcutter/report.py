@@ -75,17 +75,26 @@ def generate_html_report(graph: AttackGraph, path_report: PathReport,
                             "steps": cost.get("steps"), "effort": cost.get("effort"), "noise": cost.get("noise")})
         cj_reach = sum(1 for c in compact if c["reachable"])
         start_data["crown"] = compact
-    risky_ids = [ns.node_id for ns in node_scores if ns.tier != 0][:800]
-    ou_counts: dict[str, int] = {}
-    for nid in risky_ids:
-        n = graph.get_node(nid)
-        if n is None:
+    # per-department (OU) breakdown with a drill-down: each OU's riskiest objects
+    from .value import ou_path as _oup
+    ou_detail: dict[str, list] = {}
+    for ns in node_scores:
+        if ns.tier == 0:
             continue
-        from .value import ou_path as _oup
-        ou = _oup(n.properties.get("distinguishedname") or "")
-        if ou:
-            ou_counts[ou] = ou_counts.get(ou, 0) + 1
-    start_data["by_ou"] = sorted(({"ou": k, "count": v} for k, v in ou_counts.items()), key=lambda x: -x["count"])[:8]
+        n = graph.get_node(ns.node_id)
+        ou = _oup(n.properties.get("distinguishedname") or "") if n is not None else ""
+        if not ou:
+            continue
+        ou_detail.setdefault(ou, []).append(ns)
+    by_ou = []
+    for ou, members in ou_detail.items():
+        members.sort(key=lambda m: (-m.tier0_reach, -m.risk_score))
+        by_ou.append({"ou": ou, "count": len(members),
+                      "reaches_t0": sum(1 for m in members if m.tier0_reach > 0),
+                      "top": [{"name": m.display_name, "type": m.node_type, "risk": m.risk_score,
+                               "tier0_reach": m.tier0_reach} for m in members[:8]]})
+    by_ou.sort(key=lambda o: (-o["reaches_t0"], -o["count"]))
+    start_data["by_ou"] = by_ou[:20]
     exec_text = _exec_summary(posture, choke, crown_jewels, cj_reach)
     if blind_spots and blind_spots.get("count"):
         exec_text += (f" {blind_spots['count']} path(s) are neither cut by the top fixes nor detectable with the declared "
@@ -1599,16 +1608,25 @@ function renderStart() {{
     const dept = col('Risk by department (OU)');
     const max = startData.by_ou[0].count || 1;
     startData.by_ou.forEach(o => {{
-      const row = el('div', 'margin:5px 0');
+      const row = el('div', 'margin:5px 0;cursor:pointer');
       const label = el('div', 'display:flex;justify-content:space-between;font-size:0.8rem');
-      label.appendChild(el('span', 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', o.ou));
-      label.appendChild(el('span', 'color:var(--text-dim);margin-left:8px', String(o.count)));
+      label.appendChild(el('span', 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', (o.reaches_t0 ? '▸ ' : '  ') + o.ou));
+      label.appendChild(el('span', 'color:var(--text-dim);margin-left:8px', o.reaches_t0 ? (o.reaches_t0 + ' / ' + o.count) : String(o.count)));
       row.appendChild(label);
       const bar = el('div', 'height:6px;border-radius:3px;background:var(--accent);margin-top:2px;width:' + (o.count / max * 100) + '%');
       row.appendChild(bar);
+      const detail = el('div', 'display:none;margin:4px 0 8px 12px;padding-left:8px;border-left:2px solid var(--border)');
+      (o.top || []).forEach(t => {{
+        const d = el('div', 'font-size:0.74rem;line-height:1.3');
+        d.appendChild(el('span', '', t.name + '  '));
+        d.appendChild(el('span', 'color:var(--text-dim)', t.type + (t.tier0_reach ? '  · reaches ' + t.tier0_reach + ' Tier 0' : '') + '  · risk ' + t.risk));
+        detail.appendChild(d);
+      }});
+      row.appendChild(detail);
+      row.addEventListener('click', () => {{ detail.style.display = detail.style.display === 'none' ? 'block' : 'none'; }});
       dept.appendChild(row);
     }});
-    dept.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Risky (non-Tier-0) objects grouped by their OU, so findings can be routed to the owning team.'));
+    dept.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Risky (non-Tier-0) objects grouped by OU; the count is "reach Tier 0 / total". Click a department to drill into its riskiest objects, so findings route to the owning team.'));
     grid.appendChild(dept);
   }}
 
