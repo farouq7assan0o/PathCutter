@@ -62,6 +62,7 @@ Examples:
   pathcutter analyze export.zip --history posture.jsonl                         # append this run's posture; show movement since last run
   pathcutter trend posture.jsonl                                                # the whole series: is risk going down?
   pathcutter audit export.zip --accept accepted.json --fail-on high             # accepted risks are labelled and skip the gate until they expire
+  pathcutter audit export.zip --compliance                                      # map findings to NIST 800-53 / CIS v8 / Essential Eight controls
 
 crown.json: {"crown_jewels": [{"match": "SQL-SIS", "value": "critical", "label": "Student records"},
                               {"ou": "OU=Research,DC=uni,DC=edu", "value": "high", "label": "Research"}]}

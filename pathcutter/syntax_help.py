@@ -248,6 +248,14 @@ MODELED AS REPORTING, NOT AS A GRAPH CHANGE
   (traversable), CrossForestTrust (the trust fact, NOT traversable on its own) and the attack edges SpoofSIDHistory
   (weak SID filtering) and AbuseTGTDelegation (TGT delegation) which ARE traversable: those are ingested as such.
 
+COMPLIANCE MAPPING (read it in the auditor's language)
+  Every `audit` finding carries, besides its MITRE technique, the controls it bears on across NIST SP 800-53 Rev5, CIS
+  Controls v8, the ASD Essential Eight and a DISA STIG requirement theme. `audit --compliance` prints a per-framework
+  rollup (which controls are implicated, by how many findings); `--json` includes the per-finding references. The
+  identifiers are the stable ones (precise NIST control IDs, top-level CIS controls, Essential Eight strategy names, a
+  STIG theme rather than a version-specific V-ID). It points an auditor at the control; the finding is the evidence, and
+  it is not a compliance attestation.
+
 OPERATIONALISE (prove it is getting better, and govern what you accept)
   `analyze --history posture.jsonl` appends one line per run (risk score, Tier 0 exposure, paths, crown jewels reachable,
   audit counts) and prints the movement since the previous run; `pathcutter trend posture.jsonl` renders the whole series

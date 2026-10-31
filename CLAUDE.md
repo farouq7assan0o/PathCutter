@@ -146,6 +146,8 @@ Reading a path (layers over the enumerated paths; they label, never hide)
 - **prbundle.py** - fix as code: `fix --pr` writes a PR-ready bundle (remediation.ps1, PR.md, fixes.changes that
   `check --changes` re-verifies, apply.sh/apply.ps1 that open the PR via the reviewer's gh/glab). Offline - PathCutter
   never touches the remote. Change-line direction follows each edge's grammar (_ENDPOINTS); HasSession reverses.
+- **compliance.py** - maps each audit finding to NIST 800-53 Rev5 / CIS v8 / Essential Eight / DISA STIG-theme controls;
+  `audit --compliance` prints the rollup, the HTML overview shows a Compliance card. Stable identifiers, not an attestation.
 - **trend.py / acceptance.py** - operationalisation: `analyze --history` appends aggregate posture records and
   `pathcutter trend` renders the series; audit findings get a severity SLA window; `audit --accept` is a risk-acceptance
   workflow (labels a finding and skips `--fail-on` until it expires). No object names in the history.

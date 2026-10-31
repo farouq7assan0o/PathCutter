@@ -31,6 +31,7 @@ pathcutter -h                                      # every command, how to build
 pathcutter doctor   export.zip                     # completeness verdict + the collector flag that fixes each gap
 pathcutter analyze  export.zip --html -o report    # score, attack paths, the minimum fix set, an interactive report
 pathcutter audit    export.zip --fail-on critical  # attribute-level findings with why and how to fix
+pathcutter audit    export.zip --compliance        # map findings to NIST 800-53 / CIS v8 / Essential Eight controls
 pathcutter breach   export.zip --from "JSMITH@CORP.LOCAL"   # assume breach: what this one object reaches, and how
 pathcutter analyze  export.zip --crown-jewels crown.json --html -o report  # weight by business value; exec summary + per-OU + PDF
 pathcutter snapshot export.zip -o baseline.pcsnap  # a reusable baseline (nightly job)

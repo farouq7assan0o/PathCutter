@@ -316,12 +316,18 @@ def _build_start_json(graph: AttackGraph, fixes: list[dict], quality: dict | Non
     for f in findings:
         counts[f.severity] = counts.get(f.severity, 0) + 1
     top = [f for f in findings if f.severity in ("critical", "high")][:5]
+    try:
+        from . import compliance
+        comp = {fw: compliance.rollup(findings)[fw][:5] for fw in ("nist", "cis", "e8")}
+    except Exception:
+        comp = None
     return {
         "fixes": [{"rank": f["rank"], "description": f["description"], "cut": f["paths_eliminated"], "safety": f.get("safety", ""),
                    "pct": f["cumulative_pct"]} for f in fixes[:3]],
         "findings": [{"title": _e(f.title), "severity": f.severity, "total": f.total} for f in top],
         "counts": counts,
         "quality": quality,
+        "compliance": comp,
     }
 
 
@@ -1574,6 +1580,20 @@ function renderStart() {{
     trust.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Exposure is a floor for anything the collection missed. `pathcutter doctor` lists every gap.'));
   }} else trust.appendChild(el('div', 'font-size:0.8rem;color:var(--text-dim)', 'Run `pathcutter doctor` on the export to see what the collection is missing.'));
   grid.appendChild(trust);
+
+  const comp = startData.compliance;
+  if (comp && ((comp.nist || []).length || (comp.cis || []).length || (comp.e8 || []).length)) {{
+    const names = {{nist: 'NIST 800-53 Rev5', cis: 'CIS Controls v8', e8: 'Essential Eight'}};
+    const cc = col('Compliance');
+    ['nist', 'cis', 'e8'].forEach(fw => {{
+      const rows = comp[fw] || [];
+      if (!rows.length) return;
+      cc.appendChild(el('div', 'font-weight:600;font-size:0.78rem;margin-top:6px', names[fw]));
+      rows.slice(0, 4).forEach(r => cc.appendChild(el('div', 'font-size:0.76rem;color:var(--text-dim)', r.control + '  (' + r.count + ')')));
+    }});
+    cc.appendChild(el('div', 'font-size:0.72rem;color:var(--text-dim);margin-top:6px', 'Findings mapped to controls auditors use. `pathcutter audit --compliance` for the full rollup.'));
+    grid.appendChild(cc);
+  }}
 
   if (startData.by_ou && startData.by_ou.length) {{
     const dept = col('Risk by department (OU)');

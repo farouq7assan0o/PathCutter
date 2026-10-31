@@ -484,6 +484,7 @@ def add_parsers(sub) -> None:
     au.add_argument("--json", action="store_true")
     au.add_argument("--fail-on", choices=["low", "medium", "high", "critical"], help="exit 2 if a finding at or above this severity exists")
     au.add_argument("--accept", metavar="FILE", help="Risk-acceptance JSON: accepted findings are labelled and left out of --fail-on until they expire")
+    au.add_argument("--compliance", action="store_true", help="Also print a compliance rollup (NIST 800-53, CIS v8, Essential Eight) mapping findings to controls")
     a = sub.add_parser("anonymize", help="Make a shareable copy of your export (pseudonyms, no free text), same attack paths")
     a.add_argument("input", help="SharpHound ZIP or directory")
     a.add_argument("-o", "--output", default="anonymized.zip", help="Output ZIP (default ./anonymized.zip)")
@@ -515,9 +516,11 @@ def cmd_audit(args) -> int:
         return 1
     findings = audit(graph)
     from .trend import sla_due
+    from . import compliance
     collected = graph.meta.get("collected")
     for f in findings:                                    # attach the remediation SLA window from severity
         f.sla = sla_due(f.severity, collected)
+    compliance.tag(findings)                              # attach control references per framework
     if getattr(args, "accept", None):
         from . import acceptance
         try:
@@ -530,6 +533,8 @@ def cmd_audit(args) -> int:
         print(json.dumps([f.to_dict() for f in shown], indent=2))
     else:
         print(render(findings, args.min_severity))
+        if getattr(args, "compliance", False):
+            print(compliance.render(shown))
     if args.fail_on:
         from .acceptance import is_live
         floor = SEVERITIES.index(args.fail_on)

@@ -9,6 +9,12 @@ PIM activation policy, CI/CD-to-cloud, Shadow Tier 0, and the modern BloodHound 
 rights, the v7.4 trust split). Ships as a pip package and a Docker image with a trusted-publishing release workflow.
 
 ### Added
+- **Compliance / framework mapping** (`compliance.py`, `audit --compliance` and the HTML overview): every audit finding
+  now carries, alongside its MITRE technique, the controls it bears on across **NIST SP 800-53 Rev5**, **CIS Controls v8**,
+  the **ASD Essential Eight** and a **DISA STIG** requirement theme, and `audit --compliance` prints a per-framework
+  rollup. For regulated buyers (government, defence, healthcare, universities) this reads PathCutter in the auditor's
+  language. Identifiers are chosen to be stable (precise NIST IDs, top-level CIS controls, E8 strategy names, STIG theme
+  not a version-specific V-ID); it points at the control, it is not an attestation.
 - **Two derived views** (`toprisk.py`, in `analyze` and the HTML overview): a **protect-first leaderboard** - the
   non-Tier-0 actors whose compromise reaches the most Tier 0, so there is a short proactive "protect these first" list -
   and **silent blind spots**, the intersection of paths that are neither cut by the prioritised fixes nor detectable with

@@ -32,11 +32,12 @@ class HygieneFinding:
     total: int = 0
     accepted: dict | None = None     # a declared risk acceptance (see acceptance.py): {reason, owner, expires, status}
     sla: dict | None = None          # remediation window from severity (see trend.sla_due): {days, due}
+    compliance: dict | None = None   # control refs per framework (see compliance.py): {nist, cis, e8, stig}
 
     def to_dict(self) -> dict:
         return {"rule": self.rule, "title": self.title, "severity": self.severity, "why": self.why, "fix": self.fix,
                 "mitre": self.mitre, "total": self.total, "objects": self.objects,
-                "accepted": self.accepted, "sla": self.sla}
+                "accepted": self.accepted, "sla": self.sla, "compliance": self.compliance}
 
 
 class Context:
